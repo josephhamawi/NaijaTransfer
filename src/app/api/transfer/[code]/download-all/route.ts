@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateDownloadAccess, incrementDownloadCount } from "@/services/transfer.service";
-import { streamZipDownload } from "@/services/file.service";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   try {
     const { code } = await params;
     const password = request.headers.get("x-transfer-password") ?? undefined;
+
+    // Dynamic imports to avoid build-time analysis
+    const { validateDownloadAccess, incrementDownloadCount } = await import("@/services/transfer.service");
+    const { streamZipDownload } = await import("@/services/file.service");
 
     const access = await validateDownloadAccess(code, password);
     if (!access.valid || !access.transfer) {
@@ -32,7 +37,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return new NextResponse(readable, {
       headers: {
         "Content-Type": "application/zip",
-        "Content-Disposition": `attachment; filename="NigeriaTransfer-${code}.zip"`,
+        "Content-Disposition": `attachment; filename="NaijaTransfer-${code}.zip"`,
       },
     });
   } catch (error) {
@@ -40,5 +45,3 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "Download failed" } }, { status: 500 });
   }
 }
-
-export const dynamic = "force-dynamic";
