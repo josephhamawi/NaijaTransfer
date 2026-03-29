@@ -40,7 +40,11 @@ export default function Header({
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0" aria-label="NaijaTransfer home">
           <div className="w-8 h-8 rounded-lg bg-nigerian-green flex items-center justify-center">
-            <span className="text-white font-bold text-sm">NT</span>
+            <svg width="20" height="20" viewBox="0 0 512 512" fill="none" aria-hidden="true">
+              <path d="M256 120 L256 320" stroke="white" strokeWidth="40" strokeLinecap="round"/>
+              <path d="M176 200 L256 120 L336 200" stroke="white" strokeWidth="40" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M136 380 L376 380" stroke="white" strokeWidth="40" strokeLinecap="round"/>
+            </svg>
           </div>
           <span className="text-white font-bold text-lg hidden sm:inline">
             Naija<span className="text-nigerian-green">Transfer</span>
