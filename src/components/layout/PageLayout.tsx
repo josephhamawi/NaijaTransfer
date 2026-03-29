@@ -51,10 +51,7 @@ export default function PageLayout({
 
       {/* Header */}
       {showHeader && (
-        <Header
-          isAuthenticated={isAuthenticated}
-          userName={userName}
-        />
+        <Header />
       )}
 
       {/* Main content */}

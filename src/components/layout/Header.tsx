@@ -2,21 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSession, signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
 
 export interface HeaderProps {
-  isAuthenticated?: boolean;
-  userName?: string;
   className?: string;
 }
 
-export default function Header({
-  isAuthenticated = false,
-  userName,
-  className,
-}: HeaderProps) {
+export default function Header({ className }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { data: session } = useSession();
+  const isAuthenticated = !!session?.user;
+  const userName = session?.user?.name;
 
   return (
     <header className={cn("fixed top-0 left-0 right-0 z-50 p-3", className)}>
@@ -66,14 +64,22 @@ export default function Header({
           {/* Sign In — desktop */}
           <div className="hidden md:block">
             {isAuthenticated ? (
-              <Link
-                href="/dashboard"
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-white/80 hover:text-white transition-colors"
-              >
-                <span className="w-7 h-7 rounded-full bg-nigerian-green text-white flex items-center justify-center text-xs font-bold">
-                  {userName?.[0]?.toUpperCase() || "U"}
-                </span>
-              </Link>
+              <div className="flex items-center gap-1">
+                <Link
+                  href="/dashboard"
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-white/80 hover:text-white transition-colors"
+                >
+                  <span className="w-7 h-7 rounded-full bg-nigerian-green text-white flex items-center justify-center text-xs font-bold">
+                    {userName?.[0]?.toUpperCase() || "U"}
+                  </span>
+                </Link>
+                <button
+                  onClick={() => signOut({ callbackUrl: "/" })}
+                  className="px-3 py-2 rounded-xl text-xs text-white/50 hover:text-white/80 transition-colors"
+                >
+                  Sign Out
+                </button>
+              </div>
             ) : (
               <Link
                 href="/login"
