@@ -1,6 +1,6 @@
 "use client";
 
-import { SessionProvider } from "next-auth/react";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { LightweightModeProvider } from "@/contexts/LightweightContext";
 import { ToastProvider } from "@/contexts/ToastContext";
@@ -8,7 +8,7 @@ import { ToastContainer } from "@/components/ui/Toast";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <SessionProvider>
+    <AuthProvider>
       <ThemeProvider>
         <LightweightModeProvider>
           <ToastProvider>
@@ -17,6 +17,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
           </ToastProvider>
         </LightweightModeProvider>
       </ThemeProvider>
-    </SessionProvider>
+    </AuthProvider>
   );
 }

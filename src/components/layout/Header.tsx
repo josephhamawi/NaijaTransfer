@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useSession, signOut } from "next-auth/react";
+import { useAuth } from "@/contexts/AuthContext";
+import { signOut } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -12,9 +13,9 @@ export interface HeaderProps {
 
 export default function Header({ className }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { data: session } = useSession();
-  const isAuthenticated = !!session?.user;
-  const userName = session?.user?.name;
+  const { user } = useAuth();
+  const isAuthenticated = !!user;
+  const userName = user?.displayName;
 
   return (
     <header className={cn("fixed top-0 left-0 right-0 z-50 p-3", className)}>
@@ -74,7 +75,7 @@ export default function Header({ className }: HeaderProps) {
                   </span>
                 </Link>
                 <button
-                  onClick={() => signOut({ callbackUrl: "/" })}
+                  onClick={() => signOut()}
                   className="px-3 py-2 rounded-xl text-xs text-white/50 hover:text-white/80 transition-colors"
                 >
                   Sign Out
