@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import PageLayout from "@/components/layout/PageLayout";
 
 export const metadata: Metadata = {
   title: "API Documentation",
@@ -7,9 +8,11 @@ export const metadata: Metadata = {
 
 export default function ApiDocsPage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4">
-      <h1 className="mb-4 text-3xl font-bold">API Documentation</h1>
-      <p className="text-gray-500">API docs coming in Epic 8...</p>
-    </main>
+    <PageLayout>
+      <div className="max-w-3xl mx-auto px-4 pt-24 pb-16 text-center">
+        <h1 className="text-display font-bold mb-4">API Documentation</h1>
+        <p className="text-body text-[var(--text-secondary)]">API docs coming in Epic 8...</p>
+      </div>
+    </PageLayout>
   );
 }

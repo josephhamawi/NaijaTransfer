@@ -156,7 +156,7 @@ export default function DownloadPage() {
 
   return (
     <PageLayout showWallpaper>
-      <div className="flex items-center justify-center min-h-screen px-4 py-8">
+      <div className="flex items-center justify-center min-h-screen px-4 pt-24 pb-8">
         <div className="w-full max-w-lg space-y-4">
           <Card frosted elevation="xl" padding="lg">
             {/* Header */}

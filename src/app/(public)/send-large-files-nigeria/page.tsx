@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function SEOLandingPage() {
   return (
     <PageLayout>
-      <div className="max-w-3xl mx-auto px-4 py-16">
+      <div className="max-w-3xl mx-auto px-4 pt-24 pb-16">
         <h1 className="text-display font-bold mb-4">Send Large Files in Nigeria — Free</h1>
         <p className="text-body text-[var(--text-secondary)] mb-8">
           NigeriaTransfer lets you send files up to 4 GB for free, with no account required. Built specifically for Nigerian internet — uploads resume when your connection drops, and you can share via WhatsApp with one tap.

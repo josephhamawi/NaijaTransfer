@@ -54,9 +54,9 @@ const iconsByType: Record<NotificationType, React.ReactNode> = {
 };
 
 const typeClasses: Record<NotificationType, string> = {
-  success: "text-nigerian-green border-nigerian-green/30 bg-green-50 dark:bg-green-900/20",
-  error: "text-error-red border-error-red/30 bg-red-50 dark:bg-[var(--error-bg)]",
-  info: "text-[#3b82f6] border-[#3b82f6]/30 bg-[#eff6ff] dark:bg-[#1e293b]",
+  success: "text-nigerian-green border-nigerian-green/30 bg-green-50 dark:bg-nigerian-green/10",
+  error: "text-error-red border-error-red/30 bg-[var(--error-bg)]",
+  info: "text-[#3b82f6] border-[#3b82f6]/30 bg-[#eff6ff] dark:bg-[#3b82f6]/10",
   warning: "text-gold-600 border-gold/30 bg-gold-100 dark:bg-[var(--gold-bg)]",
 };
 

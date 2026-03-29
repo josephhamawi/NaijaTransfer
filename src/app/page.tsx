@@ -236,7 +236,7 @@ export default function HomePage() {
 
           {/* Error state */}
           {uploadState === "error" && (
-            <div className="mt-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-error-red text-body-sm">
+            <div className="mt-4 p-3 rounded-lg bg-[var(--error-bg)] text-error-red text-body-sm">
               {errorMsg || "Something went wrong. Please try again."}
               <Button variant="outline" size="sm" className="mt-2" onClick={() => setUploadState("idle")}>
                 Try again
@@ -272,7 +272,7 @@ export default function HomePage() {
         {uploadState === "success" && transferResult && (
           <Card frosted elevation="xl" padding="lg" className="w-full max-w-[480px] mt-4">
             <div className="text-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-green-50 dark:bg-green-900/20 flex items-center justify-center mx-auto mb-3">
+              <div className="w-16 h-16 rounded-full bg-nigerian-green/15 flex items-center justify-center mx-auto mb-3">
                 <svg className="w-8 h-8 text-nigerian-green" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
@@ -325,10 +325,10 @@ export default function HomePage() {
       </div>
 
       {/* Below-fold content */}
-      <div className="relative z-10 bg-[var(--bg-primary)] border-t border-[var(--border-color)]">
+      <div className="relative z-10 bg-charcoal-800 text-white border-t border-white/10">
         {/* How it works */}
         <section className="max-w-4xl mx-auto px-4 py-16">
-          <h2 className="text-h1 text-center mb-10">How it works</h2>
+          <h2 className="text-h1 text-center mb-10 text-white">How it works</h2>
           <div className="grid gap-8 sm:grid-cols-3">
             <HowItWorksStep
               icon={
@@ -366,9 +366,9 @@ export default function HomePage() {
         </section>
 
         {/* Why NigeriaTransfer */}
-        <section className="bg-[var(--bg-secondary)] py-16">
+        <section className="bg-charcoal-600/50 py-16">
           <div className="max-w-4xl mx-auto px-4">
-            <h2 className="text-h1 text-center mb-10">
+            <h2 className="text-h1 text-center mb-10 text-white">
               Why NigeriaTransfer?
             </h2>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -402,16 +402,16 @@ export default function HomePage() {
 
         {/* For Business CTA */}
         <section className="max-w-4xl mx-auto px-4 py-16 text-center">
-          <Card padding="lg" elevation="md" className="max-w-lg mx-auto">
-            <h2 className="text-h2 mb-2">For Businesses</h2>
-            <p className="text-body-sm text-[var(--text-secondary)] mb-6">
+          <div className="max-w-lg mx-auto p-6 md:p-8 rounded-[var(--radius-lg)] border border-white/10 bg-white/5 backdrop-blur-sm shadow-lg">
+            <h2 className="text-h2 mb-2 text-white">For Businesses</h2>
+            <p className="text-body-sm text-white/60 mb-6">
               Custom branding, 50 GB transfers, API access, and priority
               support. From NGN 10,000/month.
             </p>
             <Button variant="gold" size="lg">
               Learn more
             </Button>
-          </Card>
+          </div>
         </section>
       </div>
     </PageLayout>
@@ -429,11 +429,11 @@ function HowItWorksStep({
 }) {
   return (
     <div className="text-center">
-      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-50 dark:bg-green-900/20 mb-4">
+      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-nigerian-green/15 mb-4">
         {icon}
       </div>
-      <h3 className="text-h3 mb-2">{title}</h3>
-      <p className="text-body-sm text-[var(--text-secondary)]">{description}</p>
+      <h3 className="text-h3 mb-2 text-white">{title}</h3>
+      <p className="text-body-sm text-white/60">{description}</p>
     </div>
   );
 }
@@ -467,10 +467,10 @@ function TrustSignal({
         </svg>
       </div>
       <div>
-        <h3 className="text-body font-semibold text-[var(--text-primary)]">
+        <h3 className="text-body font-semibold text-white">
           {title}
         </h3>
-        <p className="text-body-sm text-[var(--text-secondary)]">
+        <p className="text-body-sm text-white/60">
           {description}
         </p>
       </div>

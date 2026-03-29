@@ -72,10 +72,10 @@ export default function LoginPage() {
                 <path d="M136 380 L376 380" stroke="white" strokeWidth="40" strokeLinecap="round"/>
               </svg>
             </div>
-            <h1 className="text-xl font-bold text-[var(--text-primary)]">
+            <h1 className="text-h2 font-bold text-[var(--text-primary)]">
               {isSignUp ? "Create account" : "Welcome back"}
             </h1>
-            <p className="text-sm text-[var(--text-secondary)] mt-1">
+            <p className="text-body-sm text-[var(--text-secondary)] mt-1">
               {isSignUp ? "Sign up to manage your transfers" : "Sign in to manage your transfers"}
             </p>
           </div>
@@ -119,7 +119,7 @@ export default function LoginPage() {
               />
 
               {error && (
-                <p className="text-sm text-error-red bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>
+                <p className="text-body-sm text-error-red bg-[var(--error-bg)] px-3 py-2 rounded-lg">{error}</p>
               )}
 
               <Button variant="primary" size="lg" fullWidth type="submit" loading={loading}>

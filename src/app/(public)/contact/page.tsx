@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default function ContactPage() {
   return (
     <PageLayout>
-      <div className="max-w-2xl mx-auto px-4 py-16">
+      <div className="max-w-2xl mx-auto px-4 pt-24 pb-16">
         <h1 className="text-display font-bold mb-3 text-center">Contact Us</h1>
         <p className="text-body text-[var(--text-secondary)] text-center mb-8">
           Have a question, partnership inquiry, or feedback? We&apos;d love to hear from you.

@@ -86,7 +86,7 @@ const faqs = [
 export default function PricingPage() {
   return (
     <PageLayout>
-      <div className="max-w-5xl mx-auto px-4 py-16">
+      <div className="max-w-5xl mx-auto px-4 pt-24 pb-16">
         <div className="text-center mb-12">
           <h1 className="text-display font-bold mb-3">Simple pricing. Naira only.</h1>
           <p className="text-body text-[var(--text-secondary)] max-w-xl mx-auto">
@@ -98,7 +98,7 @@ export default function PricingPage() {
         <div className="grid gap-6 md:grid-cols-3">
           {plans.map((plan) => (
             <Card key={plan.name} elevation={plan.badge ? "lg" : "md"} padding="lg"
-              className={plan.badge ? "ring-2 ring-nigerian-green relative" : ""}>
+              className={plan.badge ? "ring-2 ring-nigerian-green relative md:scale-105 md:z-10" : ""}>
               {plan.badge && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <Badge variant="pro">{plan.badge}</Badge>
