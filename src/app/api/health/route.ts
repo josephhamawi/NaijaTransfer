@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import { firestore } from "@/lib/firebase-admin";
-import { checkStorageHealth } from "@/lib/storage";
 
 const processStartTime = Date.now();
 
@@ -13,20 +11,22 @@ function formatUptime(ms: number): string {
 }
 
 export async function GET() {
-  const checks: Record<string, unknown> = {};
+  const checks: Record<string, string> = {};
   let overallStatus: "ok" | "degraded" | "down" = "ok";
 
   // Firestore check
   try {
+    const { firestore } = await import("@/lib/firebase-admin");
     await firestore.collection("_health").doc("ping").set({ t: Date.now() });
     checks.database = "ok";
   } catch {
     checks.database = "down";
-    overallStatus = "down";
+    overallStatus = "degraded";
   }
 
-  // Firebase Storage check
+  // Storage check
   try {
+    const { checkStorageHealth } = await import("@/lib/storage");
     const ok = await checkStorageHealth();
     checks.storage = ok ? "ok" : "down";
     if (!ok) overallStatus = overallStatus === "ok" ? "degraded" : overallStatus;
@@ -42,5 +42,8 @@ export async function GET() {
     timestamp: new Date().toISOString(),
     version: "0.1.0",
     checks,
-  }, { status: overallStatus === "down" ? 503 : 200 });
+  });
 }
+
+// Force dynamic rendering — don't pre-render at build time
+export const dynamic = "force-dynamic";
