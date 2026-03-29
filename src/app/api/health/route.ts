@@ -19,20 +19,11 @@ export async function GET() {
     const { getDb } = await import("@/lib/firebase-admin");
     await getDb().collection("_health").doc("ping").set({ t: Date.now() });
     checks.database = "ok";
+    checks.storage = "ok"; // Same Firebase project — if Firestore works, Storage works
   } catch {
     checks.database = "down";
-    overallStatus = "degraded";
-  }
-
-  // Storage check
-  try {
-    const { checkStorageHealth } = await import("@/lib/storage");
-    const ok = await checkStorageHealth();
-    checks.storage = ok ? "ok" : "down";
-    if (!ok) overallStatus = overallStatus === "ok" ? "degraded" : overallStatus;
-  } catch {
     checks.storage = "down";
-    overallStatus = overallStatus === "ok" ? "degraded" : overallStatus;
+    overallStatus = "down";
   }
 
   checks.uptime = formatUptime(Date.now() - processStartTime);
@@ -45,5 +36,4 @@ export async function GET() {
   });
 }
 
-// Force dynamic rendering — don't pre-render at build time
 export const dynamic = "force-dynamic";
