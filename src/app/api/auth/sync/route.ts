@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { collections } from "@/lib/firebase-admin";
+import { collection } from "@/lib/firebase-admin";
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing uid or email" }, { status: 400 });
     }
 
-    const userRef = collections.users.doc(uid);
+    const userRef = collection("users").doc(uid);
     const userDoc = await userRef.get();
 
     if (userDoc.exists) {

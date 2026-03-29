@@ -1,4 +1,4 @@
-import { collections, firestore } from "@/lib/firebase-admin";
+import { getDb, collection } from "@/lib/firebase-admin";
 import { generateShortCode } from "@/lib/nanoid";
 import { getTierLimits } from "@/lib/tier-limits";
 import { deleteByPrefix } from "@/lib/storage";
@@ -70,7 +70,7 @@ export async function createTransfer(input: CreateTransferInput): Promise<Transf
   }
 
   const shortCode = await generateShortCode();
-  const ref = collections.transfers.doc();
+  const ref = collection("transfers").doc();
 
   const transfer: Omit<TransferDoc, "id" | "files"> = {
     shortCode,
@@ -95,7 +95,7 @@ export async function createTransfer(input: CreateTransferInput): Promise<Transf
 }
 
 export async function getTransferByCode(shortCode: string): Promise<TransferDoc | null> {
-  const snap = await collections.transfers.where("shortCode", "==", shortCode).limit(1).get();
+  const snap = await collection("transfers").where("shortCode", "==", shortCode).limit(1).get();
   if (snap.empty) return null;
 
   const doc = snap.docs[0];
@@ -116,7 +116,7 @@ export async function getTransferByCode(shortCode: string): Promise<TransferDoc 
 }
 
 export async function deleteTransfer(transferId: string, userId: string): Promise<boolean> {
-  const ref = collections.transfers.doc(transferId);
+  const ref = collection("transfers").doc(transferId);
   const doc = await ref.get();
   if (!doc.exists || doc.data()?.userId !== userId) return false;
 
@@ -124,7 +124,7 @@ export async function deleteTransfer(transferId: string, userId: string): Promis
 
   // Delete files subcollection
   const filesSnap = await ref.collection("files").get();
-  const batch = firestore.batch();
+  const batch = getDb().batch();
   filesSnap.docs.forEach((f) => batch.delete(f.ref));
   batch.delete(ref);
   await batch.commit();
@@ -156,7 +156,7 @@ export async function incrementDownloadCount(
   userAgent: string,
   fileId?: string
 ): Promise<boolean> {
-  const ref = collections.transfers.doc(transferId);
+  const ref = collection("transfers").doc(transferId);
   const doc = await ref.get();
   if (!doc.exists) return false;
 
@@ -168,7 +168,7 @@ export async function incrementDownloadCount(
   });
 
   // Log download
-  await firestore.collection("downloadLogs").add({
+  await getDb().collection("downloadLogs").add({
     transferId,
     fileId: fileId ?? null,
     ipHash: Buffer.from(ip).toString("base64").slice(0, 20),
@@ -184,7 +184,7 @@ export async function getUserTransfers(
   page: number = 1,
   limit: number = 20
 ): Promise<{ transfers: TransferDoc[]; total: number }> {
-  const query = collections.transfers
+  const query = collection("transfers")
     .where("userId", "==", userId)
     .where("status", "!=", "DELETED")
     .orderBy("createdAt", "desc");
@@ -210,7 +210,7 @@ export async function updateTransferSettings(
   userId: string,
   data: { expiryDays?: number; downloadLimit?: number; password?: string | null }
 ): Promise<TransferDoc | null> {
-  const ref = collections.transfers.doc(transferId);
+  const ref = collection("transfers").doc(transferId);
   const doc = await ref.get();
   if (!doc.exists || doc.data()?.userId !== userId) return null;
 
@@ -238,7 +238,7 @@ export async function checkDailyTransferLimit(userId: string, tier: UserTier): P
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
-  const snap = await collections.transfers
+  const snap = await collection("transfers")
     .where("userId", "==", userId)
     .where("createdAt", ">=", startOfDay)
     .count()

@@ -1,4 +1,4 @@
-import { collections } from "@/lib/firebase-admin";
+import { collection } from "@/lib/firebase-admin";
 import { uploadFile, deleteFile, getDownloadUrl, getFileStream } from "@/lib/storage";
 import archiver from "archiver";
 import type { FileDoc } from "./transfer.service";
@@ -13,7 +13,7 @@ export async function createFile(
     storageKey: string;
   }
 ): Promise<FileDoc> {
-  const ref = collections.transfers.doc(transferId).collection("files").doc();
+  const ref = collection("transfers").doc(transferId).collection("files").doc();
 
   const file: Omit<FileDoc, "id"> = {
     transferId,
@@ -29,21 +29,21 @@ export async function createFile(
   await ref.set(file);
 
   // Update transfer total size
-  const filesSnap = await collections.transfers.doc(transferId).collection("files").get();
+  const filesSnap = await collection("transfers").doc(transferId).collection("files").get();
   const totalSize = filesSnap.docs.reduce((sum, d) => sum + (d.data().sizeBytes || 0), 0);
-  await collections.transfers.doc(transferId).update({ totalSizeBytes: totalSize });
+  await collection("transfers").doc(transferId).update({ totalSizeBytes: totalSize });
 
   return { ...file, id: ref.id };
 }
 
 export async function getFileById(transferId: string, fileId: string): Promise<FileDoc | null> {
-  const doc = await collections.transfers.doc(transferId).collection("files").doc(fileId).get();
+  const doc = await collection("transfers").doc(transferId).collection("files").doc(fileId).get();
   if (!doc.exists) return null;
   return { id: doc.id, ...doc.data() } as FileDoc;
 }
 
 export async function getTransferFiles(transferId: string): Promise<FileDoc[]> {
-  const snap = await collections.transfers.doc(transferId).collection("files").orderBy("createdAt").get();
+  const snap = await collection("transfers").doc(transferId).collection("files").orderBy("createdAt").get();
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as FileDoc));
 }
 

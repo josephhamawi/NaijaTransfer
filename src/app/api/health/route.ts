@@ -16,8 +16,8 @@ export async function GET() {
 
   // Firestore check
   try {
-    const { firestore } = await import("@/lib/firebase-admin");
-    await firestore.collection("_health").doc("ping").set({ t: Date.now() });
+    const { getDb } = await import("@/lib/firebase-admin");
+    await getDb().collection("_health").doc("ping").set({ t: Date.now() });
     checks.database = "ok";
   } catch {
     checks.database = "down";
