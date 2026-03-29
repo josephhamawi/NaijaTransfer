@@ -52,3 +52,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "Failed to create transfer" } }, { status: 500 });
   }
 }
+
+export const dynamic = "force-dynamic";

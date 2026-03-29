@@ -28,3 +28,5 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "Preview failed" } }, { status: 500 });
   }
 }
+
+export const dynamic = "force-dynamic";

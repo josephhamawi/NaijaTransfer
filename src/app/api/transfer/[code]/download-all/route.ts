@@ -40,3 +40,5 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "Download failed" } }, { status: 500 });
   }
 }
+
+export const dynamic = "force-dynamic";

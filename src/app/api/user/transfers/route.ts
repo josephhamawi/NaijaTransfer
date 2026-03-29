@@ -37,3 +37,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "Failed to fetch transfers" } }, { status: 500 });
   }
 }
+
+export const dynamic = "force-dynamic";

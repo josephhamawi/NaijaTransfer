@@ -25,3 +25,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "Verification failed" } }, { status: 500 });
   }
 }
+
+export const dynamic = "force-dynamic";
