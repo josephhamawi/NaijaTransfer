@@ -1,67 +1,58 @@
-import { db } from "@/lib/db";
-import { uploadToR2, deleteFromR2, getPresignedDownloadUrl, getR2Client } from "@/lib/r2";
-import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { Readable } from "stream";
+import { collections } from "@/lib/firebase-admin";
+import { uploadFile, deleteFile, getDownloadUrl, getFileStream } from "@/lib/storage";
 import archiver from "archiver";
-import type { File as PrismaFile } from "@prisma/client";
-
-export async function getTransferFiles(transferId: string): Promise<PrismaFile[]> {
-  return db.file.findMany({
-    where: { transferId },
-    orderBy: { createdAt: "asc" },
-  });
-}
+import type { FileDoc } from "./transfer.service";
 
 export async function createFile(
   transferId: string,
   data: {
     filename: string;
     originalName: string;
-    sizeBytes: number | bigint;
+    sizeBytes: number;
     mimeType: string;
-    r2Key: string;
-    checksum?: string;
+    storageKey: string;
   }
-): Promise<PrismaFile> {
-  const file = await db.file.create({
-    data: {
-      transferId,
-      filename: data.filename,
-      originalName: data.originalName,
-      sizeBytes: BigInt(data.sizeBytes),
-      mimeType: data.mimeType,
-      r2Key: data.r2Key,
-      checksum: data.checksum ?? null,
-    },
-  });
+): Promise<FileDoc> {
+  const ref = collections.transfers.doc(transferId).collection("files").doc();
+
+  const file: Omit<FileDoc, "id"> = {
+    transferId,
+    filename: data.filename,
+    originalName: data.originalName,
+    sizeBytes: data.sizeBytes,
+    mimeType: data.mimeType,
+    storageKey: data.storageKey,
+    previewKey: null,
+    createdAt: new Date(),
+  };
+
+  await ref.set(file);
 
   // Update transfer total size
-  const totalSize = await db.file.aggregate({
-    where: { transferId },
-    _sum: { sizeBytes: true },
-  });
+  const filesSnap = await collections.transfers.doc(transferId).collection("files").get();
+  const totalSize = filesSnap.docs.reduce((sum, d) => sum + (d.data().sizeBytes || 0), 0);
+  await collections.transfers.doc(transferId).update({ totalSizeBytes: totalSize });
 
-  await db.transfer.update({
-    where: { id: transferId },
-    data: { totalSizeBytes: totalSize._sum.sizeBytes ?? 0 },
-  });
-
-  return file;
+  return { ...file, id: ref.id };
 }
 
-export async function getFileById(fileId: string): Promise<PrismaFile | null> {
-  return db.file.findUnique({ where: { id: fileId } });
+export async function getFileById(transferId: string, fileId: string): Promise<FileDoc | null> {
+  const doc = await collections.transfers.doc(transferId).collection("files").doc(fileId).get();
+  if (!doc.exists) return null;
+  return { id: doc.id, ...doc.data() } as FileDoc;
+}
+
+export async function getTransferFiles(transferId: string): Promise<FileDoc[]> {
+  const snap = await collections.transfers.doc(transferId).collection("files").orderBy("createdAt").get();
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as FileDoc));
 }
 
 export async function getFileDownloadUrl(
-  fileId: string,
-  expiresIn: number = 300
-): Promise<{ url: string; filename: string } | null> {
-  const file = await db.file.findUnique({ where: { id: fileId } });
-  if (!file) return null;
-
-  const url = await getPresignedDownloadUrl(file.r2Key, expiresIn, file.originalName);
-  return { url, filename: file.originalName };
+  storageKey: string,
+  originalName: string,
+  expiresInMs: number = 5 * 60 * 1000
+): Promise<string> {
+  return getDownloadUrl(storageKey, expiresInMs, originalName);
 }
 
 export async function streamZipDownload(
@@ -70,23 +61,13 @@ export async function streamZipDownload(
   const files = await getTransferFiles(transferId);
   if (files.length === 0) return null;
 
-  const archive = archiver("zip", { zlib: { level: 1 } }); // fast compression
-  const client = getR2Client();
-
+  const archive = archiver("zip", { zlib: { level: 1 } });
   let totalSize = 0;
-  for (const file of files) {
-    totalSize += Number(file.sizeBytes);
-    const response = await client.send(
-      new GetObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME,
-        Key: file.r2Key,
-      })
-    );
 
-    if (response.Body) {
-      const stream = response.Body as Readable;
-      archive.append(stream, { name: file.originalName });
-    }
+  for (const file of files) {
+    totalSize += file.sizeBytes;
+    const stream = getFileStream(file.storageKey);
+    archive.append(stream, { name: file.originalName });
   }
 
   archive.finalize();
@@ -96,62 +77,23 @@ export async function streamZipDownload(
 export async function deleteTransferFiles(transferId: string): Promise<number> {
   const files = await getTransferFiles(transferId);
   let deleted = 0;
-
   for (const file of files) {
     try {
-      await deleteFromR2(file.r2Key);
+      await deleteFile(file.storageKey);
       deleted++;
     } catch {
-      console.error(`Failed to delete R2 object: ${file.r2Key}`);
+      console.error(`Failed to delete storage: ${file.storageKey}`);
     }
   }
-
-  await db.file.deleteMany({ where: { transferId } });
   return deleted;
 }
 
 export async function generateThumbnail(
-  r2Key: string,
+  storageKey: string,
   mimeType: string
 ): Promise<string | null> {
   if (!mimeType.startsWith("image/")) return null;
-
-  try {
-    const sharp = (await import("sharp")).default;
-    const client = getR2Client();
-
-    const response = await client.send(
-      new GetObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME,
-        Key: r2Key,
-      })
-    );
-
-    if (!response.Body) return null;
-
-    const chunks: Uint8Array[] = [];
-    const stream = response.Body as Readable;
-    for await (const chunk of stream) {
-      chunks.push(chunk as Uint8Array);
-    }
-    const buffer = Buffer.concat(chunks);
-
-    const thumbnail = await sharp(buffer)
-      .resize(400, 400, { fit: "inside", withoutEnlargement: true })
-      .jpeg({ quality: 70 })
-      .toBuffer();
-
-    const previewKey = r2Key.replace(/^transfers\//, "previews/") + ".preview.jpg";
-    await uploadToR2(previewKey, thumbnail, "image/jpeg");
-
-    await db.file.updateMany({
-      where: { r2Key },
-      data: { r2PreviewKey: previewKey },
-    });
-
-    return previewKey;
-  } catch (error) {
-    console.error("Thumbnail generation failed:", error);
-    return null;
-  }
+  // TODO: Implement thumbnail generation with sharp
+  // For now, return null — previews will show file type icons
+  return null;
 }

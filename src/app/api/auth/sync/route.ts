@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { collections } from "@/lib/firebase-admin";
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,28 +10,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing uid or email" }, { status: 400 });
     }
 
-    // Upsert user — create if new, update if exists
-    const user = await db.user.upsert({
-      where: { email },
-      update: {
-        name: name || undefined,
-        image: image || undefined,
-      },
-      create: {
-        id: uid,
+    const userRef = collections.users.doc(uid);
+    const userDoc = await userRef.get();
+
+    if (userDoc.exists) {
+      // Update existing user
+      await userRef.update({
+        ...(name && { name }),
+        ...(image && { image }),
+        updatedAt: new Date(),
+      });
+    } else {
+      // Create new user
+      await userRef.set({
         email,
         name: name || email.split("@")[0],
         image: image || null,
         tier: "FREE",
-      },
-    });
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
+
+    const user = (await userRef.get()).data();
 
     return NextResponse.json({
       data: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        tier: user.tier,
+        id: uid,
+        email: user?.email,
+        name: user?.name,
+        tier: user?.tier || "FREE",
       },
     });
   } catch (error) {

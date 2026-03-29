@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTransferByCode } from "@/services/transfer.service";
-import { getFileById } from "@/services/file.service";
-import { getPresignedDownloadUrl } from "@/lib/r2";
+import { getFileById, getFileDownloadUrl } from "@/services/file.service";
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ code: string; fileId: string }> }) {
   try {
@@ -12,17 +11,17 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: { code: "NOT_FOUND", message: "Transfer not found" } }, { status: 404 });
     }
 
-    const file = await getFileById(fileId);
-    if (!file || file.transferId !== transfer.id) {
+    const file = await getFileById(transfer.id, fileId);
+    if (!file) {
       return NextResponse.json({ error: { code: "NOT_FOUND", message: "File not found" } }, { status: 404 });
     }
 
-    const previewKey = file.r2PreviewKey;
+    const previewKey = file.previewKey;
     if (!previewKey) {
       return NextResponse.json({ error: { code: "NO_PREVIEW", message: "No preview available" } }, { status: 404 });
     }
 
-    const url = await getPresignedDownloadUrl(previewKey, 300);
+    const url = await getFileDownloadUrl(previewKey, file.originalName);
     return NextResponse.redirect(url);
   } catch (error) {
     console.error("Preview error:", error);

@@ -28,7 +28,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       senderEmail: transfer.senderEmail ?? undefined,
       transferCode: transfer.shortCode,
       message: transfer.message ?? undefined,
-      fileCount: transfer.files.length,
+      fileCount: (transfer.files ?? []).length,
       totalSize: Number(transfer.totalSizeBytes),
       expiresAt: transfer.expiresAt,
     });

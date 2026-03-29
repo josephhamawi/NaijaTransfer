@@ -28,12 +28,12 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
         createdAt: transfer.createdAt.toISOString(),
         showAds: limits.showAds,
         tier: transfer.tier,
-        files: transfer.files.map((f) => ({
+        files: (transfer.files ?? []).map((f) => ({
           id: f.id,
           name: f.originalName,
           sizeBytes: Number(f.sizeBytes),
           mimeType: f.mimeType,
-          hasPreview: !!f.r2PreviewKey,
+          hasPreview: !!f.previewKey,
         })),
       },
     });

@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
           downloadCount: t.downloadCount,
           downloadLimit: t.downloadLimit,
           totalSizeBytes: Number(t.totalSizeBytes),
-          fileCount: t.files.length,
+          fileCount: (t.files ?? []).length,
           expiresAt: t.expiresAt.toISOString(),
           createdAt: t.createdAt.toISOString(),
         })),

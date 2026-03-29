@@ -1,12 +1,41 @@
-import { db } from "@/lib/db";
-import { deleteByPrefix } from "@/lib/r2";
+import { collections, firestore } from "@/lib/firebase-admin";
 import { generateShortCode } from "@/lib/nanoid";
 import { getTierLimits } from "@/lib/tier-limits";
+import { deleteByPrefix } from "@/lib/storage";
 import bcrypt from "bcryptjs";
-import type { Transfer, Prisma } from "@prisma/client";
 import type { UserTier } from "@/types/enums";
 
-type TransferWithFiles = Prisma.TransferGetPayload<{ include: { files: true } }>;
+export interface TransferDoc {
+  id: string;
+  shortCode: string;
+  userId: string | null;
+  type: "LINK" | "EMAIL";
+  status: string;
+  message: string | null;
+  senderEmail: string | null;
+  recipientEmails: string[];
+  passwordHash: string | null;
+  expiresAt: Date;
+  downloadLimit: number;
+  downloadCount: number;
+  totalSizeBytes: number;
+  tier: string;
+  showAds: boolean;
+  createdAt: Date;
+  files?: FileDoc[];
+}
+
+export interface FileDoc {
+  id: string;
+  transferId: string;
+  filename: string;
+  originalName: string;
+  sizeBytes: number;
+  mimeType: string;
+  storageKey: string;
+  previewKey: string | null;
+  createdAt: Date;
+}
 
 interface CreateTransferInput {
   userId?: string;
@@ -19,15 +48,12 @@ interface CreateTransferInput {
   downloadLimit?: number;
 }
 
-export async function createTransfer(input: CreateTransferInput): Promise<Transfer> {
+export async function createTransfer(input: CreateTransferInput): Promise<TransferDoc> {
   const limits = getTierLimits(input.tier);
 
-  // Check daily limit
   if (input.userId) {
     const canCreate = await checkDailyTransferLimit(input.userId, input.tier);
-    if (!canCreate) {
-      throw new Error("DAILY_LIMIT_REACHED");
-    }
+    if (!canCreate) throw new Error("DAILY_LIMIT_REACHED");
   }
 
   const expiryDays = Math.min(input.expiryDays ?? limits.defaultExpiryDays, limits.maxExpiryDays);
@@ -44,55 +70,64 @@ export async function createTransfer(input: CreateTransferInput): Promise<Transf
   }
 
   const shortCode = await generateShortCode();
+  const ref = collections.transfers.doc();
 
-  return db.transfer.create({
-    data: {
-      shortCode,
-      type: input.recipientEmails?.length ? "EMAIL" : "LINK",
-      status: "ACTIVE",
-      userId: input.userId ?? null,
-      senderEmail: input.senderEmail ?? null,
-      recipientEmails: JSON.stringify(input.recipientEmails ?? []),
-      message: input.message ?? null,
-      passwordHash,
-      downloadLimit,
-      downloadCount: 0,
-      totalSizeBytes: 0,
-      tier: input.tier,
-      expiresAt,
-    },
-  });
+  const transfer: Omit<TransferDoc, "id" | "files"> = {
+    shortCode,
+    userId: input.userId ?? null,
+    type: input.recipientEmails?.length ? "EMAIL" : "LINK",
+    status: "ACTIVE",
+    message: input.message ?? null,
+    senderEmail: input.senderEmail ?? null,
+    recipientEmails: input.recipientEmails ?? [],
+    passwordHash,
+    expiresAt,
+    downloadLimit,
+    downloadCount: 0,
+    totalSizeBytes: 0,
+    tier: input.tier,
+    showAds: limits.showAds,
+    createdAt: new Date(),
+  };
+
+  await ref.set(transfer);
+  return { ...transfer, id: ref.id, files: [] };
 }
 
-export async function getTransferByCode(shortCode: string): Promise<TransferWithFiles | null> {
-  const transfer = await db.transfer.findUnique({
-    where: { shortCode },
-    include: { files: true },
-  });
+export async function getTransferByCode(shortCode: string): Promise<TransferDoc | null> {
+  const snap = await collections.transfers.where("shortCode", "==", shortCode).limit(1).get();
+  if (snap.empty) return null;
 
-  if (!transfer) return null;
+  const doc = snap.docs[0];
+  const data = doc.data();
+  const transfer = docToTransfer(doc.id, data);
+
   if (transfer.status === "DELETED") return null;
   if (transfer.expiresAt < new Date()) {
-    await db.transfer.update({ where: { id: transfer.id }, data: { status: "EXPIRED" } });
+    await doc.ref.update({ status: "EXPIRED" });
     return null;
   }
+
+  // Load files subcollection
+  const filesSnap = await doc.ref.collection("files").orderBy("createdAt").get();
+  transfer.files = filesSnap.docs.map((f) => ({ id: f.id, ...f.data() } as FileDoc));
 
   return transfer;
 }
 
 export async function deleteTransfer(transferId: string, userId: string): Promise<boolean> {
-  const transfer = await db.transfer.findFirst({
-    where: { id: transferId, userId },
-  });
-  if (!transfer) return false;
+  const ref = collections.transfers.doc(transferId);
+  const doc = await ref.get();
+  if (!doc.exists || doc.data()?.userId !== userId) return false;
 
-  // Delete files from R2
   await deleteByPrefix(`transfers/${transferId}/`);
 
-  // Delete DB records
-  await db.file.deleteMany({ where: { transferId } });
-  await db.downloadLog.deleteMany({ where: { transferId } });
-  await db.transfer.delete({ where: { id: transferId } });
+  // Delete files subcollection
+  const filesSnap = await ref.collection("files").get();
+  const batch = firestore.batch();
+  filesSnap.docs.forEach((f) => batch.delete(f.ref));
+  batch.delete(ref);
+  await batch.commit();
 
   return true;
 }
@@ -100,31 +135,18 @@ export async function deleteTransfer(transferId: string, userId: string): Promis
 export async function validateDownloadAccess(
   shortCode: string,
   password?: string
-): Promise<{ valid: boolean; error?: string; transfer?: TransferWithFiles }> {
+): Promise<{ valid: boolean; error?: string; transfer?: TransferDoc }> {
   const transfer = await getTransferByCode(shortCode);
-
-  if (!transfer) {
-    return { valid: false, error: "TRANSFER_NOT_FOUND" };
-  }
-
-  if (transfer.expiresAt < new Date()) {
-    return { valid: false, error: "TRANSFER_EXPIRED" };
-  }
-
+  if (!transfer) return { valid: false, error: "TRANSFER_NOT_FOUND" };
+  if (transfer.expiresAt < new Date()) return { valid: false, error: "TRANSFER_EXPIRED" };
   if (transfer.downloadLimit && transfer.downloadCount >= transfer.downloadLimit) {
     return { valid: false, error: "DOWNLOAD_LIMIT_REACHED" };
   }
-
   if (transfer.passwordHash) {
-    if (!password) {
-      return { valid: false, error: "PASSWORD_REQUIRED" };
-    }
+    if (!password) return { valid: false, error: "PASSWORD_REQUIRED" };
     const match = await bcrypt.compare(password, transfer.passwordHash);
-    if (!match) {
-      return { valid: false, error: "INVALID_PASSWORD" };
-    }
+    if (!match) return { valid: false, error: "INVALID_PASSWORD" };
   }
-
   return { valid: true, transfer };
 }
 
@@ -134,28 +156,25 @@ export async function incrementDownloadCount(
   userAgent: string,
   fileId?: string
 ): Promise<boolean> {
-  const transfer = await db.transfer.findUnique({ where: { id: transferId } });
-  if (!transfer) return false;
+  const ref = collections.transfers.doc(transferId);
+  const doc = await ref.get();
+  if (!doc.exists) return false;
 
-  if (transfer.downloadLimit && transfer.downloadCount >= transfer.downloadLimit) {
-    return false;
-  }
+  const data = doc.data()!;
+  if (data.downloadLimit && data.downloadCount >= data.downloadLimit) return false;
 
-  await db.$transaction([
-    db.transfer.update({
-      where: { id: transferId },
-      data: { downloadCount: { increment: 1 } },
-    }),
-    db.downloadLog.create({
-      data: {
-        transferId,
-        fileId: fileId ?? null,
-        ipHash: Buffer.from(ip).toString("base64").slice(0, 20),
-        userAgent: userAgent.slice(0, 500),
-        country: null,
-      },
-    }),
-  ]);
+  await ref.update({
+    downloadCount: (data.downloadCount || 0) + 1,
+  });
+
+  // Log download
+  await firestore.collection("downloadLogs").add({
+    transferId,
+    fileId: fileId ?? null,
+    ipHash: Buffer.from(ip).toString("base64").slice(0, 20),
+    userAgent: (userAgent || "").slice(0, 500),
+    downloadedAt: new Date(),
+  });
 
   return true;
 }
@@ -164,17 +183,24 @@ export async function getUserTransfers(
   userId: string,
   page: number = 1,
   limit: number = 20
-): Promise<{ transfers: TransferWithFiles[]; total: number }> {
-  const [transfers, total] = await Promise.all([
-    db.transfer.findMany({
-      where: { userId, status: { not: "DELETED" } },
-      include: { files: true },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * limit,
-      take: limit,
-    }),
-    db.transfer.count({ where: { userId, status: { not: "DELETED" } } }),
-  ]);
+): Promise<{ transfers: TransferDoc[]; total: number }> {
+  const query = collections.transfers
+    .where("userId", "==", userId)
+    .where("status", "!=", "DELETED")
+    .orderBy("createdAt", "desc");
+
+  const countSnap = await query.count().get();
+  const total = countSnap.data().count;
+
+  const snap = await query.offset((page - 1) * limit).limit(limit).get();
+  const transfers: TransferDoc[] = [];
+
+  for (const doc of snap.docs) {
+    const t = docToTransfer(doc.id, doc.data());
+    const filesSnap = await doc.ref.collection("files").get();
+    t.files = filesSnap.docs.map((f) => ({ id: f.id, ...f.data() } as FileDoc));
+    transfers.push(t);
+  }
 
   return { transfers, total };
 }
@@ -183,35 +209,28 @@ export async function updateTransferSettings(
   transferId: string,
   userId: string,
   data: { expiryDays?: number; downloadLimit?: number; password?: string | null }
-): Promise<Transfer | null> {
-  const transfer = await db.transfer.findFirst({
-    where: { id: transferId, userId },
-    include: { user: true },
-  });
-  if (!transfer) return null;
+): Promise<TransferDoc | null> {
+  const ref = collections.transfers.doc(transferId);
+  const doc = await ref.get();
+  if (!doc.exists || doc.data()?.userId !== userId) return null;
 
-  const tier = transfer.user?.tier ?? "FREE";
-  const limits = getTierLimits(tier as UserTier);
-  const updateData: Prisma.TransferUpdateInput = {};
+  const updates: Record<string, unknown> = {};
+  const docData = doc.data()!;
 
   if (data.expiryDays !== undefined) {
-    const days = Math.min(data.expiryDays, limits.maxExpiryDays);
-    const newExpiry = new Date(transfer.createdAt);
-    newExpiry.setDate(newExpiry.getDate() + days);
-    updateData.expiresAt = newExpiry;
+    const newExpiry = new Date(docData.createdAt.toDate());
+    newExpiry.setDate(newExpiry.getDate() + data.expiryDays);
+    updates.expiresAt = newExpiry;
   }
-
   if (data.downloadLimit !== undefined) {
-    updateData.downloadLimit = limits.maxDownloadLimit
-      ? Math.min(data.downloadLimit, limits.maxDownloadLimit)
-      : data.downloadLimit;
+    updates.downloadLimit = data.downloadLimit;
   }
-
   if (data.password !== undefined) {
-    updateData.passwordHash = data.password ? await bcrypt.hash(data.password, 10) : null;
+    updates.passwordHash = data.password ? await bcrypt.hash(data.password, 10) : null;
   }
 
-  return db.transfer.update({ where: { id: transferId }, data: updateData });
+  await ref.update(updates);
+  return getTransferByCode(docData.shortCode);
 }
 
 export async function checkDailyTransferLimit(userId: string, tier: UserTier): Promise<boolean> {
@@ -219,19 +238,33 @@ export async function checkDailyTransferLimit(userId: string, tier: UserTier): P
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
-  const todayCount = await db.transfer.count({
-    where: {
-      userId,
-      createdAt: { gte: startOfDay },
-    },
-  });
+  const snap = await collections.transfers
+    .where("userId", "==", userId)
+    .where("createdAt", ">=", startOfDay)
+    .count()
+    .get();
 
-  return todayCount < limits.dailyTransferLimit;
+  return snap.data().count < limits.dailyTransferLimit;
 }
 
-export async function updateTransferSize(transferId: string, totalSizeBytes: number): Promise<void> {
-  await db.transfer.update({
-    where: { id: transferId },
-    data: { totalSizeBytes },
-  });
+function docToTransfer(id: string, data: FirebaseFirestore.DocumentData): TransferDoc {
+  return {
+    id,
+    shortCode: data.shortCode,
+    userId: data.userId,
+    type: data.type,
+    status: data.status,
+    message: data.message,
+    senderEmail: data.senderEmail,
+    recipientEmails: data.recipientEmails || [],
+    passwordHash: data.passwordHash,
+    expiresAt: data.expiresAt?.toDate?.() ?? new Date(data.expiresAt),
+    downloadLimit: data.downloadLimit,
+    downloadCount: data.downloadCount || 0,
+    totalSizeBytes: data.totalSizeBytes || 0,
+    tier: data.tier,
+    showAds: data.showAds ?? true,
+    createdAt: data.createdAt?.toDate?.() ?? new Date(data.createdAt),
+    files: [],
+  };
 }
