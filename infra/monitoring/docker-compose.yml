@@ -1,0 +1,52 @@
+# ─────────────────────────────────────────────────────────
+# NigeriaTransfer — Monitoring VM Docker Compose
+# Runs on Oracle AMD Micro VM (separate from application VM)
+# ─────────────────────────────────────────────────────────
+
+services:
+  # Umami — Privacy-friendly analytics
+  umami:
+    image: ghcr.io/umami-software/umami:postgresql-latest
+    container_name: umami
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://umami:umami@umami-db:5432/umami
+      APP_SECRET: ${UMAMI_APP_SECRET:-change-this-secret}
+    depends_on:
+      umami-db:
+        condition: service_healthy
+
+  # Umami PostgreSQL database
+  umami-db:
+    image: postgres:16-alpine
+    container_name: umami-db
+    restart: always
+    environment:
+      POSTGRES_USER: umami
+      POSTGRES_PASSWORD: umami
+      POSTGRES_DB: umami
+    volumes:
+      - umami_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umami"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Uptime Kuma — Uptime monitoring
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    restart: always
+    ports:
+      - "3001:3001"
+    volumes:
+      - kuma_data:/app/data
+
+volumes:
+  umami_data:
+    driver: local
+  kuma_data:
+    driver: local

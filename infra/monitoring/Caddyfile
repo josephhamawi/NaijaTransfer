@@ -1,0 +1,12 @@
+# ─────────────────────────────────────────────────────────
+# NigeriaTransfer — Monitoring VM Caddy Configuration
+# Reverse proxy for Umami and Uptime Kuma on Oracle AMD VM
+# ─────────────────────────────────────────────────────────
+
+analytics.nigeriatransfer.com {
+    reverse_proxy localhost:3000
+}
+
+status.nigeriatransfer.com {
+    reverse_proxy localhost:3001
+}

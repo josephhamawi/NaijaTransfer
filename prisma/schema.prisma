@@ -1,0 +1,229 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// NOTE: SQLite does not support enums. Using String fields with app-level validation.
+// Enum values documented in comments. Switch back to PostgreSQL for production.
+
+model User {
+  id                 String    @id @default(cuid())
+  email              String?   @unique
+  emailVerified      DateTime?
+  phone              String?   @unique
+  phoneVerified      DateTime?
+  name               String?
+  image              String?
+  tier               String    @default("FREE") // FREE | PRO | BUSINESS
+  planStartDate      DateTime?
+  planEndDate        DateTime?
+  paystackCustomerId String?   @unique
+  paystackSubCode    String?
+  storageUsedBytes   BigInt    @default(0)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  transfers    Transfer[]
+  payments     Payment[]
+  fileRequests FileRequest[]
+  apiKeys      ApiKey[]
+  accounts     Account[]
+  sessions     Session[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Transfer {
+  id              String   @id @default(cuid())
+  shortCode       String   @unique
+  userId          String?
+  type            String   @default("LINK") // LINK | EMAIL
+  status          String   @default("UPLOADING") // UPLOADING | PROCESSING | ACTIVE | EXPIRED | DELETED
+  title           String?
+  message         String?
+  senderEmail     String?
+  recipientEmails String   @default("[]") // JSON array of emails (SQLite has no array type)
+  passwordHash    String?
+  expiresAt       DateTime
+  downloadLimit   Int      @default(50)
+  downloadCount   Int      @default(0)
+  totalSizeBytes  BigInt   @default(0)
+  tier            String   @default("FREE") // FREE | PRO | BUSINESS
+  showAds         Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  files        File[]
+  downloadLogs DownloadLog[]
+
+  @@map("transfers")
+}
+
+model File {
+  id               String   @id @default(cuid())
+  transferId       String
+  filename         String
+  originalName     String
+  sizeBytes        BigInt
+  mimeType         String
+  r2Key            String
+  r2PreviewKey     String?
+  previewGenerated Boolean  @default(false)
+  checksum         String?
+  createdAt        DateTime @default(now())
+
+  transfer     Transfer      @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  downloadLogs DownloadLog[]
+
+  @@map("files")
+}
+
+model DownloadLog {
+  id           String   @id @default(cuid())
+  transferId   String
+  fileId       String?
+  ipHash       String
+  userAgent    String?
+  country      String?
+  downloadedAt DateTime @default(now())
+
+  transfer Transfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  file     File?    @relation(fields: [fileId], references: [id], onDelete: SetNull)
+
+  @@map("download_logs")
+}
+
+model Payment {
+  id              String   @id @default(cuid())
+  userId          String
+  type            String   @default("SUBSCRIPTION") // SUBSCRIPTION | ONE_TIME
+  amount          Int
+  currency        String   @default("NGN")
+  paystackRef     String   @unique
+  paystackSubCode String?
+  status          String   @default("PENDING") // PENDING | SUCCESS | FAILED | REFUNDED
+  metadata        String?  // JSON string (SQLite has no JSON type)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model FileRequest {
+  id         String    @id @default(cuid())
+  userId     String
+  shortCode  String    @unique
+  title      String
+  message    String?
+  status     String    @default("OPEN") // OPEN | CLOSED
+  maxUploads Int?
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  uploads FileRequestUpload[]
+
+  @@map("file_requests")
+}
+
+model FileRequestUpload {
+  id            String   @id @default(cuid())
+  requestId     String
+  uploaderName  String?
+  uploaderEmail String?
+  transferId    String
+  uploadedAt    DateTime @default(now())
+
+  request FileRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("file_request_uploads")
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  userId     String
+  keyHash    String    @unique
+  keyPrefix  String
+  name       String
+  tier       String    @default("FREE") // FREE | PRO | BUSINESS
+  rateLimit  Int       @default(100)
+  lastUsedAt DateTime?
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("api_keys")
+}
+
+model Wallpaper {
+  id           String  @id @default(cuid())
+  imagePath    String
+  imageUrl     String?
+  artistName   String
+  artistUrl    String?
+  description  String?
+  active       Boolean @default(true)
+  displayOrder Int     @default(0)
+
+  @@map("wallpapers")
+}
+
+model WebhookEvent {
+  id        String   @id @default(cuid())
+  provider  String
+  eventType String
+  payload   String   // JSON string (SQLite has no JSON type)
+  processed Boolean  @default(false)
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@map("webhook_events")
+}
