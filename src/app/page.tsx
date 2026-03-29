@@ -124,8 +124,8 @@ export default function HomePage() {
     <PageLayout showWallpaper>
       <div
         className={cn(
-          "flex items-center justify-center min-h-[calc(100vh-4rem)]",
-          "px-4 py-8",
+          "flex items-center justify-center min-h-screen",
+          "px-4 pt-24 pb-8",
           "lg:justify-start lg:pl-[10%]"
         )}
       >
