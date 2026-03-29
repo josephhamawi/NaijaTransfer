@@ -132,9 +132,7 @@ export default function Footer({
             &copy; {new Date().getFullYear()} NigeriaTransfer. All rights
             reserved.
           </span>
-          {!hideBranding && (
-            <span>Powered by NigeriaTransfer</span>
-          )}
+          <span>Built with <a href="https://kodefoundry.com" target="_blank" rel="noopener noreferrer" className="hover:text-white underline">KodeFoundry</a></span>
         </div>
       </div>
     </footer>
