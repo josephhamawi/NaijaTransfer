@@ -71,10 +71,25 @@ export default function HomePage() {
 
       const { data } = await res.json();
 
-      // 2. Simulate upload progress (real tus integration would replace this)
-      for (let i = 0; i <= 100; i += 5) {
-        await new Promise(r => setTimeout(r, 50));
-        setUploadProgress(i);
+      // 2. Upload each file to Firebase Storage
+      let uploaded = 0;
+      for (const selectedFile of files) {
+        const formData = new FormData();
+        formData.append("transferId", data.transferId);
+        formData.append("file", selectedFile.file);
+
+        const uploadRes = await fetch("/api/upload/file", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!uploadRes.ok) {
+          const err = await uploadRes.json();
+          throw new Error(err.error?.message || `Failed to upload ${selectedFile.name}`);
+        }
+
+        uploaded++;
+        setUploadProgress(Math.round((uploaded / files.length) * 100));
       }
 
       // 3. Success
