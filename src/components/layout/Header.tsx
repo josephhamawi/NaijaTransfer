@@ -4,23 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
-import { LightweightToggle } from "./LightweightToggle";
 
 export interface HeaderProps {
-  /** Whether the user is authenticated */
   isAuthenticated?: boolean;
-  /** User display name */
   userName?: string;
   className?: string;
 }
 
-/**
- * Header component with logo, navigation, theme/lightweight toggles, and auth state.
- *
- * Persistent across all pages. Frosted glass effect.
- * Mobile: hamburger menu. Desktop: inline nav links.
- * 44px touch targets for all interactive elements.
- */
 export default function Header({
   isAuthenticated = false,
   userName,
@@ -29,93 +19,66 @@ export default function Header({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-50",
-        "frosted-glass",
-        "border-b border-[var(--border-color)]",
-        className
-      )}
-    >
-      {/* Skip to main content link for keyboard users */}
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-nigerian-green focus:text-white focus:rounded-md">
+    <header className={cn("fixed top-0 left-0 right-0 z-50 p-3", className)}>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-nigerian-green focus:text-white focus:rounded-lg"
+      >
         Skip to main content
       </a>
 
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
+      <div
+        className={cn(
+          "mx-auto max-w-5xl",
+          "flex h-14 items-center justify-between",
+          "px-5 rounded-2xl",
+          "bg-charcoal-800/70 backdrop-blur-xl",
+          "border border-white/10",
+          "shadow-lg shadow-black/20"
+        )}
+      >
         {/* Logo */}
-        <Link
-          href="/"
-          className="flex items-center gap-2 text-xl font-bold text-nigerian-green"
-          aria-label="NigeriaTransfer home"
-        >
-          {/* Logo mark */}
-          <svg
-            width="28"
-            height="28"
-            viewBox="0 0 28 28"
-            fill="none"
-            aria-hidden="true"
-          >
-            <rect width="28" height="28" rx="6" fill="currentColor" />
-            <path
-              d="M8 20V8l6 12L20 8v12"
-              stroke="white"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span className="hidden sm:inline">NigeriaTransfer</span>
-          <span className="sm:hidden">NT</span>
+        <Link href="/" className="flex items-center gap-2 shrink-0" aria-label="NaijaTransfer home">
+          <div className="w-8 h-8 rounded-lg bg-nigerian-green flex items-center justify-center">
+            <span className="text-white font-bold text-sm">NT</span>
+          </div>
+          <span className="text-white font-bold text-lg hidden sm:inline">
+            Naija<span className="text-nigerian-green">Transfer</span>
+          </span>
         </Link>
 
         {/* Desktop nav */}
-        <nav
-          className="hidden md:flex items-center gap-1"
-          aria-label="Main navigation"
-        >
+        <nav className="hidden md:flex items-center gap-1" aria-label="Main navigation">
           <NavLink href="/pricing">Pricing</NavLink>
           <NavLink href="/about">About</NavLink>
-          <NavLink href="/artists">Artists</NavLink>
           <NavLink href="/docs/api">API</NavLink>
-          {isAuthenticated && (
-            <NavLink href="/dashboard">Dashboard</NavLink>
-          )}
+          {isAuthenticated && <NavLink href="/dashboard">Dashboard</NavLink>}
         </nav>
 
-        {/* Right side: toggles + auth */}
-        <div className="flex items-center gap-1">
-          <LightweightToggle />
+        {/* Right side */}
+        <div className="flex items-center gap-2 shrink-0">
           <ThemeToggle />
 
-          {/* Auth button - desktop */}
-          <div className="hidden md:flex items-center ml-2">
+          {/* Sign In — desktop */}
+          <div className="hidden md:block">
             {isAuthenticated ? (
               <Link
                 href="/dashboard"
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2",
-                  "rounded-[var(--radius-md)]",
-                  "text-body-sm font-medium text-[var(--text-primary)]",
-                  "hover:bg-charcoal-50 dark:hover:bg-charcoal-600/50",
-                  "transition-colors"
-                )}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-white/80 hover:text-white transition-colors"
               >
-                <span className="w-7 h-7 rounded-full bg-nigerian-green text-white flex items-center justify-center text-caption font-bold">
+                <span className="w-7 h-7 rounded-full bg-nigerian-green text-white flex items-center justify-center text-xs font-bold">
                   {userName?.[0]?.toUpperCase() || "U"}
                 </span>
-                <span className="hidden lg:inline">{userName || "Account"}</span>
               </Link>
             ) : (
               <Link
                 href="/login"
                 className={cn(
-                  "px-4 py-2 min-h-[44px]",
+                  "px-5 py-2 whitespace-nowrap",
                   "inline-flex items-center justify-center",
-                  "rounded-[var(--radius-md)]",
-                  "bg-nigerian-green text-white font-semibold text-body-sm",
-                  "hover:bg-green-700 active:bg-green-900",
+                  "rounded-xl",
+                  "bg-nigerian-green text-white text-sm font-semibold",
+                  "hover:bg-nigerian-green/90 active:bg-nigerian-green/80",
                   "transition-colors"
                 )}
               >
@@ -124,45 +87,20 @@ export default function Header({
             )}
           </div>
 
-          {/* Mobile hamburger */}
+          {/* Hamburger — mobile */}
           <button
-            className={cn(
-              "md:hidden flex items-center justify-center",
-              "w-11 h-11 min-w-[44px] min-h-[44px]",
-              "rounded-[var(--radius-md)]",
-              "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
-              "hover:bg-charcoal-50 dark:hover:bg-charcoal-600/50",
-              "transition-colors"
-            )}
+            className="md:hidden flex items-center justify-center w-10 h-10 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-nav"
             aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
           >
             {mobileMenuOpen ? (
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                aria-hidden="true"
-              >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                 <path d="M6 6l12 12M18 6L6 18" />
               </svg>
             ) : (
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                aria-hidden="true"
-              >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                 <path d="M3 6h18M3 12h18M3 18h18" />
               </svg>
             )}
@@ -170,57 +108,27 @@ export default function Header({
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile dropdown */}
       {mobileMenuOpen && (
         <nav
           id="mobile-nav"
           className={cn(
-            "md:hidden",
-            "border-t border-[var(--border-color)]",
-            "bg-[var(--bg-elevated)]",
-            "px-4 py-4",
-            "space-y-1"
+            "md:hidden mt-2 mx-auto max-w-5xl",
+            "rounded-2xl overflow-hidden",
+            "bg-charcoal-800/90 backdrop-blur-xl",
+            "border border-white/10",
+            "shadow-lg shadow-black/20",
+            "p-2"
           )}
           aria-label="Mobile navigation"
         >
-          <MobileNavLink
-            href="/pricing"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            Pricing
-          </MobileNavLink>
-          <MobileNavLink
-            href="/about"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            About
-          </MobileNavLink>
-          <MobileNavLink
-            href="/artists"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            Artists
-          </MobileNavLink>
-          <MobileNavLink
-            href="/docs/api"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            API Docs
-          </MobileNavLink>
+          <MobileNavLink href="/pricing" onClick={() => setMobileMenuOpen(false)}>Pricing</MobileNavLink>
+          <MobileNavLink href="/about" onClick={() => setMobileMenuOpen(false)}>About</MobileNavLink>
+          <MobileNavLink href="/docs/api" onClick={() => setMobileMenuOpen(false)}>API Docs</MobileNavLink>
           {isAuthenticated ? (
-            <MobileNavLink
-              href="/dashboard"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Dashboard
-            </MobileNavLink>
+            <MobileNavLink href="/dashboard" onClick={() => setMobileMenuOpen(false)}>Dashboard</MobileNavLink>
           ) : (
-            <MobileNavLink
-              href="/login"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Sign In / Register
-            </MobileNavLink>
+            <MobileNavLink href="/login" onClick={() => setMobileMenuOpen(false)} highlight>Sign In</MobileNavLink>
           )}
         </nav>
       )}
@@ -228,24 +136,11 @@ export default function Header({
   );
 }
 
-function NavLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: React.ReactNode;
-}) {
+function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <Link
       href={href}
-      className={cn(
-        "px-3 py-2 min-h-[44px]",
-        "inline-flex items-center",
-        "rounded-[var(--radius-md)]",
-        "text-body-sm text-[var(--text-secondary)]",
-        "hover:text-[var(--text-primary)] hover:bg-charcoal-50 dark:hover:bg-charcoal-600/50",
-        "transition-colors"
-      )}
+      className="px-3 py-2 rounded-xl text-sm text-white/60 hover:text-white hover:bg-white/10 transition-colors"
     >
       {children}
     </Link>
@@ -256,21 +151,22 @@ function MobileNavLink({
   href,
   onClick,
   children,
+  highlight,
 }: {
   href: string;
   onClick: () => void;
   children: React.ReactNode;
+  highlight?: boolean;
 }) {
   return (
     <Link
       href={href}
       onClick={onClick}
       className={cn(
-        "flex items-center w-full px-3 py-3 min-h-[44px]",
-        "rounded-[var(--radius-md)]",
-        "text-body text-[var(--text-primary)]",
-        "hover:bg-charcoal-50 dark:hover:bg-charcoal-600/50",
-        "transition-colors"
+        "flex items-center w-full px-4 py-3 rounded-xl text-sm transition-colors",
+        highlight
+          ? "bg-nigerian-green text-white font-semibold"
+          : "text-white/80 hover:text-white hover:bg-white/10"
       )}
     >
       {children}
