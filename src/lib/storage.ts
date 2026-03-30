@@ -1,7 +1,9 @@
 import { getStorageBucket } from "./firebase-admin";
 
 function bucket() {
-  return getStorageBucket().bucket();
+  return getStorageBucket().bucket(
+    process.env.FIREBASE_STORAGE_BUCKET || "naijatransfer.firebasestorage.app"
+  );
 }
 
 export async function uploadFile(key: string, data: Buffer, contentType: string): Promise<string> {

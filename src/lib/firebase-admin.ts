@@ -42,7 +42,7 @@ function ensureInitialized(): App {
   if (sa.clientEmail) {
     _app = initializeApp({
       credential: cert(sa),
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "naijatransfer.firebasestorage.app",
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "naijatransfer.firebasestorage.app",
     });
   } else {
     _app = initializeApp({ projectId: "naijatransfer" });
