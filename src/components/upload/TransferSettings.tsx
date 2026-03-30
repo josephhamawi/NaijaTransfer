@@ -144,32 +144,34 @@ export default function TransferSettings({
                   <label className="text-label-style text-[var(--text-primary)]">
                     Password protection
                   </label>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={passwordEnabled}
-                    onClick={() => {
-                      const next = !passwordEnabled;
-                      setPasswordEnabled(next);
-                      if (!next) handleChange("password", "");
-                    }}
-                    className={cn(
-                      "relative inline-flex h-6 w-11 items-center rounded-full",
-                      "transition-colors duration-200",
-                      "min-w-[44px] min-h-[44px] p-[10px]",
-                      passwordEnabled
-                        ? "bg-nigerian-green"
-                        : "bg-charcoal-100 dark:bg-charcoal-600"
-                    )}
-                  >
-                    <span
+                  {/* 44px touch target wrapper for accessibility */}
+                  <div className="flex items-center justify-center min-w-[44px] min-h-[44px]">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={passwordEnabled}
+                      onClick={() => {
+                        const next = !passwordEnabled;
+                        setPasswordEnabled(next);
+                        if (!next) handleChange("password", "");
+                      }}
                       className={cn(
-                        "inline-block h-4 w-4 rounded-full bg-white shadow-sm",
-                        "transition-transform duration-200",
-                        passwordEnabled ? "translate-x-5" : "translate-x-0"
+                        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full",
+                        "transition-colors duration-200",
+                        passwordEnabled
+                          ? "bg-nigerian-green"
+                          : "bg-[var(--border-color)]"
                       )}
-                    />
-                  </button>
+                    >
+                      <span
+                        className={cn(
+                          "inline-block h-4 w-4 rounded-full bg-white shadow-sm",
+                          "transition-transform duration-200",
+                          passwordEnabled ? "translate-x-[22px]" : "translate-x-[3px]"
+                        )}
+                      />
+                    </button>
+                  </div>
                 </div>
                 {passwordEnabled && (
                   <Input
