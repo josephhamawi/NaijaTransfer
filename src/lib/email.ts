@@ -1,18 +1,11 @@
-/**
- * Brevo (Sendinblue) email client for transactional emails.
- * Handles: magic link auth, download notifications, expiry warnings,
- * transfer receipt, file request notifications.
- * Full implementation in Epic 4: Sharing & Distribution.
- */
-
-const BREVO_API_URL = "https://api.brevo.com/v3";
+import nodemailer from "nodemailer";
 
 interface EmailRecipient {
   email: string;
   name?: string;
 }
 
-interface SendEmailOptions {
+export interface SendEmailOptions {
   to: EmailRecipient[];
   subject: string;
   htmlContent: string;
@@ -20,36 +13,40 @@ interface SendEmailOptions {
   replyTo?: EmailRecipient;
 }
 
+// Gmail SMTP transporter (singleton)
+let transporter: nodemailer.Transporter | null = null;
+
+function getTransporter(): nodemailer.Transporter {
+  if (transporter) return transporter;
+
+  transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  });
+
+  return transporter;
+}
+
 /**
- * Send a transactional email via Brevo.
+ * Send an email via Gmail SMTP.
  */
 export async function sendEmail(options: SendEmailOptions): Promise<{ messageId: string }> {
   const { to, subject, htmlContent, textContent, replyTo } = options;
 
-  const response = await fetch(`${BREVO_API_URL}/smtp/email`, {
-    method: "POST",
-    headers: {
-      "api-key": process.env.BREVO_API_KEY || "",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      sender: {
-        email: process.env.BREVO_SENDER_EMAIL || "noreply@nigeriatransfer.com",
-        name: process.env.BREVO_SENDER_NAME || "NigeriaTransfer",
-      },
-      to,
-      subject,
-      htmlContent,
-      textContent,
-      ...(replyTo && { replyTo }),
-    }),
+  const senderName = process.env.EMAIL_SENDER_NAME || "NaijaTransfer";
+  const senderEmail = process.env.GMAIL_USER || "noreply@naijatransfer.com";
+
+  const info = await getTransporter().sendMail({
+    from: `"${senderName}" <${senderEmail}>`,
+    to: to.map((r) => (r.name ? `"${r.name}" <${r.email}>` : r.email)).join(", "),
+    subject,
+    html: htmlContent,
+    text: textContent,
+    ...(replyTo && { replyTo: replyTo.email }),
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(`Brevo email error: ${response.status} - ${JSON.stringify(error)}`);
-  }
-
-  const data = (await response.json()) as { messageId: string };
-  return { messageId: data.messageId };
+  return { messageId: info.messageId };
 }
