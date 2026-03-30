@@ -74,11 +74,11 @@ export default function TransferSettings({
             </span>
           </AccordionTrigger>
           <AccordionContent id="settings">
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* Expiry */}
               <div>
                 <label className="block text-label-style text-[var(--text-primary)] mb-1.5">Expires after</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-6 gap-1.5">
                   {expiryValues.map((days) => {
                     const locked = days > maxExpiryDays;
                     const selected = values.expiryDays === days;
@@ -94,7 +94,7 @@ export default function TransferSettings({
                           }
                         }}
                         className={cn(
-                          "relative flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-sm transition-all",
+                          "relative flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs transition-all",
                           selected && !locked
                             ? "bg-nigerian-green text-white font-semibold shadow-sm"
                             : locked
@@ -113,7 +113,7 @@ export default function TransferSettings({
               {/* Download limit */}
               <div>
                 <label className="block text-label-style text-[var(--text-primary)] mb-1.5">Download limit</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-6 gap-1.5">
                   {limitValues.map(({ value, label }) => {
                     const locked = maxDownloadLimit !== null && value > maxDownloadLimit;
                     const selected = values.downloadLimit === value;
