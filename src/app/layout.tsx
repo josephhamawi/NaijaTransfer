@@ -4,48 +4,66 @@ import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   title: {
-    default: "NigeriaTransfer - Send Large Files. No Account. No Wahala.",
-    template: "%s | NigeriaTransfer",
+    default: "NaijaTransfer — Send Large Files Free. No Account. No Wahala.",
+    template: "%s | NaijaTransfer",
   },
   description:
-    "Send large files up to 4GB for free. No account required. Resumable uploads for Nigerian internet. Fast, secure, and built for Africa.",
+    "Send large files up to 4GB for free in Nigeria. No account required. Resumable uploads built for Nigerian internet. WhatsApp sharing, Naira pricing, password protection.",
   keywords: [
-    "file transfer",
-    "Nigeria",
-    "send large files",
-    "WeTransfer alternative",
-    "file sharing",
-    "upload files",
-    "free file transfer",
+    "file transfer Nigeria",
+    "send large files Nigeria",
+    "WeTransfer alternative Nigeria",
+    "free file sharing",
+    "upload large files",
+    "NaijaTransfer",
+    "Nollywood file sharing",
+    "send files WhatsApp",
+    "resumable upload Nigeria",
+    "file transfer Africa",
   ],
-  authors: [{ name: "NigeriaTransfer" }],
-  creator: "NigeriaTransfer",
-  metadataBase: new URL(process.env.APP_URL || "http://localhost:3000"),
+  authors: [{ name: "NaijaTransfer" }],
+  creator: "NaijaTransfer",
+  publisher: "NaijaTransfer",
+  metadataBase: new URL("https://naijatransfer.com"),
+  alternates: {
+    canonical: "https://naijatransfer.com",
+  },
   openGraph: {
     type: "website",
     locale: "en_NG",
-    url: "/",
-    siteName: "NigeriaTransfer",
-    title: "NigeriaTransfer - Send Large Files. No Account. No Wahala.",
+    url: "https://naijatransfer.com",
+    siteName: "NaijaTransfer",
+    title: "NaijaTransfer — Send Large Files Free. No Account. No Wahala.",
     description:
-      "Send large files up to 4GB for free. No account required. Resumable uploads built for Nigerian internet.",
+      "Send files up to 4GB free. Resumable uploads for Nigerian internet. WhatsApp sharing. Naira pricing. Built in Nigeria, for Nigeria.",
     images: [
       {
-        url: "/og-image.png",
+        url: "/og-download.svg",
         width: 1200,
         height: 630,
-        alt: "NigeriaTransfer",
+        alt: "NaijaTransfer — Send Large Files",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "NigeriaTransfer - Send Large Files",
-    description: "Send large files up to 4GB for free. No account required.",
+    title: "NaijaTransfer — Send Large Files Free",
+    description: "4GB free. Resumable uploads. WhatsApp sharing. No account needed.",
   },
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  verification: {
+    // Add Google Search Console verification when ready
+    // google: "your-verification-code",
   },
 };
 
