@@ -48,6 +48,14 @@ const PLACEHOLDER_WALLPAPERS: (Wallpaper & { gradient: string })[] = [
     artworkTitle: "Golden Hour",
     artistUrl: "https://unsplash.com/@emmaikwuegbu",
   },
+  {
+    id: "6",
+    imageUrl: "https://images.pexels.com/photos/16155217/pexels-photo-16155217.jpeg?auto=compress&cs=tinysrgb&w=1920",
+    gradient: "linear-gradient(135deg, #2a6f4e 0%, #1A1A2E 60%, #008751 100%)",
+    artistName: "Pexels",
+    artworkTitle: "Lagos Market",
+    artistUrl: "https://www.pexels.com/photo/crowded-city-street-16155217/",
+  },
 ];
 
 export interface BackgroundWallpaperProps {
