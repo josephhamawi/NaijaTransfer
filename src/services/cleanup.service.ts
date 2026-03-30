@@ -1,129 +1,93 @@
-/**
- * Cleanup Service
- * Handles expired transfer cleanup, orphaned chunk removal, and storage reclamation.
- * Implementation for Story 1.5: Expired Transfer Cleanup and Orphan Chunk Removal.
- */
-
-import { db } from "@/lib/db";
-import { deleteByPrefix } from "@/lib/r2";
-import fs from "fs/promises";
-import path from "path";
+import { collection, getDb } from "@/lib/firebase-admin";
+import { deleteByPrefix } from "@/lib/storage";
 
 interface CleanupResult {
   expiredTransfers: number;
-  bytesReclaimed: bigint;
+  bytesReclaimed: number;
   orphanedChunks: number;
   errors: string[];
 }
 
 /**
- * Clean up expired transfers: update status, delete R2 objects, update user storage.
+ * Clean up expired transfers: delete files from Firebase Storage + Firestore docs.
  */
 export async function cleanupExpiredTransfers(): Promise<CleanupResult> {
   const result: CleanupResult = {
     expiredTransfers: 0,
-    bytesReclaimed: BigInt(0),
+    bytesReclaimed: 0,
     orphanedChunks: 0,
     errors: [],
   };
 
   try {
-    // Find all active transfers that have expired
-    const expiredTransfers = await db.transfer.findMany({
-      where: {
-        status: "ACTIVE",
-        expiresAt: { lt: new Date() },
-      },
-      include: { files: true },
-    });
+    const now = new Date();
+    const snap = await collection("transfers")
+      .where("status", "==", "ACTIVE")
+      .where("expiresAt", "<=", now)
+      .get();
 
-    for (const transfer of expiredTransfers) {
+    for (const doc of snap.docs) {
       try {
-        // Delete files from R2
-        await deleteByPrefix(`transfers/${transfer.id}/`);
-        await deleteByPrefix(`previews/${transfer.id}/`);
+        const data = doc.data();
 
-        // Update transfer status to EXPIRED
-        await db.transfer.update({
-          where: { id: transfer.id },
-          data: { status: "EXPIRED" },
-        });
+        // Delete files from Firebase Storage
+        await deleteByPrefix(`transfers/${doc.id}/`);
 
-        // Update user storage if transfer belongs to a user
-        if (transfer.userId && transfer.totalSizeBytes > 0) {
-          await db.user.update({
-            where: { id: transfer.userId },
-            data: {
-              storageUsedBytes: {
-                decrement: transfer.totalSizeBytes,
-              },
-            },
-          });
-        }
+        // Delete files subcollection
+        const filesSnap = await doc.ref.collection("files").get();
+        const batch = getDb().batch();
+        filesSnap.docs.forEach((f) => batch.delete(f.ref));
+        await batch.commit();
+
+        // Update transfer status
+        await doc.ref.update({ status: "EXPIRED" });
 
         result.expiredTransfers++;
-        result.bytesReclaimed += transfer.totalSizeBytes;
+        result.bytesReclaimed += data.totalSizeBytes || 0;
       } catch (error) {
-        result.errors.push(
-          `Failed to cleanup transfer ${transfer.id}: ${error instanceof Error ? error.message : String(error)}`
-        );
+        result.errors.push(`Transfer ${doc.id}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
   } catch (error) {
-    result.errors.push(
-      `Failed to query expired transfers: ${error instanceof Error ? error.message : String(error)}`
-    );
+    result.errors.push(`Query failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 
   return result;
 }
 
 /**
- * Clean up orphaned tus upload chunks older than 24 hours.
+ * Delete download logs older than 90 days.
  */
-export async function cleanupOrphanedChunks(): Promise<number> {
-  const uploadDir = process.env.TUS_UPLOAD_DIR || "/tmp/uploads";
-  let cleanedCount = 0;
-
+export async function cleanupOldLogs(): Promise<number> {
   try {
-    const entries = await fs.readdir(uploadDir, { withFileTypes: true });
-    const maxAgeMs = 24 * 60 * 60 * 1000; // 24 hours
-    const cutoff = Date.now() - maxAgeMs;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 90);
 
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const dirPath = path.join(uploadDir, entry.name);
-        try {
-          const stat = await fs.stat(dirPath);
-          if (stat.mtimeMs < cutoff) {
-            await fs.rm(dirPath, { recursive: true, force: true });
-            cleanedCount++;
-          }
-        } catch {
-          // Skip entries that can't be stat'd
-        }
-      }
-    }
-  } catch (error) {
-    // Upload directory may not exist yet
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      console.error("Error cleaning orphaned chunks:", error);
-    }
+    const snap = await getDb()
+      .collection("downloadLogs")
+      .where("downloadedAt", "<=", cutoff)
+      .limit(500)
+      .get();
+
+    const batch = getDb().batch();
+    snap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+
+    return snap.docs.length;
+  } catch {
+    return 0;
   }
-
-  return cleanedCount;
 }
 
 /**
- * Run full cleanup: expired transfers + orphaned chunks.
+ * Run full cleanup.
  */
 export async function runFullCleanup(): Promise<CleanupResult> {
   const result = await cleanupExpiredTransfers();
-  result.orphanedChunks = await cleanupOrphanedChunks();
+  result.orphanedChunks = await cleanupOldLogs();
 
-  console.warn(
-    `Cleanup complete: ${result.expiredTransfers} transfers expired, ` +
-      `${result.bytesReclaimed} bytes reclaimed, ${result.orphanedChunks} orphaned chunks removed` +
+  console.log(
+    `Cleanup: ${result.expiredTransfers} expired, ${result.bytesReclaimed} bytes reclaimed, ${result.orphanedChunks} old logs deleted` +
       (result.errors.length > 0 ? `, ${result.errors.length} errors` : "")
   );
 
