@@ -31,8 +31,8 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-h1 font-bold">Dashboard</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
+        <h1 className="text-h2 sm:text-h1 font-bold">Dashboard</h1>
         <a href="/"><Button variant="primary">New Transfer</Button></a>
       </div>
 
@@ -77,17 +77,17 @@ export default function DashboardPage() {
         <div className="space-y-3">
           {transfers.map((t) => (
             <Card key={t.id} padding="md" elevation="sm">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-body font-medium">{t.fileCount} file{t.fileCount !== 1 ? "s" : ""}</span>
                     <Badge variant={t.status === "ACTIVE" ? "pro" : "default"}>{t.status}</Badge>
                   </div>
-                  <p className="text-caption-style text-[var(--text-muted)]">
+                  <p className="text-caption-style text-[var(--text-muted)] break-words">
                     {formatBytes(t.totalSizeBytes)} · {t.downloadCount}/{t.downloadLimit} downloads · Expires {new Date(t.expiresAt).toLocaleDateString()}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/d/${t.shortCode}`); toast.success("Copied!", "Link copied to clipboard"); }}>
                     Copy Link
                   </Button>

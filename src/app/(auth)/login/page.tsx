@@ -62,7 +62,7 @@ export default function LoginPage() {
   return (
     <PageLayout showWallpaper>
       <div className="flex items-center justify-center min-h-screen px-4 py-20">
-        <Card frosted elevation="xl" padding="lg" className="w-full max-w-sm">
+        <Card frosted elevation="xl" padding="lg" className="w-full max-w-full sm:max-w-sm">
           {/* Logo */}
           <div className="text-center mb-8">
             <div className="w-14 h-14 rounded-2xl bg-nigerian-green flex items-center justify-center mx-auto mb-4">
@@ -85,7 +85,7 @@ export default function LoginPage() {
             <button
               onClick={handleGoogle}
               disabled={loading}
-              className="w-full inline-flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-elevated)] text-[var(--text-primary)] font-semibold text-sm whitespace-nowrap transition-colors disabled:opacity-50"
+              className="w-full inline-flex items-center justify-center gap-3 px-4 py-3 min-h-[44px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-elevated)] text-[var(--text-primary)] font-semibold text-sm whitespace-nowrap transition-colors disabled:opacity-50"
             >
               <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>

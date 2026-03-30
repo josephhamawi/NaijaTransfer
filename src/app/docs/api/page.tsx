@@ -92,7 +92,7 @@ export default function ApiDocsPage() {
       <div className="max-w-4xl mx-auto px-4 pt-24 pb-16">
         {/* Hero */}
         <div className="mb-12">
-          <h1 className="text-display font-bold mb-3">API Documentation</h1>
+          <h1 className="text-h1 sm:text-display font-bold mb-3">API Documentation</h1>
           <p className="text-body text-[var(--text-secondary)] max-w-2xl">
             Integrate NaijaTransfer into your applications. Upload files, create transfers, and manage downloads programmatically.
           </p>
@@ -166,15 +166,15 @@ export default function ApiDocsPage() {
           <div className="space-y-6">
             {endpoints.map((ep, i) => (
               <Card key={i} padding="lg" elevation="sm">
-                <div className="flex items-center gap-3 mb-3">
-                  <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
+                <div className="flex items-center gap-3 mb-3 overflow-x-auto">
+                  <span className={`shrink-0 px-2 py-0.5 rounded text-xs font-bold uppercase ${
                     ep.method === "GET" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                     : ep.method === "POST" ? "bg-nigerian-green/10 text-nigerian-green"
                     : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
                   }`}>
                     {ep.method}
                   </span>
-                  <code className="text-body-sm font-mono">{ep.path}</code>
+                  <code className="text-body-sm font-mono whitespace-nowrap">{ep.path}</code>
                 </div>
                 <p className="text-body-sm text-[var(--text-secondary)] mb-3">{ep.description}</p>
 
@@ -202,9 +202,9 @@ export default function ApiDocsPage() {
               <table className="w-full text-body-sm">
                 <thead>
                   <tr className="border-b border-[var(--border-color)]">
-                    <th className="text-left py-2 pr-4 font-semibold">Code</th>
-                    <th className="text-left py-2 pr-4 font-semibold">HTTP</th>
-                    <th className="text-left py-2 font-semibold">Description</th>
+                    <th className="text-left py-2 pr-4 font-semibold whitespace-nowrap">Code</th>
+                    <th className="text-left py-2 pr-4 font-semibold whitespace-nowrap">HTTP</th>
+                    <th className="text-left py-2 font-semibold whitespace-nowrap">Description</th>
                   </tr>
                 </thead>
                 <tbody className="text-[var(--text-secondary)]">
@@ -217,8 +217,8 @@ export default function ApiDocsPage() {
                     ["INTERNAL_ERROR", "500", "Server error"],
                   ].map(([code, http, desc]) => (
                     <tr key={code} className="border-b border-[var(--border-color)]">
-                      <td className="py-2 pr-4 font-mono text-xs">{code}</td>
-                      <td className="py-2 pr-4">{http}</td>
+                      <td className="py-2 pr-4 font-mono text-xs whitespace-nowrap">{code}</td>
+                      <td className="py-2 pr-4 whitespace-nowrap">{http}</td>
                       <td className="py-2">{desc}</td>
                     </tr>
                   ))}

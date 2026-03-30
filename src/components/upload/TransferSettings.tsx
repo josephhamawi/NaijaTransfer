@@ -78,7 +78,7 @@ export default function TransferSettings({
               {/* Expiry */}
               <div>
                 <label className="block text-label-style text-[var(--text-primary)] mb-1.5">Expires after</label>
-                <div className="grid grid-cols-6 gap-1.5">
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
                   {expiryValues.map((days) => {
                     const locked = days > maxExpiryDays;
                     const selected = values.expiryDays === days;
@@ -113,7 +113,7 @@ export default function TransferSettings({
               {/* Download limit */}
               <div>
                 <label className="block text-label-style text-[var(--text-primary)] mb-1.5">Download limit</label>
-                <div className="grid grid-cols-6 gap-1.5">
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
                   {limitValues.map(({ value, label }) => {
                     const locked = maxDownloadLimit !== null && value > maxDownloadLimit;
                     const selected = values.downloadLimit === value;

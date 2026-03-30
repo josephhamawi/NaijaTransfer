@@ -18,7 +18,7 @@ export default function Footer({ hideBranding = false, className }: FooterProps)
       )}
       role="contentinfo"
     >
-      <div className="mx-auto max-w-5xl px-6 py-10">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 py-10">
         {/* Top: 4-column grid */}
         <div className="grid gap-8 grid-cols-2 md:grid-cols-4">
           {/* Brand */}

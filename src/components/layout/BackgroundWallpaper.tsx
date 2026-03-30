@@ -114,30 +114,32 @@ export default function BackgroundWallpaper({
       className={cn("wallpaper-bg fixed inset-0 z-0", className)}
       aria-hidden="true"
     >
-      {/* Background: gradient fallback or real image */}
+      {/* Gradient background — always visible immediately */}
       <div
-        className={cn(
-          "absolute inset-0 bg-cover bg-center bg-no-repeat",
-          "transition-opacity duration-1000",
-          imageLoaded ? "opacity-100" : "opacity-0"
-        )}
-        style={{
-          backgroundImage: currentWallpaper.imageUrl
-            ? `url(${currentWallpaper.imageUrl})`
-            : gradient,
-        }}
+        className="absolute inset-0"
+        style={{ backgroundImage: gradient }}
       />
 
-      {/* Preload real image if URL exists */}
+      {/* Photo layer — fades in on top of gradient when loaded */}
       {currentWallpaper.imageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={currentWallpaper.imageUrl}
-          alt=""
-          className="hidden"
-          onLoad={() => setImageLoaded(true)}
-          loading="lazy"
-        />
+        <>
+          <div
+            className={cn(
+              "absolute inset-0 bg-cover bg-center bg-no-repeat",
+              "transition-opacity duration-1000",
+              imageLoaded ? "opacity-100" : "opacity-0"
+            )}
+            style={{ backgroundImage: `url(${currentWallpaper.imageUrl})` }}
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={currentWallpaper.imageUrl}
+            alt=""
+            className="hidden"
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageLoaded(false)}
+          />
+        </>
       )}
 
       {/* Subtle dark overlay for text readability */}

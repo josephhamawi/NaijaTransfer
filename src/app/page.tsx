@@ -186,7 +186,7 @@ export default function HomePage() {
           elevation="xl"
           padding="lg"
           className={cn(
-            "w-full max-w-[480px]",
+            "w-full max-w-full sm:max-w-[480px]",
             "rounded-[var(--radius-xl)]"
           )}
         >
@@ -321,7 +321,7 @@ export default function HomePage() {
 
         {/* Success: Share Card (replaces upload widget) */}
         {uploadState === "success" && transferResult && (
-          <Card frosted elevation="xl" padding="lg" className="w-full max-w-[480px] mt-4">
+          <Card frosted elevation="xl" padding="lg" className="w-full max-w-full sm:max-w-[480px] mt-4">
             <div className="text-center mb-4">
               <div className="w-16 h-16 rounded-full bg-nigerian-green/15 flex items-center justify-center mx-auto mb-3">
                 <svg className="w-8 h-8 text-nigerian-green" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -379,7 +379,7 @@ export default function HomePage() {
       <div className="relative z-10 bg-charcoal-800 text-white border-t border-white/10">
         {/* How it works */}
         <section className="max-w-4xl mx-auto px-4 py-16">
-          <h2 className="text-h1 text-center mb-10 text-white">How it works</h2>
+          <h2 className="text-h2 sm:text-h1 text-center mb-10 text-white">How it works</h2>
           <div className="grid gap-8 sm:grid-cols-3">
             <HowItWorksStep
               icon={
@@ -419,7 +419,7 @@ export default function HomePage() {
         {/* Why NigeriaTransfer */}
         <section className="bg-charcoal-600/50 py-16">
           <div className="max-w-4xl mx-auto px-4">
-            <h2 className="text-h1 text-center mb-10 text-white">
+            <h2 className="text-h2 sm:text-h1 text-center mb-10 text-white">
               Why NigeriaTransfer?
             </h2>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

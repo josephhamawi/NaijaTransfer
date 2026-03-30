@@ -174,7 +174,7 @@ function MobileNavLink({
       href={href}
       onClick={onClick}
       className={cn(
-        "flex items-center w-full px-4 py-3 rounded-xl text-sm transition-colors",
+        "flex items-center w-full px-4 py-3 min-h-[44px] rounded-xl text-sm transition-colors",
         highlight
           ? "bg-nigerian-green text-white font-semibold"
           : "text-white/80 hover:text-white hover:bg-white/10"

@@ -88,7 +88,7 @@ export default function PricingPage() {
     <PageLayout>
       <div className="max-w-5xl mx-auto px-4 pt-24 pb-16">
         <div className="text-center mb-12">
-          <h1 className="text-display font-bold mb-3">Simple pricing. Naira only.</h1>
+          <h1 className="text-h1 sm:text-display font-bold mb-3">Simple pricing. Naira only.</h1>
           <p className="text-body text-[var(--text-secondary)] max-w-xl mx-auto">
             Start free. Upgrade when you need more. All prices in Nigerian Naira.
           </p>
@@ -107,7 +107,7 @@ export default function PricingPage() {
               <div className="text-center mb-6">
                 <h2 className="text-h3 font-bold mb-1">{plan.name}</h2>
                 <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-display font-bold">{plan.price}</span>
+                  <span className="text-h1 sm:text-display font-bold">{plan.price}</span>
                   <span className="text-body-sm text-[var(--text-muted)]">{plan.period}</span>
                 </div>
               </div>

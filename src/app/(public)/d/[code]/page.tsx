@@ -82,8 +82,8 @@ export default function DownloadPage() {
   if (loading) {
     return (
       <PageLayout showWallpaper>
-        <div className="flex items-center justify-center min-h-screen">
-          <Card frosted elevation="xl" padding="lg" className="w-full max-w-md text-center">
+        <div className="flex items-center justify-center min-h-screen px-4">
+          <Card frosted elevation="xl" padding="lg" className="w-full max-w-full sm:max-w-md text-center">
             <div className="animate-pulse space-y-4">
               <div className="h-6 bg-[var(--bg-secondary)] rounded w-2/3 mx-auto" />
               <div className="h-4 bg-[var(--bg-secondary)] rounded w-1/2 mx-auto" />
@@ -98,7 +98,7 @@ export default function DownloadPage() {
     return (
       <PageLayout showWallpaper>
         <div className="flex items-center justify-center min-h-screen px-4">
-          <Card frosted elevation="xl" padding="lg" className="w-full max-w-md text-center">
+          <Card frosted elevation="xl" padding="lg" className="w-full max-w-full sm:max-w-md text-center">
             <h1 className="text-h2 mb-2">Transfer Expired</h1>
             <p className="text-body-sm text-[var(--text-secondary)] mb-6">This transfer has expired or been deleted.</p>
             <Button variant="primary" size="lg" onClick={() => window.location.href = "/"}>
@@ -114,7 +114,7 @@ export default function DownloadPage() {
     return (
       <PageLayout showWallpaper>
         <div className="flex items-center justify-center min-h-screen px-4">
-          <Card frosted elevation="xl" padding="lg" className="w-full max-w-md text-center">
+          <Card frosted elevation="xl" padding="lg" className="w-full max-w-full sm:max-w-md text-center">
             <h1 className="text-h2 mb-2">Something went wrong</h1>
             <p className="text-body-sm text-[var(--text-secondary)]">Please try again later.</p>
           </Card>
@@ -128,7 +128,7 @@ export default function DownloadPage() {
     return (
       <PageLayout showWallpaper>
         <div className="flex items-center justify-center min-h-screen px-4">
-          <Card frosted elevation="xl" padding="lg" className="w-full max-w-md">
+          <Card frosted elevation="xl" padding="lg" className="w-full max-w-full sm:max-w-md">
             <h1 className="text-h2 mb-2 text-center">Password Protected</h1>
             <p className="text-body-sm text-[var(--text-secondary)] text-center mb-6">
               Enter the password to access these files.
@@ -157,7 +157,7 @@ export default function DownloadPage() {
   return (
     <PageLayout showWallpaper>
       <div className="flex items-center justify-center min-h-screen px-4 pt-24 pb-8">
-        <div className="w-full max-w-lg space-y-4">
+        <div className="w-full max-w-full sm:max-w-lg space-y-4">
           <Card frosted elevation="xl" padding="lg">
             {/* Header */}
             <div className="mb-4">
@@ -210,7 +210,7 @@ export default function DownloadPage() {
             )}
 
             {/* Expiry + downloads info */}
-            <div className="flex items-center justify-between mt-4 text-caption-style text-[var(--text-muted)]">
+            <div className="flex flex-wrap items-center justify-between gap-1 mt-4 text-caption-style text-[var(--text-muted)]">
               <span>Expires {formatRelativeTime(expiresAt)}</span>
               {transfer.downloadLimit > 0 && (
                 <span>{downloadsLeft} download{downloadsLeft !== 1 ? "s" : ""} left</span>
