@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { LightweightModeProvider } from "@/contexts/LightweightContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { ToastContainer } from "@/components/ui/Toast";
+import CookieConsent from "@/components/shared/CookieConsent";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -14,6 +15,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <ToastProvider>
             {children}
             <ToastContainer />
+            <CookieConsent />
           </ToastProvider>
         </LightweightModeProvider>
       </ThemeProvider>
