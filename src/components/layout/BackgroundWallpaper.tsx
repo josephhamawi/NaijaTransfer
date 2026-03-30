@@ -5,40 +5,48 @@ import { useIsLightweight } from "@/contexts/LightweightContext";
 import { cn } from "@/lib/utils";
 import type { Wallpaper } from "@/types";
 
-// CSS gradient wallpapers — no images needed, zero network cost, instant load.
-// Replace with real Nigerian art images once sourced.
+// Nigerian photography from Unsplash (free, attribution included)
+// These are real photos of Nigeria — Lagos, markets, landscapes, culture
 const PLACEHOLDER_WALLPAPERS: (Wallpaper & { gradient: string })[] = [
   {
     id: "1",
-    imageUrl: "",
+    imageUrl: "https://images.unsplash.com/photo-1618828665011-0abd973f7bb8?w=1920&q=80",
     gradient: "linear-gradient(135deg, #008751 0%, #1A1A2E 50%, #006341 100%)",
-    artistName: "NigeriaTransfer",
-    artworkTitle: "Lagos Nights",
-    artistUrl: "#",
+    artistName: "Babatunde Olajide",
+    artworkTitle: "Lagos Skyline",
+    artistUrl: "https://unsplash.com/@spicyboggy",
   },
   {
     id: "2",
-    imageUrl: "",
+    imageUrl: "https://images.unsplash.com/photo-1591115765373-5f9cf1da194e?w=1920&q=80",
     gradient: "linear-gradient(160deg, #0a2e1a 0%, #008751 40%, #FFD700 100%)",
-    artistName: "NigeriaTransfer",
-    artworkTitle: "Niger Delta Gold",
-    artistUrl: "#",
+    artistName: "Muhammadtaha Ibrahim",
+    artworkTitle: "African Textiles",
+    artistUrl: "https://unsplash.com/@planeteelevene",
   },
   {
     id: "3",
-    imageUrl: "",
+    imageUrl: "https://images.unsplash.com/photo-1573553235970-1f1e157bf168?w=1920&q=80",
     gradient: "linear-gradient(120deg, #1A1A2E 0%, #2d1a4e 30%, #008751 70%, #004d30 100%)",
-    artistName: "NigeriaTransfer",
-    artworkTitle: "Ankara Rhythms",
-    artistUrl: "#",
+    artistName: "Dami Adebayo",
+    artworkTitle: "Lagos at Dusk",
+    artistUrl: "https://unsplash.com/@damidee",
   },
   {
     id: "4",
-    imageUrl: "",
+    imageUrl: "https://images.unsplash.com/photo-1590845947698-8924d7409b56?w=1920&q=80",
     gradient: "radial-gradient(ellipse at 20% 50%, #008751 0%, #1A1A2E 60%, #0a0a14 100%)",
-    artistName: "NigeriaTransfer",
-    artworkTitle: "Zuma Rock",
-    artistUrl: "#",
+    artistName: "Tobi Ogunbadeniyi",
+    artworkTitle: "Street Life",
+    artistUrl: "https://unsplash.com/@tobiogunbadeniyi",
+  },
+  {
+    id: "5",
+    imageUrl: "https://images.unsplash.com/photo-1567359781514-3b964e2b04d6?w=1920&q=80",
+    gradient: "linear-gradient(180deg, #1A1A2E 0%, #008751 100%)",
+    artistName: "Emmanuel Ikwuegbu",
+    artworkTitle: "Golden Hour",
+    artistUrl: "https://unsplash.com/@emmaikwuegbu",
   },
 ];
 

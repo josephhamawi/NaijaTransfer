@@ -1,0 +1,20 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#1A1A2E"/>
+  <rect x="0" y="0" width="1200" height="8" fill="#008751"/>
+
+  <!-- Logo -->
+  <rect x="520" y="180" width="64" height="64" rx="16" fill="#008751"/>
+  <path d="M552 204 L552 232" stroke="white" stroke-width="5" stroke-linecap="round"/>
+  <path d="M540 216 L552 204 L564 216" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M536 240 L568 240" stroke="white" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Brand -->
+  <text x="596" y="228" font-family="system-ui, -apple-system, sans-serif" font-size="36" font-weight="700" fill="white">NaijaTransfer</text>
+
+  <!-- Tagline -->
+  <text x="600" y="340" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="700" fill="white" text-anchor="middle">Someone sent you files</text>
+  <text x="600" y="400" font-family="system-ui, -apple-system, sans-serif" font-size="24" fill="#008751" text-anchor="middle">Click to download — no account needed</text>
+
+  <!-- URL -->
+  <text x="600" y="540" font-family="system-ui, -apple-system, sans-serif" font-size="18" fill="white" opacity="0.4" text-anchor="middle">naijatransfer.com</text>
+</svg>

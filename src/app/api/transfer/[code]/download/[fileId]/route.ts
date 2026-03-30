@@ -24,6 +24,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const ua = request.headers.get("user-agent") ?? "unknown";
     await incrementDownloadCount(access.transfer.id, ip, ua, fileId);
 
+    // Send download notification to sender (non-blocking)
+    if (access.transfer.senderEmail) {
+      import("@/services/notification.service").then(({ sendDownloadNotification }) => {
+        sendDownloadNotification({
+          senderEmail: access.transfer!.senderEmail!,
+          transferCode: code,
+          downloadedAt: new Date(),
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+
     return NextResponse.redirect(url);
   } catch (error) {
     console.error("Download error:", error);
