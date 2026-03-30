@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { uploadFile } from "@/lib/storage";
 import { createFile } from "@/services/file.service";
+import { getTierLimits } from "@/lib/tier-limits";
 import { nanoid } from "nanoid";
+import type { UserTier } from "@/types/enums";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +17,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: { code: "MISSING_FIELDS", message: "transferId and file are required" } },
         { status: 400 }
+      );
+    }
+
+    // Look up transfer to get tier
+    const { collection } = await import("@/lib/firebase-admin");
+    const transferDoc = await collection("transfers").doc(transferId).get();
+    if (!transferDoc.exists) {
+      return NextResponse.json(
+        { error: { code: "NOT_FOUND", message: "Transfer not found" } },
+        { status: 404 }
+      );
+    }
+
+    const tier = (transferDoc.data()?.tier as UserTier) || "FREE";
+    const limits = getTierLimits(tier);
+
+    // Enforce file size limit
+    if (file.size > limits.maxFileSizeBytes) {
+      const maxGB = (limits.maxFileSizeBytes / (1024 * 1024 * 1024)).toFixed(0);
+      return NextResponse.json(
+        { error: { code: "FILE_TOO_LARGE", message: `File exceeds ${maxGB}GB limit. Upgrade your plan for larger transfers.` } },
+        { status: 413 }
+      );
+    }
+
+    // Check total transfer size (sum of existing files + this file)
+    const filesSnap = await collection("transfers").doc(transferId).collection("files").get();
+    const currentTotal = filesSnap.docs.reduce((sum, d) => sum + (d.data().sizeBytes || 0), 0);
+    if (currentTotal + file.size > limits.maxFileSizeBytes) {
+      const maxGB = (limits.maxFileSizeBytes / (1024 * 1024 * 1024)).toFixed(0);
+      return NextResponse.json(
+        { error: { code: "TRANSFER_TOO_LARGE", message: `Total transfer size would exceed ${maxGB}GB limit. Remove some files or upgrade.` } },
+        { status: 413 }
       );
     }
 
@@ -44,13 +79,12 @@ export async function POST(request: NextRequest) {
         fileId: fileDoc.id,
         name: file.name,
         size: buffer.length,
-        storageKey,
       },
     });
   } catch (error) {
     console.error("File upload error:", error);
     return NextResponse.json(
-      { error: { code: "UPLOAD_FAILED", message: "File upload failed" } },
+      { error: { code: "UPLOAD_FAILED", message: "File upload failed. Please try again." } },
       { status: 500 }
     );
   }

@@ -14,6 +14,7 @@ import TransferSettings, {
 import BandwidthEstimator from "@/components/upload/BandwidthEstimator";
 import ShareCard from "@/components/upload/ShareCard";
 import { useToast } from "@/contexts/ToastContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 let fileIdCounter = 0;
 
@@ -28,6 +29,7 @@ type UploadState = "idle" | "uploading" | "success" | "error";
  */
 export default function HomePage() {
   const toast = useToast();
+  const { user } = useAuth();
   const [files, setFiles] = useState<SelectedFile[]>([]);
   const [settings, setSettings] = useState<TransferSettingsValues>({
     expiryDays: 7,
@@ -57,6 +59,7 @@ export default function HomePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          uid: user?.uid || undefined,
           senderEmail: emailFrom || undefined,
           recipientEmails,
           message: settings.message || undefined,
