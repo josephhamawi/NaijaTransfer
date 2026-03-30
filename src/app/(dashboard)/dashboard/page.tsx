@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { useToast } from "@/contexts/ToastContext";
 import { Badge } from "@/components/ui/Badge";
 import { formatBytes } from "@/lib/utils";
 
@@ -19,6 +20,7 @@ interface Transfer {
 }
 
 export default function DashboardPage() {
+  const toast = useToast();
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [storage, setStorage] = useState<{ usedFormatted: string; maxFormatted: string; percentage: number; tier: string } | null>(null);
 
@@ -86,7 +88,7 @@ export default function DashboardPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(`${window.location.origin}/d/${t.shortCode}`)}>
+                  <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/d/${t.shortCode}`); toast.success("Copied!", "Link copied to clipboard"); }}>
                     Copy Link
                   </Button>
                 </div>

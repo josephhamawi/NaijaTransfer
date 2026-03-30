@@ -13,6 +13,7 @@ import TransferSettings, {
 } from "@/components/upload/TransferSettings";
 import BandwidthEstimator from "@/components/upload/BandwidthEstimator";
 import ShareCard from "@/components/upload/ShareCard";
+import { useToast } from "@/contexts/ToastContext";
 
 let fileIdCounter = 0;
 
@@ -26,6 +27,7 @@ type UploadState = "idle" | "uploading" | "success" | "error";
  * Mobile: card is full-width minus padding. Desktop: 480px, offset left.
  */
 export default function HomePage() {
+  const toast = useToast();
   const [files, setFiles] = useState<SelectedFile[]>([]);
   const [settings, setSettings] = useState<TransferSettingsValues>({
     expiryDays: 7,
@@ -95,7 +97,7 @@ export default function HomePage() {
       // 3. Send email notification if recipients provided
       if (recipientEmails && recipientEmails.length > 0) {
         try {
-          await fetch(`/api/transfer/${data.shortCode}/notify`, {
+          const notifyRes = await fetch(`/api/transfer/${data.shortCode}/notify`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -103,10 +105,16 @@ export default function HomePage() {
               senderName: emailFrom || undefined,
             }),
           });
+          if (notifyRes.ok) {
+            toast.success("Email sent!", `Download link sent to ${recipientEmails.join(", ")}`);
+          } else {
+            toast.warning("Transfer ready", "Files uploaded but email delivery failed. Share the link manually.");
+          }
         } catch {
-          // Email failure shouldn't block the transfer success
-          console.warn("Failed to send email notification");
+          toast.warning("Transfer ready", "Files uploaded but email could not be sent. Share the link manually.");
         }
+      } else {
+        toast.success("Transfer complete!", "Your files are ready to share.");
       }
 
       // 4. Success
@@ -116,7 +124,15 @@ export default function HomePage() {
       });
       setUploadState("success");
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "Upload failed");
+      const raw = err instanceof Error ? err.message : "Unknown error";
+      // User-friendly error messages
+      let friendly = "Something went wrong. Please try again.";
+      if (raw.includes("DAILY_LIMIT")) friendly = "You've reached your daily transfer limit. Try again tomorrow or upgrade to Pro.";
+      else if (raw.includes("too large") || raw.includes("size")) friendly = "File is too large for your plan. Upgrade for bigger transfers.";
+      else if (raw.includes("network") || raw.includes("fetch")) friendly = "Connection lost. Check your internet and try again.";
+
+      toast.error("Upload failed", friendly);
+      setErrorMsg(friendly);
       setUploadState("error");
     }
   }, [files, emailTo, emailFrom, settings]);
@@ -322,7 +338,7 @@ export default function HomePage() {
                 value={transferResult.downloadUrl}
                 className="flex-1 bg-transparent text-body-sm truncate outline-none"
               />
-              <Button variant="primary" size="sm" onClick={() => navigator.clipboard.writeText(transferResult.downloadUrl)}>
+              <Button variant="primary" size="sm" onClick={() => { navigator.clipboard.writeText(transferResult.downloadUrl); toast.success("Copied!", "Link copied to clipboard"); }}>
                 Copy
               </Button>
             </div>
