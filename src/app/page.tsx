@@ -92,7 +92,24 @@ export default function HomePage() {
         setUploadProgress(Math.round((uploaded / files.length) * 100));
       }
 
-      // 3. Success
+      // 3. Send email notification if recipients provided
+      if (recipientEmails && recipientEmails.length > 0) {
+        try {
+          await fetch(`/api/transfer/${data.shortCode}/notify`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              recipientEmails,
+              senderName: emailFrom || undefined,
+            }),
+          });
+        } catch {
+          // Email failure shouldn't block the transfer success
+          console.warn("Failed to send email notification");
+        }
+      }
+
+      // 4. Success
       setTransferResult({
         shortCode: data.shortCode,
         downloadUrl: `${window.location.origin}/d/${data.shortCode}`,
