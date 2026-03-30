@@ -39,9 +39,8 @@
   --color-red-700: #C0392B;
 
   /* --- Font Family --- */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji',
-    'Segoe UI Emoji';
+  --font-sans: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Helvetica Neue', Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo,
     Consolas, 'Liberation Mono', monospace;
 
