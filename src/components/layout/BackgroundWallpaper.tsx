@@ -19,7 +19,7 @@ const PLACEHOLDER_WALLPAPERS: (Wallpaper & { gradient: string })[] = [
     id: "2",
     imageUrl: "/wallpapers/lagos-market.jpg",
     gradient: "linear-gradient(135deg, #2a6f4e 0%, #1A1A2E 60%, #008751 100%)",
-    artistName: "Pexels",
+    artistName: "David Iloba",
     artworkTitle: "Lagos Market",
     artistUrl: "https://www.pexels.com/photo/crowded-city-street-16155217/",
   },
