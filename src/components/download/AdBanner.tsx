@@ -84,7 +84,7 @@ export default function AdBanner({ showAds, className }: AdBannerProps) {
 
       {/* Upgrade prompt below ad */}
       <div className="hidden">
-        {/* "Remove ads with NigeriaTransfer Pro" -- rendered by parent component */}
+        {/* "Remove ads with NaijaTransfer Pro" -- rendered by parent component */}
       </div>
     </div>
   );

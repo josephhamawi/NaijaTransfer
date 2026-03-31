@@ -54,11 +54,11 @@ export default function ShareCard({
   const toast = useToast();
   const [copied, setCopied] = useState(false);
 
-  const shareMessage = `I sent you files via NigeriaTransfer: ${downloadUrl}`;
+  const shareMessage = `I sent you files via NaijaTransfer: ${downloadUrl}`;
 
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
   const smsUrl = `sms:?body=${encodeURIComponent(shareMessage)}`;
-  const emailUrl = `mailto:?subject=${encodeURIComponent("Files for you via NigeriaTransfer")}&body=${encodeURIComponent(shareMessage)}`;
+  const emailUrl = `mailto:?subject=${encodeURIComponent("Files for you via NaijaTransfer")}&body=${encodeURIComponent(shareMessage)}`;
 
   const handleCopy = useCallback(async () => {
     try {

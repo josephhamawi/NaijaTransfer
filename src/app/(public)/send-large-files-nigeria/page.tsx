@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
 export const metadata: Metadata = {
-  title: "Send Large Files in Nigeria — Free | NigeriaTransfer",
+  title: "Send Large Files in Nigeria — Free | NaijaTransfer",
   description: "Send large files up to 4GB for free in Nigeria. No account required. Resumable uploads built for Nigerian internet. WhatsApp sharing. Naira pricing.",
 };
 
@@ -14,14 +14,14 @@ export default function SEOLandingPage() {
       <div className="max-w-3xl mx-auto px-4 pt-24 pb-16">
         <h1 className="text-h1 sm:text-display font-bold mb-4">Send Large Files in Nigeria — Free</h1>
         <p className="text-body text-[var(--text-secondary)] mb-8">
-          NigeriaTransfer lets you send files up to 4 GB for free, with no account required. Built specifically for Nigerian internet — uploads resume when your connection drops, and you can share via WhatsApp with one tap.
+          NaijaTransfer lets you send files up to 4 GB for free, with no account required. Built specifically for Nigerian internet — uploads resume when your connection drops, and you can share via WhatsApp with one tap.
         </p>
 
         <a href="/"><Button variant="primary" size="lg">Send files now — free</Button></a>
 
         <div className="mt-12 space-y-8">
           <section>
-            <h2 className="text-h2 font-bold mb-3">Why NigeriaTransfer?</h2>
+            <h2 className="text-h2 font-bold mb-3">Why NaijaTransfer?</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               {[
                 { title: "4 GB free", desc: "Double WeTransfer's 2 GB limit. No tricks." },
@@ -51,13 +51,13 @@ export default function SEOLandingPage() {
           </section>
 
           <section>
-            <h2 className="text-h2 font-bold mb-3">NigeriaTransfer vs alternatives</h2>
+            <h2 className="text-h2 font-bold mb-3">NaijaTransfer vs alternatives</h2>
             <div className="overflow-x-auto">
               <table className="w-full text-body-sm border-collapse">
                 <thead>
                   <tr className="border-b border-[var(--border-color)]">
                     <th className="text-left py-2 pr-4 whitespace-nowrap">Feature</th>
-                    <th className="text-left py-2 px-4 whitespace-nowrap">NigeriaTransfer</th>
+                    <th className="text-left py-2 px-4 whitespace-nowrap">NaijaTransfer</th>
                     <th className="text-left py-2 px-4 whitespace-nowrap">WeTransfer</th>
                     <th className="text-left py-2 px-4 whitespace-nowrap">WhatsApp</th>
                   </tr>

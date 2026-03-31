@@ -28,7 +28,7 @@ const elevationClasses = {
 };
 
 /**
- * Card component with NigeriaTransfer design tokens.
+ * Card component with NaijaTransfer design tokens.
  *
  * Supports frosted glass effect for upload widget overlays,
  * and solid backgrounds for other contexts.

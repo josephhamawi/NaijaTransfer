@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/Accordion";
 
 export const metadata: Metadata = {
-  title: "Pricing — NigeriaTransfer",
+  title: "Pricing — NaijaTransfer",
   description: "Simple Naira pricing. 4GB free. Pro from NGN 2,000/month. Business from NGN 10,000/month.",
 };
 

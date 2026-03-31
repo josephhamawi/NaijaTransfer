@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
 export const metadata: Metadata = {
-  title: "About — NigeriaTransfer",
+  title: "About — NaijaTransfer",
   description: "The first Nigerian-owned file transfer service. Built in Nigeria, for Nigeria.",
 };
 
@@ -16,7 +16,7 @@ export default function AboutPage() {
 
         <div className="prose prose-lg text-[var(--text-secondary)] space-y-6">
           <p className="text-body">
-            NigeriaTransfer is the first Nigerian-owned file transfer service. We exist because 109 million Nigerian internet users deserve a tool built for their reality — not adapted from a European product that doesn&apos;t understand our internet, our payment systems, or our communication patterns.
+            NaijaTransfer is the first Nigerian-owned file transfer service. We exist because 109 million Nigerian internet users deserve a tool built for their reality — not adapted from a European product that doesn&apos;t understand our internet, our payment systems, or our communication patterns.
           </p>
 
           <h2 className="text-h2 text-[var(--text-primary)]">Why we built this</h2>
@@ -24,7 +24,7 @@ export default function AboutPage() {
             Every day, millions of Nigerians hit the same wall: WhatsApp compresses their files. Google Drive demands an account. WeTransfer fails at 87% with no way to resume. The workaround? A USB drive passed hand-to-hand. In 2026.
           </p>
           <p className="text-body">
-            We built NigeriaTransfer to fix this. Resumable uploads that survive flaky connections. WhatsApp sharing with one tap. Naira pricing via Paystack. USSD payments for users without bank cards. A lightweight mode that respects expensive data.
+            We built NaijaTransfer to fix this. Resumable uploads that survive flaky connections. WhatsApp sharing with one tap. Naira pricing via Paystack. USSD payments for users without bank cards. A lightweight mode that respects expensive data.
           </p>
 
           <h2 className="text-h2 text-[var(--text-primary)]">What we believe</h2>
@@ -37,7 +37,7 @@ export default function AboutPage() {
 
           <h2 className="text-h2 text-[var(--text-primary)]">For businesses and developers</h2>
           <p className="text-body">
-            NigeriaTransfer isn&apos;t just a consumer app. Our public API lets Nigerian SaaS companies embed file transfer into their own products. Law firms collect documents. HR platforms handle CVs. Media agencies distribute assets. All through one API.
+            NaijaTransfer isn&apos;t just a consumer app. Our public API lets Nigerian SaaS companies embed file transfer into their own products. Law firms collect documents. HR platforms handle CVs. Media agencies distribute assets. All through one API.
           </p>
         </div>
 

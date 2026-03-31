@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import PageLayout from "@/components/layout/PageLayout";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — NigeriaTransfer",
-  description: "NigeriaTransfer privacy policy. NDPA compliant.",
+  title: "Privacy Policy — NaijaTransfer",
+  description: "NaijaTransfer privacy policy. NDPA compliant.",
 };
 
 export default function PrivacyPage() {
@@ -31,7 +31,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-h2 text-[var(--text-primary)] mb-3">Cross-border data transfer</h2>
-            <p>Our servers are hosted outside Nigeria. By using NigeriaTransfer, you consent to your data being processed in the server region. We maintain Standard Contractual Clauses with our infrastructure providers (Oracle Cloud, Cloudflare) to ensure adequate protection under the Nigeria Data Protection Act 2023 (NDPA).</p>
+            <p>Our servers are hosted outside Nigeria. By using NaijaTransfer, you consent to your data being processed in the server region. We maintain Standard Contractual Clauses with our infrastructure providers (Oracle Cloud, Cloudflare) to ensure adequate protection under the Nigeria Data Protection Act 2023 (NDPA).</p>
           </section>
 
           <section>

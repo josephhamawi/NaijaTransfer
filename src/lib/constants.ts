@@ -2,7 +2,7 @@
  * Application-wide constants.
  */
 
-export const APP_NAME = "NigeriaTransfer";
+export const APP_NAME = "NaijaTransfer";
 export const APP_TAGLINE = "Send large files. No account. No wahala.";
 export const APP_DOMAIN = "nigeriatransfer.com";
 

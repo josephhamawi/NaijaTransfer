@@ -68,7 +68,7 @@ const sizeClasses: Record<ButtonSize, string> = {
 };
 
 /**
- * Button component with NigeriaTransfer design tokens.
+ * Button component with NaijaTransfer design tokens.
  *
  * Variants: primary (green), secondary (outlined green), ghost, danger (red), gold, outline
  * All sizes meet 44px minimum touch target on mobile (pointer: coarse).

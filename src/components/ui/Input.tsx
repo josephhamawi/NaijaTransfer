@@ -21,7 +21,7 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 /**
- * Input component with NigeriaTransfer design tokens.
+ * Input component with NaijaTransfer design tokens.
  *
  * Supports text, email, password types with validation states.
  * 44px minimum height for touch target compliance (NFR21).

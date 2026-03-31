@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import PageLayout from "@/components/layout/PageLayout";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — NigeriaTransfer",
-  description: "NigeriaTransfer terms of service.",
+  title: "Terms of Service — NaijaTransfer",
+  description: "NaijaTransfer terms of service.",
 };
 
 export default function TermsPage() {
@@ -16,17 +16,17 @@ export default function TermsPage() {
         <div className="space-y-6 text-body text-[var(--text-secondary)]">
           <section>
             <h2 className="text-h2 text-[var(--text-primary)] mb-3">Acceptance</h2>
-            <p>By using NigeriaTransfer, you agree to these terms. If you do not agree, do not use the service.</p>
+            <p>By using NaijaTransfer, you agree to these terms. If you do not agree, do not use the service.</p>
           </section>
 
           <section>
             <h2 className="text-h2 text-[var(--text-primary)] mb-3">Service description</h2>
-            <p>NigeriaTransfer provides temporary file transfer services. Files are stored for a limited period (7-60 days) and automatically deleted upon expiry. We do not guarantee permanent storage.</p>
+            <p>NaijaTransfer provides temporary file transfer services. Files are stored for a limited period (7-60 days) and automatically deleted upon expiry. We do not guarantee permanent storage.</p>
           </section>
 
           <section>
             <h2 className="text-h2 text-[var(--text-primary)] mb-3">Acceptable use</h2>
-            <p>You may not use NigeriaTransfer to:</p>
+            <p>You may not use NaijaTransfer to:</p>
             <ul className="list-disc list-inside space-y-1 mt-2">
               <li>Upload, share, or distribute malware, viruses, or malicious code</li>
               <li>Share copyrighted content without authorization</li>
@@ -49,7 +49,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-h2 text-[var(--text-primary)] mb-3">Limitation of liability</h2>
-            <p>NigeriaTransfer is provided &quot;as is&quot; without warranty. We are not liable for data loss, transfer failures, or service interruptions. Our maximum liability is limited to the amount you paid in the 12 months preceding the claim.</p>
+            <p>NaijaTransfer is provided &quot;as is&quot; without warranty. We are not liable for data loss, transfer failures, or service interruptions. Our maximum liability is limited to the amount you paid in the 12 months preceding the claim.</p>
           </section>
 
           <section>

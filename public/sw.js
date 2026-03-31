@@ -1,4 +1,4 @@
-/** NigeriaTransfer Service Worker — Offline support + upload queue */
+/** NaijaTransfer Service Worker — Offline support + upload queue */
 
 const CACHE_NAME = "nt-v1";
 const APP_SHELL = ["/", "/pricing", "/about", "/offline"];

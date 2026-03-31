@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
 export const metadata: Metadata = {
-  title: "Contact — NigeriaTransfer",
-  description: "Get in touch with the NigeriaTransfer team.",
+  title: "Contact — NaijaTransfer",
+  description: "Get in touch with the NaijaTransfer team.",
 };
 
 export default function ContactPage() {

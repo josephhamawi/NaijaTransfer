@@ -242,7 +242,7 @@ export default function DownloadCard({
       {/* Upgrade hint for free tier */}
       {tier === "free" && (
         <p className="text-caption-style text-[var(--text-muted)] text-center mt-3">
-          Remove ads with NigeriaTransfer Pro &mdash; NGN 2,000/month
+          Remove ads with NaijaTransfer Pro &mdash; NGN 2,000/month
         </p>
       )}
     </Card>

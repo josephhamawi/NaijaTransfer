@@ -192,25 +192,10 @@ export default function HomePage() {
         >
           {/* Logo / branding in card */}
           <div className="flex items-center gap-2 mb-6">
-            <svg
-              width="28"
-              height="28"
-              viewBox="0 0 28 28"
-              fill="none"
-              aria-hidden="true"
-              className="text-nigerian-green"
-            >
-              <rect width="28" height="28" rx="6" fill="currentColor" />
-              <path
-                d="M8 20V8l6 12L20 8v12"
-                stroke="white"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-40.png" alt="" width={28} height={28} className="w-7 h-7" />
             <span className="text-h3 font-bold text-nigerian-green">
-              NigeriaTransfer
+              NaijaTransfer
             </span>
           </div>
 
@@ -358,7 +343,7 @@ export default function HomePage() {
               <a href={`sms:?body=${encodeURIComponent(`Here are your files: ${transferResult.downloadUrl}`)}`}>
                 <Button variant="outline" size="sm" fullWidth>SMS</Button>
               </a>
-              <a href={`mailto:?subject=Files via NigeriaTransfer&body=${encodeURIComponent(`Here are your files: ${transferResult.downloadUrl}`)}`}>
+              <a href={`mailto:?subject=Files via NaijaTransfer&body=${encodeURIComponent(`Here are your files: ${transferResult.downloadUrl}`)}`}>
                 <Button variant="outline" size="sm" fullWidth>Email</Button>
               </a>
             </div>
@@ -416,11 +401,11 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Why NigeriaTransfer */}
+        {/* Why NaijaTransfer */}
         <section className="bg-charcoal-600/50 py-16">
           <div className="max-w-4xl mx-auto px-4">
             <h2 className="text-h2 sm:text-h1 text-center mb-10 text-white">
-              Why NigeriaTransfer?
+              Why NaijaTransfer?
             </h2>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               <TrustSignal

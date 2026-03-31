@@ -20,7 +20,7 @@ export interface PageLayoutProps {
   isAuthenticated?: boolean;
   /** User name (passed to Header) */
   userName?: string;
-  /** Hide "Powered by NigeriaTransfer" branding (Business tier) */
+  /** Hide "Powered by NaijaTransfer" branding (Business tier) */
   hideBranding?: boolean;
   /** Additional main content class */
   className?: string;

@@ -24,13 +24,8 @@ export default function Footer({ hideBranding = false, className }: FooterProps)
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="inline-flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-md bg-nigerian-green flex items-center justify-center">
-                <svg width="14" height="14" viewBox="0 0 512 512" fill="none" aria-hidden="true">
-                  <path d="M256 120 L256 320" stroke="white" strokeWidth="40" strokeLinecap="round"/>
-                  <path d="M176 200 L256 120 L336 200" stroke="white" strokeWidth="40" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M136 380 L376 380" stroke="white" strokeWidth="40" strokeLinecap="round"/>
-                </svg>
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo-40.png" alt="" width={24} height={24} className="w-6 h-6" />
               <span className="text-sm font-bold text-white">
                 Naija<span className="text-nigerian-green">Transfer</span>
               </span>

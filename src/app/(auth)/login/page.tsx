@@ -65,13 +65,8 @@ export default function LoginPage() {
         <Card frosted elevation="xl" padding="lg" className="w-full max-w-full sm:max-w-sm">
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="w-14 h-14 rounded-2xl bg-nigerian-green flex items-center justify-center mx-auto mb-4">
-              <svg width="28" height="28" viewBox="0 0 512 512" fill="none" aria-hidden="true">
-                <path d="M256 120 L256 320" stroke="white" strokeWidth="40" strokeLinecap="round"/>
-                <path d="M176 200 L256 120 L336 200" stroke="white" strokeWidth="40" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M136 380 L376 380" stroke="white" strokeWidth="40" strokeLinecap="round"/>
-              </svg>
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-80.png" alt="NaijaTransfer" width={56} height={56} className="w-14 h-14 mx-auto mb-4" />
             <h1 className="text-h2 font-bold text-[var(--text-primary)]">
               {isSignUp ? "Create account" : "Welcome back"}
             </h1>

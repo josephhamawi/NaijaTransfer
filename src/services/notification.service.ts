@@ -8,11 +8,11 @@ function emailWrapper(content: string): string {
 <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f4f4f4">
 <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#fff">
 <tr><td style="background:${BRAND_COLOR};padding:24px 32px;text-align:center">
-<span style="color:#fff;font-size:24px;font-weight:700;text-decoration:none">NigeriaTransfer</span>
+<span style="color:#fff;font-size:24px;font-weight:700;text-decoration:none">NaijaTransfer</span>
 </td></tr>
 <tr><td style="padding:32px">${content}</td></tr>
 <tr><td style="padding:16px 32px;background:#f9f9f9;text-align:center;font-size:12px;color:#888">
-<p>NigeriaTransfer — Send large files. No account. No wahala.</p>
+<p>NaijaTransfer — Send large files. No account. No wahala.</p>
 <p><a href="${BASE_URL}/privacy" style="color:#888">Privacy</a> · <a href="${BASE_URL}/terms" style="color:#888">Terms</a></p>
 </td></tr></table></body></html>`;
 }
@@ -57,7 +57,7 @@ export async function sendTransferNotification(params: {
   for (const email of params.recipientEmails) {
     await sendEmail({
       to: [{ email }],
-      subject: `${sender} sent you files via NigeriaTransfer`,
+      subject: `${sender} sent you files via NaijaTransfer`,
       htmlContent: emailWrapper(content),
     });
   }
@@ -79,7 +79,7 @@ export async function sendDownloadNotification(params: {
 
   await sendEmail({
     to: [{ email: params.senderEmail }],
-    subject: "Your NigeriaTransfer files were downloaded",
+    subject: "Your NaijaTransfer files were downloaded",
     htmlContent: emailWrapper(content),
   });
 }
@@ -110,7 +110,7 @@ export async function sendExpiryWarnings(): Promise<number> {
 
     await sendEmail({
       to: [{ email: transfer.senderEmail }],
-      subject: "Your NigeriaTransfer expires tomorrow",
+      subject: "Your NaijaTransfer expires tomorrow",
       htmlContent: emailWrapper(content),
     });
     sent++;
