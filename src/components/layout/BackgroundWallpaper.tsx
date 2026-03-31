@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useIsLightweight } from "@/contexts/LightweightContext";
 import { cn } from "@/lib/utils";
 import type { Wallpaper } from "@/types";
 
-// Local wallpaper images — served from /public/wallpapers/ (no external deps)
-const PLACEHOLDER_WALLPAPERS: (Wallpaper & { gradient: string })[] = [
+// Local wallpaper images — served from /public/wallpapers/
+const WALLPAPERS: (Wallpaper & { gradient: string })[] = [
   {
     id: "1",
     imageUrl: "/wallpapers/lagos-skyline.jpg",
@@ -21,7 +21,7 @@ const PLACEHOLDER_WALLPAPERS: (Wallpaper & { gradient: string })[] = [
     gradient: "linear-gradient(135deg, #2a6f4e 0%, #1A1A2E 60%, #008751 100%)",
     artistName: "David Iloba",
     artworkTitle: "Lagos Market",
-    artistUrl: "https://www.pexels.com/photo/crowded-city-street-16155217/",
+    artistUrl: "https://www.pexels.com/@david-iloba-28486424/",
   },
   {
     id: "3",
@@ -50,145 +50,127 @@ const PLACEHOLDER_WALLPAPERS: (Wallpaper & { gradient: string })[] = [
 ];
 
 export interface BackgroundWallpaperProps {
-  /** Override wallpaper data (e.g., custom branding for Business tier) */
   wallpaper?: Wallpaper;
-  /** Show the artist credit bar at the bottom */
   showCredit?: boolean;
-  /** Additional CSS classes */
   className?: string;
 }
 
-/**
- * BackgroundWallpaper renders a full-bleed rotating Nigerian art background.
- *
- * In Lightweight Mode: renders nothing (solid bg-primary shown via body bg).
- * In Full Mode: shows full-viewport background image with lazy loading,
- * crossfade transition, and artist credit bar (FR56, FR61).
- *
- * Wallpaper images are expected to be cached at CDN with 24h TTL.
- */
 export default function BackgroundWallpaper({
   wallpaper: overrideWallpaper,
   showCredit = true,
   className,
 }: BackgroundWallpaperProps) {
   const isLightweight = useIsLightweight();
-  const [currentWallpaper, setCurrentWallpaper] = useState<Wallpaper | null>(
-    overrideWallpaper || null
+  const [currentIndex, setCurrentIndex] = useState(() =>
+    Math.floor(Math.random() * WALLPAPERS.length)
   );
-  const [imageLoaded, setImageLoaded] = useState(false);
+  const [nextIndex, setNextIndex] = useState(-1);
+  const [transitioning, setTransitioning] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [gradient, setGradient] = useState<string>("");
-
-  // Select a random wallpaper on mount if none provided
-  const [wallpaperIndex, setWallpaperIndex] = useState(0);
-
-  // Select initial random wallpaper + rotate every 10 seconds
+  // Auto-rotate every 10 seconds with crossfade
   useEffect(() => {
-    if (overrideWallpaper) {
-      setCurrentWallpaper(overrideWallpaper);
-      return;
-    }
+    if (overrideWallpaper || isLightweight) return;
 
-    const startIndex = Math.floor(Math.random() * PLACEHOLDER_WALLPAPERS.length);
-    setWallpaperIndex(startIndex);
-    const initial = PLACEHOLDER_WALLPAPERS[startIndex];
-    setCurrentWallpaper(initial);
-    setGradient(initial.gradient);
+    timerRef.current = setInterval(() => {
+      setNextIndex((currentIndex + 1) % WALLPAPERS.length);
+      setTransitioning(true);
 
-    // Rotate every 10 seconds
-    const interval = setInterval(() => {
-      setWallpaperIndex((prev) => {
-        const next = (prev + 1) % PLACEHOLDER_WALLPAPERS.length;
-        const wp = PLACEHOLDER_WALLPAPERS[next];
-        setCurrentWallpaper(wp);
-        setGradient(wp.gradient);
-        setImageLoaded(false); // Reset so new image fades in
-        return next;
-      });
+      // After fade completes, swap current to next
+      setTimeout(() => {
+        setCurrentIndex((prev) => (prev + 1) % WALLPAPERS.length);
+        setNextIndex(-1);
+        setTransitioning(false);
+      }, 1500); // Match CSS transition duration
     }, 10000);
 
-    return () => clearInterval(interval);
-  }, [overrideWallpaper]);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [currentIndex, overrideWallpaper, isLightweight]);
 
-  // In lightweight mode, render nothing -- body bg-primary is the background
   if (isLightweight) return null;
 
-  if (!currentWallpaper) return null;
+  const current = overrideWallpaper || WALLPAPERS[currentIndex];
+  const next = nextIndex >= 0 ? WALLPAPERS[nextIndex] : null;
+
+  return (
+    <div className={cn("wallpaper-bg fixed inset-0 z-0", className)} aria-hidden="true">
+      {/* Current wallpaper — always visible */}
+      <WallpaperLayer
+        wallpaper={current as Wallpaper & { gradient: string }}
+        opacity={1}
+      />
+
+      {/* Next wallpaper — fades in on top */}
+      {next && (
+        <WallpaperLayer
+          wallpaper={next}
+          opacity={transitioning ? 1 : 0}
+        />
+      )}
+
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-black/30 dark:bg-black/50" />
+
+      {/* Artist credit */}
+      {showCredit && (
+        <div className="absolute bottom-0 left-0 right-0 h-8 flex items-center justify-center bg-black/60 backdrop-blur-sm text-white/80 text-xs px-4 z-10">
+          <span>
+            Background by{" "}
+            {current.artistUrl && current.artistUrl !== "#" ? (
+              <a href={current.artistUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-white">
+                {current.artistName}
+              </a>
+            ) : (
+              <span className="font-medium">{current.artistName}</span>
+            )}
+            {current.artworkTitle && (
+              <span className="hidden sm:inline"> &mdash; &ldquo;{current.artworkTitle}&rdquo;</span>
+            )}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WallpaperLayer({
+  wallpaper,
+  opacity,
+}: {
+  wallpaper: Wallpaper & { gradient?: string };
+  opacity: number;
+}) {
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const grad = (wallpaper as { gradient?: string }).gradient || "";
 
   return (
     <div
-      className={cn("wallpaper-bg fixed inset-0 z-0", className)}
-      aria-hidden="true"
+      className="absolute inset-0 transition-opacity duration-[1500ms] ease-in-out"
+      style={{ opacity }}
     >
-      {/* Gradient background — always visible immediately */}
-      <div
-        className="absolute inset-0"
-        style={{ backgroundImage: gradient }}
-      />
+      {/* Gradient base */}
+      {grad && <div className="absolute inset-0" style={{ backgroundImage: grad }} />}
 
-      {/* Photo layer — fades in on top of gradient when loaded */}
-      {currentWallpaper.imageUrl && (
+      {/* Photo */}
+      {wallpaper.imageUrl && (
         <>
           <div
             className={cn(
-              "absolute inset-0 bg-cover bg-center bg-no-repeat",
-              "transition-opacity duration-1000",
-              imageLoaded ? "opacity-100" : "opacity-0"
+              "absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-700",
+              imgLoaded ? "opacity-100" : "opacity-0"
             )}
-            style={{ backgroundImage: `url(${currentWallpaper.imageUrl})` }}
+            style={{ backgroundImage: `url(${wallpaper.imageUrl})` }}
           />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={currentWallpaper.imageUrl}
+            src={wallpaper.imageUrl}
             alt=""
             className="hidden"
-            onLoad={() => setImageLoaded(true)}
-            onError={() => setImageLoaded(false)}
+            onLoad={() => setImgLoaded(true)}
           />
         </>
-      )}
-
-      {/* Subtle dark overlay for text readability */}
-      <div className="absolute inset-0 bg-black/20 dark:bg-black/40" />
-
-      {/* Artist credit bar -- fixed at bottom, 32px height, semi-transparent (FR61) */}
-      {showCredit && (
-        <div
-          className={cn(
-            "absolute bottom-0 left-0 right-0",
-            "h-8 flex items-center justify-center",
-            "bg-black/60 backdrop-blur-sm",
-            "text-white/80 text-caption-style",
-            "px-4"
-          )}
-        >
-          <span>
-            Background by{" "}
-            {currentWallpaper.artistUrl &&
-            currentWallpaper.artistUrl !== "#" ? (
-              <a
-                href={currentWallpaper.artistUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-white transition-colors"
-              >
-                {currentWallpaper.artistName}
-              </a>
-            ) : (
-              <span className="font-medium">
-                {currentWallpaper.artistName}
-              </span>
-            )}
-            {currentWallpaper.artworkTitle && (
-              <span className="hidden sm:inline">
-                {" "}
-                &mdash; &ldquo;{currentWallpaper.artworkTitle}&rdquo;
-              </span>
-            )}
-            <span className="hidden sm:inline ml-1">&mdash; View their work</span>
-          </span>
-        </div>
       )}
     </div>
   );
