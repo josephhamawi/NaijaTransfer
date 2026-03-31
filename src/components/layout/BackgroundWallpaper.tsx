@@ -5,12 +5,11 @@ import { useIsLightweight } from "@/contexts/LightweightContext";
 import { cn } from "@/lib/utils";
 import type { Wallpaper } from "@/types";
 
-// Nigerian photography from Unsplash (free, attribution included)
-// These are real photos of Nigeria — Lagos, markets, landscapes, culture
+// Local wallpaper images — served from /public/wallpapers/ (no external deps)
 const PLACEHOLDER_WALLPAPERS: (Wallpaper & { gradient: string })[] = [
   {
     id: "1",
-    imageUrl: "https://images.unsplash.com/photo-1618828665011-0abd973f7bb8?w=1920&q=80",
+    imageUrl: "/wallpapers/lagos-skyline.jpg",
     gradient: "linear-gradient(135deg, #008751 0%, #1A1A2E 50%, #006341 100%)",
     artistName: "Babatunde Olajide",
     artworkTitle: "Lagos Skyline",
@@ -18,43 +17,19 @@ const PLACEHOLDER_WALLPAPERS: (Wallpaper & { gradient: string })[] = [
   },
   {
     id: "2",
-    imageUrl: "https://images.unsplash.com/photo-1591115765373-5f9cf1da194e?w=1920&q=80",
-    gradient: "linear-gradient(160deg, #0a2e1a 0%, #008751 40%, #FFD700 100%)",
-    artistName: "Muhammadtaha Ibrahim",
-    artworkTitle: "African Textiles",
-    artistUrl: "https://unsplash.com/@planeteelevene",
-  },
-  {
-    id: "3",
-    imageUrl: "https://images.unsplash.com/photo-1573553235970-1f1e157bf168?w=1920&q=80",
-    gradient: "linear-gradient(120deg, #1A1A2E 0%, #2d1a4e 30%, #008751 70%, #004d30 100%)",
-    artistName: "Dami Adebayo",
-    artworkTitle: "Lagos at Dusk",
-    artistUrl: "https://unsplash.com/@damidee",
-  },
-  {
-    id: "4",
-    imageUrl: "https://images.unsplash.com/photo-1590845947698-8924d7409b56?w=1920&q=80",
-    gradient: "radial-gradient(ellipse at 20% 50%, #008751 0%, #1A1A2E 60%, #0a0a14 100%)",
-    artistName: "Tobi Ogunbadeniyi",
-    artworkTitle: "Street Life",
-    artistUrl: "https://unsplash.com/@tobiogunbadeniyi",
-  },
-  {
-    id: "5",
-    imageUrl: "https://images.unsplash.com/photo-1567359781514-3b964e2b04d6?w=1920&q=80",
-    gradient: "linear-gradient(180deg, #1A1A2E 0%, #008751 100%)",
-    artistName: "Emmanuel Ikwuegbu",
-    artworkTitle: "Golden Hour",
-    artistUrl: "https://unsplash.com/@emmaikwuegbu",
-  },
-  {
-    id: "6",
-    imageUrl: "https://images.pexels.com/photos/16155217/pexels-photo-16155217.jpeg?auto=compress&cs=tinysrgb&w=1920",
+    imageUrl: "/wallpapers/lagos-market.jpg",
     gradient: "linear-gradient(135deg, #2a6f4e 0%, #1A1A2E 60%, #008751 100%)",
     artistName: "Pexels",
     artworkTitle: "Lagos Market",
     artistUrl: "https://www.pexels.com/photo/crowded-city-street-16155217/",
+  },
+  {
+    id: "3",
+    imageUrl: "/wallpapers/golden-hour.jpg",
+    gradient: "linear-gradient(180deg, #1A1A2E 0%, #008751 100%)",
+    artistName: "Emmanuel Ikwuegbu",
+    artworkTitle: "Golden Hour",
+    artistUrl: "https://unsplash.com/@emmaikwuegbu",
   },
 ];
 
