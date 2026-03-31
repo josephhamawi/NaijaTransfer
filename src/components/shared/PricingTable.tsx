@@ -158,7 +158,7 @@ export default function PricingTable({ className }: PricingTableProps) {
 
             {/* Price */}
             <div className="mt-3 mb-6">
-              <span className="text-display text-[var(--text-primary)]">
+              <span className="text-h1 sm:text-display text-[var(--text-primary)]">
                 {tier.price}
               </span>
               {tier.period && (

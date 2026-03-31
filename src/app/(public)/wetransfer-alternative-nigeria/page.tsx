@@ -14,7 +14,7 @@ export default function WeTransferAlternativePage() {
   return (
     <PageLayout>
       <div className="max-w-3xl mx-auto px-4 pt-24 pb-16">
-        <h1 className="text-display font-bold mb-4">Best WeTransfer Alternative in Nigeria</h1>
+        <h1 className="text-h1 sm:text-display font-bold mb-4">Best WeTransfer Alternative in Nigeria</h1>
         <p className="text-body text-[var(--text-secondary)] mb-8">
           WeTransfer is great — but it wasn&apos;t built for Nigeria. Slow uploads from Lagos, no resume when your connection drops, USD pricing your Naira card might reject, and only 2GB free. NaijaTransfer fixes all of that.
         </p>
@@ -29,9 +29,9 @@ export default function WeTransferAlternativePage() {
               <table className="w-full text-body-sm border-collapse">
                 <thead>
                   <tr className="border-b border-[var(--border-color)]">
-                    <th className="text-left py-3 pr-4">Feature</th>
-                    <th className="text-left py-3 px-4 text-nigerian-green font-bold">NaijaTransfer</th>
-                    <th className="text-left py-3 px-4">WeTransfer</th>
+                    <th className="text-left py-3 pr-4 whitespace-nowrap">Feature</th>
+                    <th className="text-left py-3 px-4 text-nigerian-green font-bold whitespace-nowrap">NaijaTransfer</th>
+                    <th className="text-left py-3 px-4 whitespace-nowrap">WeTransfer</th>
                   </tr>
                 </thead>
                 <tbody className="text-[var(--text-secondary)]">

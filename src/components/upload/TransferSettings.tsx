@@ -220,7 +220,7 @@ export default function TransferSettings({
           onClick={() => setShowUpgradeModal(false)}
         >
           <div
-            className="bg-[var(--bg-primary)] rounded-2xl p-6 max-w-sm w-full shadow-xl border border-[var(--border-color)]"
+            className="bg-[var(--bg-primary)] rounded-2xl p-6 max-w-full sm:max-w-sm w-full shadow-xl border border-[var(--border-color)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-center mb-4">

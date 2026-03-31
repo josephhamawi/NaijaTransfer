@@ -17,7 +17,7 @@ export default function ArtistsPage() {
   return (
     <PageLayout>
       <div className="max-w-3xl mx-auto px-4 pt-24 pb-16">
-        <h1 className="text-display font-bold mb-3 text-center">Featured Artists</h1>
+        <h1 className="text-h1 sm:text-display font-bold mb-3 text-center">Featured Artists</h1>
         <p className="text-body text-[var(--text-secondary)] text-center mb-12 max-w-xl mx-auto">
           The backgrounds you see on NigeriaTransfer are created by Nigerian artists and photographers. Every time you send a file, you experience their work.
         </p>

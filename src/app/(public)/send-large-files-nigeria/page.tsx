@@ -12,7 +12,7 @@ export default function SEOLandingPage() {
   return (
     <PageLayout>
       <div className="max-w-3xl mx-auto px-4 pt-24 pb-16">
-        <h1 className="text-display font-bold mb-4">Send Large Files in Nigeria — Free</h1>
+        <h1 className="text-h1 sm:text-display font-bold mb-4">Send Large Files in Nigeria — Free</h1>
         <p className="text-body text-[var(--text-secondary)] mb-8">
           NigeriaTransfer lets you send files up to 4 GB for free, with no account required. Built specifically for Nigerian internet — uploads resume when your connection drops, and you can share via WhatsApp with one tap.
         </p>
@@ -56,10 +56,10 @@ export default function SEOLandingPage() {
               <table className="w-full text-body-sm border-collapse">
                 <thead>
                   <tr className="border-b border-[var(--border-color)]">
-                    <th className="text-left py-2 pr-4">Feature</th>
-                    <th className="text-left py-2 px-4">NigeriaTransfer</th>
-                    <th className="text-left py-2 px-4">WeTransfer</th>
-                    <th className="text-left py-2 px-4">WhatsApp</th>
+                    <th className="text-left py-2 pr-4 whitespace-nowrap">Feature</th>
+                    <th className="text-left py-2 px-4 whitespace-nowrap">NigeriaTransfer</th>
+                    <th className="text-left py-2 px-4 whitespace-nowrap">WeTransfer</th>
+                    <th className="text-left py-2 px-4 whitespace-nowrap">WhatsApp</th>
                   </tr>
                 </thead>
                 <tbody className="text-[var(--text-secondary)]">

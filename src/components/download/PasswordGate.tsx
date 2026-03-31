@@ -84,7 +84,7 @@ export default function PasswordGate({
       <Card
         padding="lg"
         elevation="lg"
-        className="w-full max-w-sm text-center"
+        className="w-full max-w-full sm:max-w-sm text-center"
       >
         {/* Lock icon */}
         <div className="flex items-center justify-center w-16 h-16 rounded-full bg-charcoal-50 dark:bg-charcoal-600 mx-auto mb-4">

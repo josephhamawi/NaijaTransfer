@@ -12,7 +12,7 @@ export default function AboutPage() {
   return (
     <PageLayout>
       <div className="max-w-3xl mx-auto px-4 pt-24 pb-16">
-        <h1 className="text-display font-bold mb-6">Built in Nigeria, for Nigeria.</h1>
+        <h1 className="text-h1 sm:text-display font-bold mb-6">Built in Nigeria, for Nigeria.</h1>
 
         <div className="prose prose-lg text-[var(--text-secondary)] space-y-6">
           <p className="text-body">
