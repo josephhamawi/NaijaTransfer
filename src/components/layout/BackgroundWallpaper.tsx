@@ -57,18 +57,34 @@ export default function BackgroundWallpaper({
   const [gradient, setGradient] = useState<string>("");
 
   // Select a random wallpaper on mount if none provided
+  const [wallpaperIndex, setWallpaperIndex] = useState(0);
+
+  // Select initial random wallpaper + rotate every 10 seconds
   useEffect(() => {
     if (overrideWallpaper) {
       setCurrentWallpaper(overrideWallpaper);
       return;
     }
-    const randomIndex = Math.floor(
-      Math.random() * PLACEHOLDER_WALLPAPERS.length
-    );
-    const selected = PLACEHOLDER_WALLPAPERS[randomIndex];
-    setCurrentWallpaper(selected);
-    setGradient(selected.gradient);
-    if (!selected.imageUrl) setImageLoaded(true); // Gradient needs no loading
+
+    const startIndex = Math.floor(Math.random() * PLACEHOLDER_WALLPAPERS.length);
+    setWallpaperIndex(startIndex);
+    const initial = PLACEHOLDER_WALLPAPERS[startIndex];
+    setCurrentWallpaper(initial);
+    setGradient(initial.gradient);
+
+    // Rotate every 10 seconds
+    const interval = setInterval(() => {
+      setWallpaperIndex((prev) => {
+        const next = (prev + 1) % PLACEHOLDER_WALLPAPERS.length;
+        const wp = PLACEHOLDER_WALLPAPERS[next];
+        setCurrentWallpaper(wp);
+        setGradient(wp.gradient);
+        setImageLoaded(false); // Reset so new image fades in
+        return next;
+      });
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, [overrideWallpaper]);
 
   // In lightweight mode, render nothing -- body bg-primary is the background
