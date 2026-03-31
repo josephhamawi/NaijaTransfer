@@ -43,13 +43,13 @@ export default function TransferSettings({
 
   const expiryValues = [1, 3, 7, 14, 30, 60];
   const limitValues = [
-    { value: 1, label: "1 download" },
-    { value: 10, label: "10 downloads" },
-    { value: 25, label: "25 downloads" },
-    { value: 50, label: "50 downloads" },
-    { value: 100, label: "100 downloads" },
-    { value: 250, label: "250 downloads" },
-    { value: 10000, label: "Unlimited" },
+    { value: 1, label: "1" },
+    { value: 10, label: "10" },
+    { value: 25, label: "25" },
+    { value: 50, label: "50" },
+    { value: 100, label: "100" },
+    { value: 250, label: "250" },
+    { value: 10000, label: "∞" },
   ];
 
   const handleChange = (key: keyof TransferSettingsValues, value: string | number) => {
@@ -139,7 +139,7 @@ export default function TransferSettings({
                         )}
                       >
                         {locked && <LockIcon />}
-                        <span className="truncate">{label.replace(" downloads", "")}</span>
+                        <span>{label}</span>
                       </button>
                     );
                   })}
