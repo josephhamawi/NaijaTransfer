@@ -10,7 +10,7 @@ const WALLPAPERS: (Wallpaper & { gradient: string })[] = [
   {
     id: "1",
     imageUrl: "/wallpapers/lagos-skyline.jpg",
-    gradient: "linear-gradient(135deg, #008751 0%, #1A1A2E 50%, #006341 100%)",
+    gradient: "linear-gradient(135deg, #4EA8DE 0%, #1A1A2E 50%, #2E86C1 100%)",
     artistName: "Babatunde Olajide",
     artworkTitle: "Lagos Skyline",
     artistUrl: "https://unsplash.com/@spicyboggy",
@@ -18,7 +18,7 @@ const WALLPAPERS: (Wallpaper & { gradient: string })[] = [
   {
     id: "2",
     imageUrl: "/wallpapers/lagos-market.jpg",
-    gradient: "linear-gradient(135deg, #2a6f4e 0%, #1A1A2E 60%, #008751 100%)",
+    gradient: "linear-gradient(135deg, #2a6f4e 0%, #1A1A2E 60%, #4EA8DE 100%)",
     artistName: "David Iloba",
     artworkTitle: "Lagos Market",
     artistUrl: "https://www.pexels.com/@david-iloba-28486424/",
@@ -26,7 +26,7 @@ const WALLPAPERS: (Wallpaper & { gradient: string })[] = [
   {
     id: "3",
     imageUrl: "/wallpapers/lagos-street.jpg",
-    gradient: "linear-gradient(160deg, #3a5f3a 0%, #1A1A2E 50%, #006341 100%)",
+    gradient: "linear-gradient(160deg, #3a5f3a 0%, #1A1A2E 50%, #2E86C1 100%)",
     artistName: "Olarotimi Awolaja",
     artworkTitle: "Lagos Crossroads",
     artistUrl: "#",

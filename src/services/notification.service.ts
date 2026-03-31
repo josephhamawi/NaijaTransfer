@@ -1,7 +1,7 @@
 import { sendEmail } from "@/lib/email";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://nigeriatransfer.com";
-const BRAND_COLOR = "#008751";
+const BRAND_COLOR = "#4EA8DE";
 
 function emailWrapper(content: string): string {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>

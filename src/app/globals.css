@@ -12,16 +12,16 @@
 
 @theme {
   /* --- Primary Colors --- */
-  --color-nigerian-green: #008751;
+  --color-nigerian-green: #4EA8DE;
   --color-charcoal: #1A1A2E;
   --color-gold: #FFD700;
   --color-error-red: #E74C3C;
 
-  /* --- Extended Green Palette --- */
-  --color-green-50: #E6F5ED;
-  --color-green-100: #B3E0C7;
-  --color-green-700: #006B41;
-  --color-green-900: #004D2E;
+  /* --- Extended Blue Palette --- */
+  --color-green-50: #EBF5FB;
+  --color-green-100: #BEE0F5;
+  --color-green-700: #2E86C1;
+  --color-green-900: #1B4F72;
 
   /* --- Extended Charcoal Palette --- */
   --color-charcoal-50: #F0F0F3;
@@ -114,7 +114,7 @@
   --surface-overlay: rgba(255, 255, 255, 0.92);
   --upload-zone-border: #D1D1D8;
   --progress-track: #E6F5ED;
-  --progress-fill: #008751;
+  --progress-fill: #4EA8DE;
   --error-bg: #FDE8E5;
   --gold-bg: #FFF8DC;
   --input-bg: #FFFFFF;
@@ -135,7 +135,7 @@
   --surface-overlay: rgba(26, 26, 46, 0.92);
   --upload-zone-border: #4D4D62;
   --progress-track: #004D2E;
-  --progress-fill: #008751;
+  --progress-fill: #4EA8DE;
   --error-bg: #3D1A1A;
   --gold-bg: #3D3520;
   --input-bg: #2D2D42;

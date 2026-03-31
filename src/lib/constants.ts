@@ -10,9 +10,9 @@ export const APP_DOMAIN = "nigeriatransfer.com";
  * Nigerian brand color palette.
  */
 export const COLORS = {
-  NIGERIAN_GREEN: "#008751",
-  GREEN_LIGHT: "#00a86b",
-  GREEN_DARK: "#006b3f",
+  NIGERIAN_GREEN: "#4EA8DE",
+  GREEN_LIGHT: "#7EC8E3",
+  GREEN_DARK: "#2E86C1",
   GOLD: "#d4a843",
   WHITE: "#ffffff",
 } as const;
