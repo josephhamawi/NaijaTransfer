@@ -44,7 +44,7 @@ export default function ArtistsPage() {
         <div className="text-center mt-12">
           <p className="text-body text-[var(--text-secondary)] mb-2">Are you a Nigerian artist or photographer?</p>
           <p className="text-body-sm text-[var(--text-muted)]">
-            We&apos;re always looking for new backgrounds. Contact us at <a href="mailto:artists@nigeriatransfer.com" className="text-nigerian-green hover:underline">artists@nigeriatransfer.com</a>
+            We&apos;re always looking for new backgrounds. Contact us at <a href="mailto:kodefoundryatelier@gmail.com" className="text-nigerian-green hover:underline">kodefoundryatelier@gmail.com</a>
           </p>
         </div>
       </div>

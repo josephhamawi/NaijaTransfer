@@ -21,7 +21,7 @@ export default function ContactPage() {
         <div className="grid gap-6 md:grid-cols-2 mb-8">
           <Card padding="md" elevation="sm" className="text-center">
             <h3 className="text-body font-semibold mb-1">Email</h3>
-            <a href="mailto:hello@nigeriatransfer.com" className="text-nigerian-green hover:underline text-body-sm">hello@nigeriatransfer.com</a>
+            <a href="mailto:kodefoundryatelier@gmail.com" className="text-nigerian-green hover:underline text-body-sm">kodefoundryatelier@gmail.com</a>
           </Card>
           <Card padding="md" elevation="sm" className="text-center">
             <h3 className="text-body font-semibold mb-1">WhatsApp</h3>
