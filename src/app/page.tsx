@@ -444,9 +444,9 @@ export default function HomePage() {
               Custom branding, 50 GB transfers, API access, and priority
               support. From NGN 10,000/month.
             </p>
-            <Button variant="gold" size="lg">
-              Learn more
-            </Button>
+            <a href="/business">
+              <Button variant="gold" size="lg">Learn more</Button>
+            </a>
           </div>
         </section>
       </div>
