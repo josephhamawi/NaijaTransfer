@@ -23,6 +23,30 @@ const PLACEHOLDER_WALLPAPERS: (Wallpaper & { gradient: string })[] = [
     artworkTitle: "Lagos Market",
     artistUrl: "https://www.pexels.com/photo/crowded-city-street-16155217/",
   },
+  {
+    id: "3",
+    imageUrl: "/wallpapers/lagos-street.jpg",
+    gradient: "linear-gradient(160deg, #3a5f3a 0%, #1A1A2E 50%, #006341 100%)",
+    artistName: "Olarotimi Awolaja",
+    artworkTitle: "Lagos Crossroads",
+    artistUrl: "#",
+  },
+  {
+    id: "4",
+    imageUrl: "/wallpapers/lagos-trucks.jpg",
+    gradient: "linear-gradient(120deg, #8B7355 0%, #1A1A2E 60%, #4a6741 100%)",
+    artistName: "David Iloba",
+    artworkTitle: "Lagos Workers",
+    artistUrl: "https://www.pexels.com/@david-iloba-28486424/",
+  },
+  {
+    id: "5",
+    imageUrl: "/wallpapers/fulani-cattle.jpg",
+    gradient: "linear-gradient(135deg, #8B7355 0%, #1A1A2E 50%, #5c4a32 100%)",
+    artistName: "mg shotz",
+    artworkTitle: "Fulani Herders",
+    artistUrl: "#",
+  },
 ];
 
 export interface BackgroundWallpaperProps {
