@@ -43,6 +43,7 @@ export default function TransferSettings({
 
   const expiryValues = [1, 3, 7, 14, 30, 60];
   const limitValues = [
+    { value: 1, label: "1 download" },
     { value: 10, label: "10 downloads" },
     { value: 25, label: "25 downloads" },
     { value: 50, label: "50 downloads" },
