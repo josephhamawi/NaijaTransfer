@@ -1,21 +1,31 @@
 # ─────────────────────────────────────────────────────────
 # NigeriaTransfer — CI/CD Pipeline
-# Triggers on push to main branch.
-# Runs lint, type check, tests, builds, and deploys to Oracle ARM VM.
+# Triggers on push to main branch or manual dispatch.
+# Runs lint, type check, tests, builds, and deploys to production VM.
 # ─────────────────────────────────────────────────────────
 
 name: Deploy
 
 on:
-  workflow_dispatch:  # Manual trigger only until SSH deploy keys are configured
+  workflow_dispatch:
   # push:
-    branches: [main]
+  #   branches: [main]
   pull_request:
     branches: [main]
 
 concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  # Dummy public keys for CI build (prerendering needs them to not crash)
+  NEXT_PUBLIC_FIREBASE_API_KEY: "ci-placeholder"
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "ci-placeholder"
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: "naijatransfer"
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "ci-placeholder"
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "ci-placeholder"
+  NEXT_PUBLIC_FIREBASE_APP_ID: "ci-placeholder"
+  NEXT_PUBLIC_APP_URL: "https://nigeriatransfer.com"
 
 jobs:
   # ─── Quality checks ─────────────────────────────────
@@ -75,12 +85,12 @@ jobs:
       - name: Build Next.js
         run: npm run build
 
-  # ─── Deploy to Oracle ARM VM ────────────────────────
+  # ─── Deploy to Production VM ────────────────────────
   deploy:
     name: Deploy to Production
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main'
     timeout-minutes: 10
 
     steps:
@@ -126,7 +136,7 @@ jobs:
 
       - name: Notify deployment success
         if: success()
-        run: echo "Deployment to Oracle ARM VM completed successfully"
+        run: echo "Deployment to production completed successfully"
 
       - name: Notify deployment failure
         if: failure()
