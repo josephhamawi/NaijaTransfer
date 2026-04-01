@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { paystackRequest } from "@/lib/paystack";
+import { getAuthUser } from "@/lib/auth-api";
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
     }
 
-    const user = await db.user.findUnique({ where: { id: userId } });
-    if (!user || !user.paystackSubCode) {
+    if (!user.paystackSubCode) {
       return NextResponse.json({ error: { code: "NO_SUBSCRIPTION", message: "No active subscription" } }, { status: 400 });
     }
 
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     });
 
     await db.user.update({
-      where: { id: userId },
+      where: { id: user.id },
       data: {
         tier: "FREE",
         paystackSubCode: null,

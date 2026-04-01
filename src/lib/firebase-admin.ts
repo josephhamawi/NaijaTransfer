@@ -6,7 +6,7 @@ let _app: App | null = null;
 let _firestore: Firestore | null = null;
 let _storage: Storage | null = null;
 
-function ensureInitialized(): App {
+export function ensureInitialized(): App {
   if (_app) return _app;
   if (getApps().length > 0) {
     _app = getApps()[0];

@@ -60,8 +60,10 @@ export default function DashboardPage() {
               {storage?.tier ?? "FREE"}
             </Badge>
           </div>
-          {storage?.tier === "FREE" && (
+          {storage?.tier === "FREE" ? (
             <a href="/pricing"><Button variant="gold" size="sm">Upgrade</Button></a>
+          ) : (
+            <a href="/dashboard/subscription"><Button variant="outline" size="sm">Manage</Button></a>
           )}
         </Card>
       </div>

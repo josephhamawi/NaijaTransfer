@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { paystackRequest, getPlanCode } from "@/lib/paystack";
 import { PRICING } from "@/lib/tier-limits";
+import { getAuthUser } from "@/lib/auth-api";
 
 const createSchema = z.object({
   plan: z.enum(["PRO", "BUSINESS"]),
@@ -11,14 +12,9 @@ const createSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
-    }
-
-    const user = await db.user.findUnique({ where: { id: userId } });
+    const user = await getAuthUser(request);
     if (!user) {
-      return NextResponse.json({ error: { code: "NOT_FOUND", message: "User not found" } }, { status: 404 });
+      return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
     }
 
     return NextResponse.json({
@@ -41,9 +37,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
+    }
+
+    if (!user.email) {
+      return NextResponse.json({ error: { code: "NO_EMAIL", message: "Email required for subscription" } }, { status: 400 });
     }
 
     const body = await request.json();
@@ -52,13 +52,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Invalid plan" } }, { status: 400 });
     }
 
-    const user = await db.user.findUnique({ where: { id: userId } });
-    if (!user || !user.email) {
-      return NextResponse.json({ error: { code: "NOT_FOUND", message: "User not found" } }, { status: 404 });
-    }
-
     const planCode = getPlanCode(parsed.data.plan);
-    const callbackUrl = parsed.data.callbackUrl ?? `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?subscribed=true`;
+    const callbackUrl = parsed.data.callbackUrl ?? `${process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL}/dashboard/subscription?subscribed=true`;
 
     const result = await paystackRequest<{
       data: { authorization_url: string; reference: string };
@@ -75,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     await db.payment.create({
       data: {
-        userId,
+        userId: user.id,
         type: "SUBSCRIPTION",
         amount: parsed.data.plan === "PRO" ? PRICING.PRO.amountKobo : PRICING.BUSINESS.amountKobo,
         currency: "NGN",
