@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { authFetch } from "@/lib/api-client";
@@ -33,6 +33,14 @@ const tierInfo: Record<string, { label: string; features: string[] }> = {
 };
 
 export default function SubscriptionPage() {
+  return (
+    <Suspense>
+      <SubscriptionPageInner />
+    </Suspense>
+  );
+}
+
+function SubscriptionPageInner() {
   const { user } = useAuth();
   const toast = useToast();
   const searchParams = useSearchParams();
