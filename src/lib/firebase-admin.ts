@@ -24,6 +24,7 @@ export function ensureInitialized(): App {
   // Method 2: GOOGLE_APPLICATION_CREDENTIALS file (Firebase Admin auto-discovers this)
   if (!sa && process.env.GOOGLE_APPLICATION_CREDENTIALS) {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const fs = require("fs");
       const content = fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, "utf8");
       sa = JSON.parse(content) as ServiceAccount;

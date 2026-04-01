@@ -200,7 +200,7 @@ export default function SubscriptionPage() {
             <>
               <h2 className="text-h3 font-bold mb-2">Cancel subscription?</h2>
               <p className="text-body-sm text-[var(--text-secondary)] mb-4">
-                You'll lose access to {info.label} features immediately. Active transfers will remain available until their expiry date.
+                You&apos;ll lose access to {info.label} features immediately. Active transfers will remain available until their expiry date.
               </p>
               <div className="flex gap-3">
                 <Button variant="danger" loading={cancelling} onClick={handleCancel}>
