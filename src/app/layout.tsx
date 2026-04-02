@@ -89,12 +89,6 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-        {/* BioWise analytics */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `window.bioWise={pixelId:'3ednX3J8ybanrQ5RozfprmWkK9h1'};(function(){var s=document.createElement('script');s.src='https://www.biowise.cc/pixel/v1.js';s.async=true;document.head.appendChild(s);})();`,
-          }}
-        />
         {/* Inline script to prevent FOUC (flash of unstyled content) for dark mode */}
         <script
           dangerouslySetInnerHTML={{
@@ -117,6 +111,12 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] antialiased">
         <Providers>{children}</Providers>
+        {/* BioWise analytics */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.bioWise={pixelId:'3ednX3J8ybanrQ5RozfprmWkK9h1'};(function(){var s=document.createElement('script');s.src='https://www.biowise.cc/pixel/v1.js';s.async=true;document.head.appendChild(s);})();`,
+          }}
+        />
       </body>
     </html>
   );
