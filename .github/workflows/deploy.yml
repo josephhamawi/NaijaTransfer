@@ -106,8 +106,8 @@ jobs:
             # Pull latest code
             git pull origin main
 
-            # Install production dependencies
-            npm ci --production
+            # Install dependencies (including dev deps needed for build)
+            npm ci
 
             # Generate Prisma client
             npx prisma generate
