@@ -118,6 +118,9 @@ jobs:
             # Build Next.js
             npm run build
 
+            # Update Caddy config if changed
+            cp Caddyfile /etc/caddy/Caddyfile 2>/dev/null && caddy reload --config /etc/caddy/Caddyfile 2>/dev/null || true
+
             # Restart PM2 processes
             pm2 restart nigeriatransfer
 

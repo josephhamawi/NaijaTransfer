@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import "./globals.css";
 import { Providers } from "./providers";
 
@@ -90,12 +91,10 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
         {/* BioWise analytics */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `window.bioWise = { pixelId: '3ednX3J8ybanrQ5RozfprmWkK9h1' };`,
-          }}
-        />
-        <script src="https://www.biowise.cc/pixel/v1.js" async />
+        <Script id="biowise-init" strategy="beforeInteractive">
+          {`window.bioWise = { pixelId: '3ednX3J8ybanrQ5RozfprmWkK9h1' };`}
+        </Script>
+        <Script src="https://www.biowise.cc/pixel/v1.js" strategy="afterInteractive" />
         {/* Inline script to prevent FOUC (flash of unstyled content) for dark mode */}
         <script
           dangerouslySetInnerHTML={{
