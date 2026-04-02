@@ -92,10 +92,9 @@ export default function RootLayout({
         {/* BioWise analytics */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `window.bioWise = { pixelId: '3ednX3J8ybanrQ5RozfprmWkK9h1' };`,
+            __html: `window.bioWise={pixelId:'3ednX3J8ybanrQ5RozfprmWkK9h1'};(function(){var s=document.createElement('script');s.src='https://www.biowise.cc/pixel/v1.js';s.async=true;document.head.appendChild(s);})();`,
           }}
         />
-        <script src="https://www.biowise.cc/pixel/v1.js" async={true} />
         {/* Inline script to prevent FOUC (flash of unstyled content) for dark mode */}
         <script
           dangerouslySetInnerHTML={{
