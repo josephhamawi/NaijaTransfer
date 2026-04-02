@@ -70,6 +70,12 @@ export type BadgeVariant = "free" | "pro" | "business" | "default";
 /** Notification type */
 export type NotificationType = "success" | "error" | "info" | "warning";
 
+/** Notification action button */
+export interface NotificationAction {
+  label: string;
+  onClick: () => void;
+}
+
 /** Notification data */
 export interface Notification {
   id: string;
@@ -77,4 +83,8 @@ export interface Notification {
   title: string;
   message?: string;
   duration?: number;
+  persistent?: boolean;
+  action?: NotificationAction;
+  href?: string;
+  onClick?: () => void;
 }

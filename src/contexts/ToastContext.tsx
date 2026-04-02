@@ -7,21 +7,29 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { Notification, NotificationType } from "@/types";
+import type { Notification, NotificationType, NotificationAction } from "@/types";
+
+interface ToastOptions {
+  message?: string;
+  duration?: number;
+  persistent?: boolean;
+  action?: NotificationAction;
+  href?: string;
+  onClick?: () => void;
+}
 
 interface ToastContextValue {
   notifications: Notification[];
   addNotification: (
     type: NotificationType,
     title: string,
-    message?: string,
-    duration?: number
-  ) => void;
+    options?: ToastOptions
+  ) => string;
   removeNotification: (id: string) => void;
-  success: (title: string, message?: string) => void;
-  error: (title: string, message?: string) => void;
-  info: (title: string, message?: string) => void;
-  warning: (title: string, message?: string) => void;
+  success: (title: string, messageOrOpts?: string | ToastOptions) => string;
+  error: (title: string, messageOrOpts?: string | ToastOptions) => string;
+  info: (title: string, messageOrOpts?: string | ToastOptions) => string;
+  warning: (title: string, messageOrOpts?: string | ToastOptions) => string;
 }
 
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
@@ -29,6 +37,12 @@ const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 let toastId = 0;
 
 const DEFAULT_DURATION = 5000;
+
+function normalizeOpts(messageOrOpts?: string | ToastOptions): ToastOptions {
+  if (!messageOrOpts) return {};
+  if (typeof messageOrOpts === "string") return { message: messageOrOpts };
+  return messageOrOpts;
+}
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -41,11 +55,21 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     (
       type: NotificationType,
       title: string,
-      message?: string,
-      duration: number = DEFAULT_DURATION
-    ) => {
+      options: ToastOptions = {}
+    ): string => {
       const id = `toast-${++toastId}`;
-      const notification: Notification = { id, type, title, message, duration };
+      const duration = options.persistent ? 0 : (options.duration ?? DEFAULT_DURATION);
+      const notification: Notification = {
+        id,
+        type,
+        title,
+        message: options.message,
+        duration,
+        persistent: options.persistent,
+        action: options.action,
+        href: options.href,
+        onClick: options.onClick,
+      };
       setNotifications((prev) => [...prev, notification]);
 
       if (duration > 0) {
@@ -53,31 +77,39 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           removeNotification(id);
         }, duration);
       }
+
+      return id;
     },
     [removeNotification]
   );
 
   const success = useCallback(
-    (title: string, message?: string) =>
-      addNotification("success", title, message),
+    (title: string, messageOrOpts?: string | ToastOptions): string =>
+      addNotification("success", title, normalizeOpts(messageOrOpts)),
     [addNotification]
   );
 
   const error = useCallback(
-    (title: string, message?: string) =>
-      addNotification("error", title, message, 8000),
+    (title: string, messageOrOpts?: string | ToastOptions): string =>
+      addNotification("error", title, {
+        duration: 8000,
+        ...normalizeOpts(messageOrOpts),
+      }),
     [addNotification]
   );
 
   const info = useCallback(
-    (title: string, message?: string) =>
-      addNotification("info", title, message),
+    (title: string, messageOrOpts?: string | ToastOptions): string =>
+      addNotification("info", title, normalizeOpts(messageOrOpts)),
     [addNotification]
   );
 
   const warning = useCallback(
-    (title: string, message?: string) =>
-      addNotification("warning", title, message, 7000),
+    (title: string, messageOrOpts?: string | ToastOptions): string =>
+      addNotification("warning", title, {
+        duration: 7000,
+        ...normalizeOpts(messageOrOpts),
+      }),
     [addNotification]
   );
 

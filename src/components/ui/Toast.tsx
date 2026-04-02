@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/contexts/ToastContext";
 import type { Notification, NotificationType } from "@/types";
@@ -60,6 +60,31 @@ const typeClasses: Record<NotificationType, string> = {
   warning: "text-gold-600 border-gold/30 bg-gold-100 dark:bg-[var(--gold-bg)]",
 };
 
+const progressColors: Record<NotificationType, string> = {
+  success: "bg-nigerian-green",
+  error: "bg-error-red",
+  info: "bg-[#3b82f6]",
+  warning: "bg-gold-600",
+};
+
+function ProgressBar({ duration, type }: { duration: number; type: NotificationType }) {
+  const [width, setWidth] = useState(100);
+
+  useEffect(() => {
+    // Trigger CSS transition on next frame
+    requestAnimationFrame(() => setWidth(0));
+  }, []);
+
+  return (
+    <div className="absolute bottom-0 left-0 right-0 h-[3px] overflow-hidden rounded-b-[var(--radius-lg)]">
+      <div
+        className={cn("h-full opacity-40 transition-all ease-linear", progressColors[type])}
+        style={{ width: `${width}%`, transitionDuration: `${duration}ms` }}
+      />
+    </div>
+  );
+}
+
 function ToastItem({
   notification,
   onDismiss,
@@ -68,27 +93,35 @@ function ToastItem({
   onDismiss: (id: string) => void;
 }) {
   const [isVisible, setIsVisible] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
-    // Trigger enter animation
     requestAnimationFrame(() => setIsVisible(true));
   }, []);
 
-  return (
-    <div
-      role="alert"
-      aria-live="polite"
-      className={cn(
-        "flex items-start gap-3 p-4",
-        "rounded-[var(--radius-lg)] border",
-        "shadow-md",
-        "transition-all duration-300",
-        isVisible
-          ? "translate-y-0 opacity-100"
-          : "translate-y-2 opacity-0",
-        typeClasses[notification.type]
-      )}
-    >
+  const handleDismiss = () => {
+    setIsExiting(true);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => onDismiss(notification.id), 200);
+  };
+
+  const handleClick = () => {
+    if (notification.href) {
+      window.location.href = notification.href;
+    }
+    if (notification.onClick) {
+      notification.onClick();
+    }
+    if (notification.href || notification.onClick) {
+      handleDismiss();
+    }
+  };
+
+  const isClickable = !!(notification.href || notification.onClick);
+
+  const content = (
+    <>
       <span className="shrink-0 mt-0.5">
         {iconsByType[notification.type]}
       </span>
@@ -99,21 +132,42 @@ function ToastItem({
             {notification.message}
           </p>
         )}
+        {notification.action && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              notification.action!.onClick();
+              handleDismiss();
+            }}
+            className={cn(
+              "mt-2 px-3 py-1 rounded-[var(--radius-sm)]",
+              "text-xs font-semibold",
+              "bg-current/10 hover:bg-current/20",
+              "border border-current/20",
+              "transition-colors"
+            )}
+          >
+            {notification.action.label}
+          </button>
+        )}
       </div>
       <button
-        onClick={() => onDismiss(notification.id)}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleDismiss();
+        }}
         className={cn(
           "shrink-0 flex items-center justify-center",
-          "w-8 h-8 min-w-[44px] min-h-[44px]",
+          "w-6 h-6 min-w-[44px] min-h-[44px]",
           "rounded-[var(--radius-sm)]",
-          "opacity-60 hover:opacity-100",
+          "opacity-40 hover:opacity-100",
           "transition-opacity"
         )}
         aria-label="Dismiss notification"
       >
         <svg
-          width="14"
-          height="14"
+          width="12"
+          height="12"
           viewBox="0 0 14 14"
           fill="none"
           stroke="currentColor"
@@ -124,6 +178,33 @@ function ToastItem({
           <path d="M2 2l10 10M12 2L2 12" />
         </svg>
       </button>
+
+      {/* Progress bar for auto-dismissing toasts */}
+      {notification.duration && notification.duration > 0 && !notification.persistent && (
+        <ProgressBar duration={notification.duration} type={notification.type} />
+      )}
+    </>
+  );
+
+  return (
+    <div
+      role="alert"
+      aria-live="polite"
+      onClick={isClickable ? handleClick : undefined}
+      className={cn(
+        "relative flex items-start gap-3 p-4",
+        "rounded-[var(--radius-lg)] border",
+        "shadow-lg backdrop-blur-sm",
+        "transition-all duration-200",
+        isVisible && !isExiting
+          ? "translate-x-0 opacity-100"
+          : "translate-x-4 opacity-0",
+        typeClasses[notification.type],
+        isClickable && "cursor-pointer hover:shadow-xl hover:scale-[1.01] active:scale-[0.99]",
+        notification.persistent && "border-l-4"
+      )}
+    >
+      {content}
     </div>
   );
 }
@@ -131,29 +212,92 @@ function ToastItem({
 /**
  * Toast container that renders all active notifications.
  * Positioned fixed at the top-right of the viewport.
- * Announces to screen readers via aria-live.
+ * Persistent banners stack at top, regular toasts below.
  */
 export function ToastContainer() {
   const { notifications, removeNotification } = useToast();
 
   if (notifications.length === 0) return null;
 
+  const persistent = notifications.filter((n) => n.persistent);
+  const regular = notifications.filter((n) => !n.persistent);
+
   return (
-    <div
-      className={cn(
-        "fixed top-4 right-4 z-[100]",
-        "flex flex-col gap-2",
-        "w-full max-w-sm",
-        "pointer-events-none"
-      )}
-      aria-label="Notifications"
-    >
-      {notifications.map((n) => (
-        <div key={n.id} className="pointer-events-auto">
-          <ToastItem notification={n} onDismiss={removeNotification} />
+    <>
+      {/* Persistent banners — full-width at top */}
+      {persistent.length > 0 && (
+        <div
+          className="fixed top-0 left-0 right-0 z-[101] flex flex-col"
+          aria-label="Important notifications"
+        >
+          {persistent.map((n) => (
+            <div
+              key={n.id}
+              className={cn(
+                "flex items-center justify-center gap-3 px-4 py-3",
+                "text-body-sm font-medium",
+                "border-b",
+                typeClasses[n.type]
+              )}
+            >
+              <span className="shrink-0">{iconsByType[n.type]}</span>
+              <span>
+                <strong>{n.title}</strong>
+                {n.message && <span className="opacity-80"> — {n.message}</span>}
+              </span>
+              {n.action && (
+                <button
+                  onClick={() => {
+                    n.action!.onClick();
+                    removeNotification(n.id);
+                  }}
+                  className="px-3 py-1 rounded-[var(--radius-sm)] text-xs font-bold border border-current/20 hover:bg-current/10 transition-colors"
+                >
+                  {n.action.label}
+                </button>
+              )}
+              {n.href && (
+                <a
+                  href={n.href}
+                  className="px-3 py-1 rounded-[var(--radius-sm)] text-xs font-bold border border-current/20 hover:bg-current/10 transition-colors"
+                >
+                  View
+                </a>
+              )}
+              <button
+                onClick={() => removeNotification(n.id)}
+                className="shrink-0 ml-2 opacity-40 hover:opacity-100 transition-opacity min-w-[44px] min-h-[44px] flex items-center justify-center"
+                aria-label="Dismiss"
+              >
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <path d="M2 2l10 10M12 2L2 12" />
+                </svg>
+              </button>
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
+      )}
+
+      {/* Regular toasts — stacked at top-right */}
+      {regular.length > 0 && (
+        <div
+          className={cn(
+            "fixed top-4 right-4 z-[100]",
+            "flex flex-col gap-2",
+            "w-full max-w-sm",
+            "pointer-events-none",
+            persistent.length > 0 && "top-16"
+          )}
+          aria-label="Notifications"
+        >
+          {regular.map((n) => (
+            <div key={n.id} className="pointer-events-auto">
+              <ToastItem notification={n} onDismiss={removeNotification} />
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
