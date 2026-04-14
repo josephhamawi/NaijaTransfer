@@ -83,25 +83,39 @@ if [[ -d "$PREV_STATIC" ]]; then
   cp -rn "$PREV_STATIC/." "$APP_DIR/.next/static/" || true
 fi
 
-# Update Caddy if the committed Caddyfile changed on disk.
+# Update Caddy if the committed Caddyfile changed on disk. Validate the
+# candidate config BEFORE copying so we never leave /etc/caddy/Caddyfile
+# in a state Caddy refuses to load (e.g. a directive whose plugin isn't
+# installed on this box). If validation or reload fails, we leave the
+# running Caddy config as-is and keep going — the app still serves.
 if [[ -f "$APP_DIR/Caddyfile" ]]; then
   if ! cmp -s "$APP_DIR/Caddyfile" /etc/caddy/Caddyfile 2>/dev/null; then
-    echo "==> Caddyfile changed — copying and reloading Caddy"
-    sudo cp "$APP_DIR/Caddyfile" /etc/caddy/Caddyfile
-    sudo caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile || true
+    echo "==> Caddyfile changed — validating"
+    if sudo caddy validate --config "$APP_DIR/Caddyfile" --adapter caddyfile; then
+      echo "==> Valid — copying and reloading Caddy"
+      sudo cp "$APP_DIR/Caddyfile" /etc/caddy/Caddyfile
+      sudo caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile || \
+        echo "!! caddy reload failed — running config unchanged"
+    else
+      echo "!! Caddyfile failed validation — leaving /etc/caddy/Caddyfile alone"
+    fi
   fi
 fi
 
-# ── Rolling reload ───────────────────────────────────────────────────
-# `pm2 reload` in cluster mode:
-#   - starts a fresh worker with the new build
-#   - waits for it to listen on PORT
-#   - sends SIGINT to the old worker and waits up to kill_timeout
-#     (7.2M ms = 2h, per ecosystem.config.js) for it to finish serving
-#     any in-flight requests (e.g. a 4GB upload still streaming).
-# At least one worker is always accepting traffic. No dropped uploads.
-echo "==> pm2 reload $PM2_APP"
-pm2 reload "$PM2_APP" --update-env
+# ── Rolling reload (deploy-safe) ─────────────────────────────────────
+# `pm2 startOrReload` is the atomic deploy primitive:
+#   - if the app isn't registered, start it from ecosystem.config.js
+#   - if it's already running, do a rolling reload:
+#       * spin up a fresh worker with the new build
+#       * wait for it to listen on PORT
+#       * SIGINT the old worker and give it up to kill_timeout
+#         (7.2M ms = 2h, per ecosystem.config.js) to finish serving any
+#         in-flight request — e.g. a 4GB upload still streaming.
+# Using startOrReload (instead of a bare `pm2 reload <name>`) means the
+# deploy keeps working even if the process dies between runs or the
+# server is reprovisioned. --update-env picks up any new env vars.
+echo "==> pm2 startOrReload ecosystem.config.js"
+pm2 startOrReload "$APP_DIR/ecosystem.config.js" --update-env
 
 # Health check
 echo "==> Waiting for health check"
