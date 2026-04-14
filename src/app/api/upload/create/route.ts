@@ -74,6 +74,8 @@ export async function POST(request: NextRequest) {
         transferId: transfer.id,
         shortCode: transfer.shortCode,
         maxFileSize: limits.maxFileSizeBytes,
+        maxTransferSize: limits.maxTransferSizeBytes,
+        maxFilesPerTransfer: limits.maxFilesPerTransfer,
         expiresAt: transfer.expiresAt,
         tier,
       },

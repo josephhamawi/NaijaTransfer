@@ -123,10 +123,12 @@ export default function ApiDocsPage() {
               </div>
               <div>
                 <h3 className="text-body font-semibold mb-2">4. Upload files</h3>
-                <CodeBlock code={`curl -X POST ${BASE}/api/upload/file \\
+                <CodeBlock code={`curl -X POST "${BASE}/api/upload/file?transferId=YOUR_TRANSFER_ID" \\
   -H "Authorization: Bearer ntk_your_api_key" \\
-  -F "transferId=YOUR_TRANSFER_ID" \\
-  -F "file=@./myfile.pdf"`} />
+  -H "Content-Type: application/pdf" \\
+  -H "X-File-Name: myfile.pdf" \\
+  -H "X-File-Size: $(stat -f%z ./myfile.pdf)" \\
+  --data-binary @./myfile.pdf`} />
               </div>
             </div>
           </Card>
@@ -250,15 +252,18 @@ const transfer = await fetch(\`\${BASE_URL}/api/v1/transfers\`, {
 
 console.log("Download URL:", transfer.data.downloadUrl);
 
-// Step 2: Upload file
-const formData = new FormData();
-formData.append("transferId", transfer.data.id);
-formData.append("file", fileInput.files[0]);
-
-await fetch(\`\${BASE_URL}/api/upload/file\`, {
+// Step 2: Upload file — stream the body, don't wrap in FormData.
+const file = fileInput.files[0];
+await fetch(\`\${BASE_URL}/api/upload/file?transferId=\${transfer.data.id}\`, {
   method: "POST",
-  headers: { "Authorization": \`Bearer \${API_KEY}\` },
-  body: formData,
+  headers: {
+    "Authorization": \`Bearer \${API_KEY}\`,
+    "Content-Type": file.type || "application/octet-stream",
+    "X-File-Name": encodeURIComponent(file.name),
+    "X-File-Size": String(file.size),
+  },
+  body: file,
+  duplex: "half",
 });
 
 console.log("File uploaded!");`} />

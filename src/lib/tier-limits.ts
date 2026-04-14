@@ -7,6 +7,10 @@ import type { UserTier } from "@/types/enums";
 
 export interface TierLimits {
   maxFileSizeBytes: number;
+  /** Max total bytes across all files in a single transfer. */
+  maxTransferSizeBytes: number;
+  /** Max number of files in a single transfer. */
+  maxFilesPerTransfer: number;
   maxTotalStorageBytes: number | null; // null = unlimited for free (no active storage tracking)
   defaultExpiryDays: number;
   maxExpiryDays: number;
@@ -19,7 +23,9 @@ export interface TierLimits {
 
 export const TIER_LIMITS: Record<UserTier, TierLimits> = {
   FREE: {
-    maxFileSizeBytes: 4 * 1024 * 1024 * 1024, // 4 GB
+    maxFileSizeBytes: 4 * 1024 * 1024 * 1024, // 4 GB per file
+    maxTransferSizeBytes: 4 * 1024 * 1024 * 1024, // 4 GB total per transfer
+    maxFilesPerTransfer: 100,
     maxTotalStorageBytes: null,
     defaultExpiryDays: 7,
     maxExpiryDays: 7,
@@ -30,8 +36,10 @@ export const TIER_LIMITS: Record<UserTier, TierLimits> = {
     uploadRatePerHour: 10,
   },
   PRO: {
-    maxFileSizeBytes: 10 * 1024 * 1024 * 1024, // 10 GB
-    maxTotalStorageBytes: 50 * 1024 * 1024 * 1024, // 50 GB
+    maxFileSizeBytes: 10 * 1024 * 1024 * 1024, // 10 GB per file
+    maxTransferSizeBytes: 50 * 1024 * 1024 * 1024, // 50 GB total per transfer
+    maxFilesPerTransfer: 500,
+    maxTotalStorageBytes: 50 * 1024 * 1024 * 1024,
     defaultExpiryDays: 14,
     maxExpiryDays: 30,
     maxDownloadLimit: 250,
@@ -41,8 +49,10 @@ export const TIER_LIMITS: Record<UserTier, TierLimits> = {
     uploadRatePerHour: 50,
   },
   BUSINESS: {
-    maxFileSizeBytes: 50 * 1024 * 1024 * 1024, // 50 GB
-    maxTotalStorageBytes: 200 * 1024 * 1024 * 1024, // 200 GB
+    maxFileSizeBytes: 50 * 1024 * 1024 * 1024, // 50 GB per file
+    maxTransferSizeBytes: 200 * 1024 * 1024 * 1024, // 200 GB total per transfer
+    maxFilesPerTransfer: 1000,
+    maxTotalStorageBytes: 200 * 1024 * 1024 * 1024,
     defaultExpiryDays: 30,
     maxExpiryDays: 60,
     maxDownloadLimit: null, // unlimited

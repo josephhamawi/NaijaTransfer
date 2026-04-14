@@ -90,7 +90,17 @@ export async function createTransfer(input: CreateTransferInput): Promise<Transf
     createdAt: new Date(),
   };
 
-  await ref.set(transfer);
+  // Seed the atomic quota counters used by /api/upload/file. Keeping
+  // them on the transfer doc means a single-doc transaction can assert
+  // the cap and reserve a slot without reading the entire files
+  // subcollection.
+  const transferWithCounters = {
+    ...transfer,
+    uploadedFileCount: 0,
+    uploadedSizeBytes: 0,
+  };
+
+  await ref.set(transferWithCounters);
   return { ...transfer, id: ref.id, files: [] };
 }
 

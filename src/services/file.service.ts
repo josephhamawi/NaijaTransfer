@@ -1,5 +1,5 @@
 import { collection } from "@/lib/firebase-admin";
-import { uploadFile, deleteFile, getDownloadUrl, getFileStream } from "@/lib/storage";
+import { deleteFile, getDownloadUrl, getFileStream } from "@/lib/storage";
 import archiver from "archiver";
 import type { FileDoc } from "./transfer.service";
 
@@ -28,10 +28,16 @@ export async function createFile(
 
   await ref.set(file);
 
-  // Update transfer total size
-  const filesSnap = await collection("transfers").doc(transferId).collection("files").get();
-  const totalSize = filesSnap.docs.reduce((sum, d) => sum + (d.data().sizeBytes || 0), 0);
-  await collection("transfers").doc(transferId).update({ totalSizeBytes: totalSize });
+  // Mirror the authoritative uploadedSizeBytes counter into
+  // totalSizeBytes for backward-compat with read paths that still use it.
+  // The actual source of truth is the transfer doc counters maintained
+  // transactionally by /api/upload/file.
+  const transferSnap = await collection("transfers").doc(transferId).get();
+  const uploadedBytes =
+    (transferSnap.data()?.uploadedSizeBytes as number | undefined) ?? 0;
+  await collection("transfers").doc(transferId).update({
+    totalSizeBytes: uploadedBytes,
+  });
 
   return { ...file, id: ref.id };
 }

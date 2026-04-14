@@ -1,3 +1,5 @@
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { getStorageBucket } from "./firebase-admin";
 
 function bucket() {
@@ -9,6 +11,36 @@ function bucket() {
 export async function uploadFile(key: string, data: Buffer, contentType: string): Promise<string> {
   const file = bucket().file(key);
   await file.save(data, { contentType, resumable: false });
+  return key;
+}
+
+/**
+ * Stream an upload directly to Firebase/GCS without buffering in memory.
+ * Accepts either a Node Readable or a WHATWG ReadableStream (what Next.js
+ * request.body is). Uses a resumable GCS upload so large files aren't held
+ * in the Node process — memory stays flat regardless of file size.
+ *
+ * This replaces the previous `file.arrayBuffer() → Buffer → file.save()`
+ * path, which loaded the entire file into memory and OOM-killed Node
+ * workers on multi-GB uploads (which the client then reported as
+ * "Connection lost").
+ */
+export async function uploadFileStream(
+  key: string,
+  source: Readable | ReadableStream<Uint8Array>,
+  contentType: string
+): Promise<string> {
+  const file = bucket().file(key);
+  const readable =
+    source instanceof Readable ? source : Readable.fromWeb(source as never);
+  const writable = file.createWriteStream({
+    contentType,
+    resumable: true,
+    // 8 MiB chunks is the GCS default for resumable uploads; keep it
+    // explicit so behavior is predictable.
+    chunkSize: 8 * 1024 * 1024,
+  });
+  await pipeline(readable, writable);
   return key;
 }
 

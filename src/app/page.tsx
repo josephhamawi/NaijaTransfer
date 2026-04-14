@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { cn, formatBytes } from "@/lib/utils";
+import { TIER_LIMITS } from "@/lib/tier-limits";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -76,21 +77,34 @@ export default function HomePage() {
 
       const { data } = await res.json();
 
-      // 2. Upload each file to Firebase Storage
+      // 2. Upload each file to Firebase Storage, streaming the body
+      //    directly — no FormData, no client-side Blob copy. This lets
+      //    the server pipe straight to GCS without buffering the file.
       let uploaded = 0;
       for (const selectedFile of files) {
-        const formData = new FormData();
-        formData.append("transferId", data.transferId);
-        formData.append("file", selectedFile.file);
-
-        const uploadRes = await fetch("/api/upload/file", {
-          method: "POST",
-          body: formData,
-        });
+        const uploadRes = await fetch(
+          `/api/upload/file?transferId=${encodeURIComponent(data.transferId)}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                selectedFile.file.type || "application/octet-stream",
+              "X-File-Name": encodeURIComponent(selectedFile.file.name),
+              "X-File-Size": String(selectedFile.file.size),
+            },
+            body: selectedFile.file,
+            // @ts-expect-error — `duplex: "half"` is required by the
+            // Fetch spec when sending a streaming body, but TS libs
+            // haven't caught up on all targets.
+            duplex: "half",
+          }
+        );
 
         if (!uploadRes.ok) {
-          const err = await uploadRes.json();
-          throw new Error(err.error?.message || `Failed to upload ${selectedFile.name}`);
+          const err = await uploadRes.json().catch(() => ({}));
+          throw new Error(
+            err.error?.message || `Failed to upload ${selectedFile.name}`
+          );
         }
 
         uploaded++;
@@ -140,28 +154,82 @@ export default function HomePage() {
     }
   }, [files, emailTo, emailFrom, settings]);
 
-  const handleFilesAdded = useCallback((newFiles: File[]) => {
-    const selectedFiles: SelectedFile[] = newFiles.map((file) => {
-      const id = `file-${++fileIdCounter}`;
-      let previewUrl: string | undefined;
+  const handleFilesAdded = useCallback(
+    (newFiles: File[]) => {
+      // Gate on the Free-tier caps (the server is authoritative and will
+      // raise the ceiling for paid users; rejecting here gives immediate
+      // feedback instead of a fetch-that-fails halfway through the batch).
+      const limits = TIER_LIMITS.FREE;
 
-      // Generate thumbnail preview for images
-      if (file.type.startsWith("image/")) {
-        previewUrl = URL.createObjectURL(file);
-      }
+      setFiles((prev) => {
+        const currentCount = prev.length;
+        const currentSize = prev.reduce((s, f) => s + f.size, 0);
 
-      return {
-        id,
-        file,
-        name: file.name,
-        size: file.size,
-        mimeType: file.type || "application/octet-stream",
-        previewUrl,
-      };
-    });
+        const accepted: SelectedFile[] = [];
+        let rejectedTooMany = 0;
+        let rejectedTooLarge = 0;
+        let rejectedPerFile = 0;
 
-    setFiles((prev) => [...prev, ...selectedFiles]);
-  }, []);
+        let runningCount = currentCount;
+        let runningSize = currentSize;
+
+        for (const file of newFiles) {
+          if (file.size > limits.maxFileSizeBytes) {
+            rejectedPerFile++;
+            continue;
+          }
+          if (runningCount + 1 > limits.maxFilesPerTransfer) {
+            rejectedTooMany++;
+            continue;
+          }
+          if (runningSize + file.size > limits.maxTransferSizeBytes) {
+            rejectedTooLarge++;
+            continue;
+          }
+
+          const id = `file-${++fileIdCounter}`;
+          let previewUrl: string | undefined;
+          if (file.type.startsWith("image/")) {
+            previewUrl = URL.createObjectURL(file);
+          }
+          accepted.push({
+            id,
+            file,
+            name: file.name,
+            size: file.size,
+            mimeType: file.type || "application/octet-stream",
+            previewUrl,
+          });
+          runningCount++;
+          runningSize += file.size;
+        }
+
+        if (rejectedPerFile > 0) {
+          const maxGB = (limits.maxFileSizeBytes / 1024 ** 3).toFixed(0);
+          toast.warning(
+            "Some files too large",
+            `${rejectedPerFile} file(s) exceeded the ${maxGB}GB per-file limit. Upgrade for larger files.`
+          );
+        }
+        if (rejectedTooMany > 0) {
+          toast.warning(
+            "Too many files",
+            `Transfers are capped at ${limits.maxFilesPerTransfer} files on the free plan. ${rejectedTooMany} not added.`
+          );
+        }
+        if (rejectedTooLarge > 0) {
+          const maxGB = (limits.maxTransferSizeBytes / 1024 ** 3).toFixed(0);
+          toast.warning(
+            "Transfer too big",
+            `Free-tier transfers are capped at ${maxGB}GB total. ${rejectedTooLarge} file(s) not added.`
+          );
+        }
+
+        return [...prev, ...accepted];
+      });
+    },
+    [toast]
+  );
 
   const handleFileRemoved = useCallback((fileId: string) => {
     setFiles((prev) => {
