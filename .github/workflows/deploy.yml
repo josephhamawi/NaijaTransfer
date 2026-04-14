@@ -106,10 +106,15 @@ jobs:
           script: |
             set -euo pipefail
             cd /home/naija/NaijaTransfer
-            # scripts/deploy.sh handles: git pull, build with BUILD_ID for
-            # skew protection, preserving previous chunks, Caddy reload if
-            # config changed, and a rolling `pm2 reload` that doesn't kill
-            # in-flight uploads.
+            # Pull first so that scripts/deploy.sh itself (and any of its
+            # changes) are on disk before we invoke it. deploy.sh re-pulls
+            # inside — that's a safe no-op now.
+            git fetch --all --prune
+            git reset --hard origin/main
+            # scripts/deploy.sh handles: build with BUILD_ID for skew
+            # protection, preserving previous chunks, Caddy reload if
+            # config changed, and a rolling `pm2 reload` that doesn't
+            # kill in-flight uploads.
             bash scripts/deploy.sh
 
       - name: Notify deployment success
