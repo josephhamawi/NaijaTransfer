@@ -29,16 +29,16 @@ nigeriatransfer.com {
     # Compression
     encode gzip zstd
 
-    # tus upload: increase timeouts and body size
-    @tus path /api/upload/files/*
-    handle @tus {
+    # Large file uploads: increase timeouts and body size
+    @uploads path /api/upload/file /api/upload/file/* /api/upload/files/*
+    handle @uploads {
         request_body {
             max_size 50GB
         }
         reverse_proxy localhost:3000 {
             transport http {
-                read_timeout 30m
-                write_timeout 30m
+                read_timeout 2h
+                write_timeout 2h
             }
         }
     }
