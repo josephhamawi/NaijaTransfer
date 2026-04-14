@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { cn, formatFileSize, truncateFilename, getFileCategory } from "@/lib/utils";
 import { useIsLightweight } from "@/contexts/LightweightContext";
 import { Card } from "@/components/ui/Card";
@@ -67,19 +67,24 @@ export default function DownloadCard({
   const isLightweight = useIsLightweight();
   const downloadsRemaining = downloadLimit - downloadCount;
 
-  // Calculate expiry countdown
-  const expiryText = useMemo(() => {
-    const now = new Date();
-    const expiry = new Date(expiresAt);
-    const diff = expiry.getTime() - now.getTime();
-
-    if (diff <= 0) return "Expired";
-
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-
-    if (days > 0) return `Expires in ${days} day${days > 1 ? "s" : ""}, ${hours} hour${hours !== 1 ? "s" : ""}`;
-    return `Expires in ${hours} hour${hours !== 1 ? "s" : ""}`;
+  // Calculate expiry countdown on the client only. Computing this during
+  // render reads `new Date()`, which differs between SSR and the client
+  // hydrate moments later → React #418. Starting empty and filling in via
+  // useEffect keeps the first paint identical to the server HTML.
+  const [expiryText, setExpiryText] = useState("");
+  useEffect(() => {
+    const compute = () => {
+      const now = new Date();
+      const expiry = new Date(expiresAt);
+      const diff = expiry.getTime() - now.getTime();
+      if (diff <= 0) return "Expired";
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      if (days > 0)
+        return `Expires in ${days} day${days > 1 ? "s" : ""}, ${hours} hour${hours !== 1 ? "s" : ""}`;
+      return `Expires in ${hours} hour${hours !== 1 ? "s" : ""}`;
+    };
+    setExpiryText(compute());
   }, [expiresAt]);
 
   // Files that have preview support

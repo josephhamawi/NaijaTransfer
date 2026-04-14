@@ -61,12 +61,18 @@ export default function BackgroundWallpaper({
   className,
 }: BackgroundWallpaperProps) {
   const isLightweight = useIsLightweight();
-  const [currentIndex, setCurrentIndex] = useState(() =>
-    Math.floor(Math.random() * WALLPAPERS.length)
-  );
+  // Start from a stable index so SSR and client hydration produce the same
+  // HTML (Math.random here would cause React #418). We pick a real random
+  // wallpaper inside useEffect, after hydration.
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [nextIndex, setNextIndex] = useState(-1);
   const [transitioning, setTransitioning] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Randomize once on mount (client-only, post-hydration).
+  useEffect(() => {
+    setCurrentIndex(Math.floor(Math.random() * WALLPAPERS.length));
+  }, []);
 
   // Auto-rotate every 10 seconds with crossfade
   useEffect(() => {
