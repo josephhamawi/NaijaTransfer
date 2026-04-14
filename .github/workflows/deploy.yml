@@ -100,42 +100,17 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
+          # 2h command timeout to match Caddy/pm2 upload windows — a rolling
+          # reload can legitimately wait that long for an in-flight upload.
+          command_timeout: 120m
           script: |
+            set -euo pipefail
             cd /home/naija/NaijaTransfer
-
-            # Pull latest code
-            git pull origin main
-
-            # Install dependencies (including dev deps needed for build)
-            npm ci
-
-            # Generate Prisma client
-            npx prisma generate
-
-            # Run database migrations
-            npx prisma migrate deploy
-
-            # Build Next.js
-            npm run build
-
-            # Update Caddy config if changed
-            cp Caddyfile /etc/caddy/Caddyfile 2>/dev/null && caddy reload --config /etc/caddy/Caddyfile 2>/dev/null || true
-
-            # Restart PM2 processes
-            pm2 restart nigeriatransfer
-
-            # Wait for startup
-            sleep 5
-
-            # Health check
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/health)
-            if [ "$HTTP_STATUS" -ne 200 ]; then
-              echo "Health check failed with status $HTTP_STATUS"
-              pm2 logs nigeriatransfer --lines 50
-              exit 1
-            fi
-
-            echo "Deployment successful! Health check returned $HTTP_STATUS"
+            # scripts/deploy.sh handles: git pull, build with BUILD_ID for
+            # skew protection, preserving previous chunks, Caddy reload if
+            # config changed, and a rolling `pm2 reload` that doesn't kill
+            # in-flight uploads.
+            bash scripts/deploy.sh
 
       - name: Notify deployment success
         if: success()

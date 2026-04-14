@@ -22,6 +22,28 @@ nigeriatransfer.com {
     @static path /_next/static/* /favicon.ico /robots.txt /sitemap.xml
     header @static Cache-Control "public, max-age=31536000, immutable"
 
+    # Next.js static chunks: if the proxy misses (e.g. a stale client is
+    # requesting a chunk hash that no longer exists on disk because a
+    # deploy happened since page-load), return a plain 404 with a
+    # JS-safe content type. Without this, the Next.js upstream would
+    # return the HTML 404 page, the browser's strict MIME check would
+    # block it, React would fail to hydrate, and the whole tab would
+    # crash with "Minified React error #418/#423". Skew protection
+    # (next.config `deploymentId`) will hard-refresh the client on its
+    # next navigation, so this only needs to keep the page alive long
+    # enough to get there.
+    @nextChunks path /_next/static/chunks/*
+    handle @nextChunks {
+        reverse_proxy localhost:3000 {
+            @missing status 404 400 500 502 503 504
+            handle_response @missing {
+                header Content-Type "application/javascript; charset=utf-8"
+                header Cache-Control "no-store"
+                respond "// chunk not found — client should reload" 404
+            }
+        }
+    }
+
     # Wallpaper images: 24-hour cache
     @wallpapers path /wallpapers/*
     header @wallpapers Cache-Control "public, max-age=86400"

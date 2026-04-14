@@ -32,9 +32,16 @@ module.exports = {
       restart_delay: 5000, // 5 seconds between restarts
       max_restarts: 10, // Max 10 restarts before stopping
       min_uptime: "10s", // Minimum uptime to consider started
-      // Graceful shutdown
-      kill_timeout: 5000,
-      listen_timeout: 10000,
+      // Graceful shutdown: give in-flight uploads up to 2h to finish before
+      // SIGKILL. Matches Caddy's upload read/write_timeout (2h) so a `pm2
+      // reload` during deploy won't kill a user's large upload mid-stream.
+      kill_timeout: 7_200_000,
+      listen_timeout: 30_000,
+      // Required for graceful shutdown: next.js responds to SIGINT, so PM2
+      // must send SIGINT (not the default SIGTERM) and wait for the process
+      // to exit on its own.
+      shutdown_with_message: false,
+      wait_ready: false,
       // Watch (disabled in production)
       watch: false,
     },

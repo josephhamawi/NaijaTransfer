@@ -6,6 +6,14 @@ const nextConfig = {
   // Output standalone for optimized production deployment on ARM
   output: "standalone",
 
+  // Skew protection: stamp every chunk request with the build's deployment ID
+  // so clients loaded before a deploy hard-refresh instead of fetching dead
+  // chunk hashes and hitting React hydration errors (#418/#423).
+  // BUILD_ID is injected by scripts/deploy.sh (git SHA); falls back to a
+  // timestamp in local dev so hot-reloads don't collide.
+  generateBuildId: async () => process.env.BUILD_ID || `dev-${Date.now()}`,
+  deploymentId: process.env.BUILD_ID || undefined,
+
   // Configure image optimization
   images: {
     remotePatterns: [
