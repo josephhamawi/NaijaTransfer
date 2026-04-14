@@ -44,8 +44,18 @@ npm ci
 echo "==> Generating Prisma client"
 npx prisma generate
 
-echo "==> Running database migrations"
-npx prisma migrate deploy
+# Only run migrations when the repo actually has a migrations directory.
+# Without one, `prisma migrate deploy` errors with P3005 against any
+# already-populated database — which is how this project is configured
+# today (schema-only, no migration history in git). The previous
+# workflow swallowed this failure silently; we make the skip explicit.
+if [[ -d "$APP_DIR/prisma/migrations" ]] && \
+   [[ -n "$(ls -A "$APP_DIR/prisma/migrations" 2>/dev/null)" ]]; then
+  echo "==> Running database migrations"
+  npx prisma migrate deploy
+else
+  echo "==> No prisma/migrations directory — skipping migrate deploy"
+fi
 
 # ── Preserve previous build's static assets ──────────────────────────
 # `next build` rewrites .next/ in-place. Save the old static tree first so
