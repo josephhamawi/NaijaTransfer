@@ -4,28 +4,31 @@
  *
  * Usage:
  *   pm2 start ecosystem.config.js
- *   pm2 restart nigeriatransfer
- *   pm2 logs nigeriatransfer
+ *   pm2 restart naijatransfer
+ *   pm2 logs naijatransfer
  *   pm2 monit
  */
 
 module.exports = {
   apps: [
     {
-      name: "nigeriatransfer",
+      name: "naijatransfer",
       script: "node_modules/.bin/next",
       args: "start",
-      cwd: "/opt/nigeriatransfer",
-      instances: 2, // 2 instances across 4 OCPUs
-      exec_mode: "cluster", // Cluster mode for load balancing
+      cwd: "/home/naija/NaijaTransfer",
+      // Matches the running fork-mode instance on prod. Moving to
+      // cluster mode requires `pm2 delete && pm2 start`, which is a
+      // separate operation — don't force it in `startOrReload`.
+      instances: 1,
+      exec_mode: "fork",
       max_memory_restart: "4G",
       env: {
         NODE_ENV: "production",
         PORT: 3000,
       },
       // Logging
-      error_file: "/var/log/nigeriatransfer/error.log",
-      out_file: "/var/log/nigeriatransfer/out.log",
+      error_file: "/var/log/naijatransfer/error.log",
+      out_file: "/var/log/naijatransfer/out.log",
       merge_logs: true,
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
       // Restart policy

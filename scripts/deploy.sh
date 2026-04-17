@@ -23,7 +23,7 @@
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/home/naija/NaijaTransfer}"
-PM2_APP="${PM2_APP:-nigeriatransfer}"
+PM2_APP="${PM2_APP:-naijatransfer}"
 
 cd "$APP_DIR"
 
