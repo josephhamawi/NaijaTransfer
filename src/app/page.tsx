@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { cn, formatBytes, formatDuration, formatSpeed } from "@/lib/utils";
 import { TIER_LIMITS } from "@/lib/tier-limits";
 import PageLayout from "@/components/layout/PageLayout";
@@ -49,6 +49,14 @@ export default function HomePage() {
   const [transferResult, setTransferResult] = useState<{ shortCode: string; downloadUrl: string } | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Refs to track in-flight work so Cancel can abort everything fast.
+  // Each active XHR registers itself here; the AbortController is used
+  // for the init and complete fetches. cancelRequested signals the
+  // catch block to skip the error toast when the abort was user-initiated.
+  const activeXhrs = useRef<Set<XMLHttpRequest>>(new Set());
+  const uploadAbortController = useRef<AbortController | null>(null);
+  const cancelRequested = useRef(false);
+
   const totalSize = files.reduce((sum, f) => sum + f.size, 0);
 
   const handleTransfer = useCallback(async () => {
@@ -60,6 +68,14 @@ export default function HomePage() {
     setEtaSeconds(null);
     setIsFinalizing(false);
     setErrorMsg("");
+
+    // Reset cancellation state for this run and prepare the abort
+    // controller. Any in-flight work from a previous attempt should
+    // have been cleared by handleCancel or the success path.
+    cancelRequested.current = false;
+    activeXhrs.current.clear();
+    uploadAbortController.current = new AbortController();
+    const abortSignal = uploadAbortController.current.signal;
 
     const totalBytes = files.reduce((s, f) => s + f.size, 0);
 
@@ -108,6 +124,7 @@ export default function HomePage() {
           expiryDays: settings.expiryDays,
           downloadLimit: settings.downloadLimit,
         }),
+        signal: abortSignal,
       });
 
       if (!res.ok) {
@@ -147,6 +164,7 @@ export default function HomePage() {
               contentType:
                 selectedFile.file.type || "application/octet-stream",
             }),
+            signal: abortSignal,
           }
         );
         if (!initRes.ok) {
@@ -181,6 +199,8 @@ export default function HomePage() {
             const blob = selectedFile.file.slice(start, end);
 
             const xhr = new XMLHttpRequest();
+            activeXhrs.current.add(xhr);
+            const cleanup = () => activeXhrs.current.delete(xhr);
             xhr.open(
               "POST",
               `${uploadHost}/api/upload/file/chunk?uploadId=${encodeURIComponent(
@@ -198,6 +218,7 @@ export default function HomePage() {
               reportProgress(fileStartBytes + sumLoaded());
             };
             xhr.onload = () => {
+              cleanup();
               if (xhr.status >= 200 && xhr.status < 300) {
                 partLoaded[partNumber - 1] = end - start;
                 reportProgress(fileStartBytes + sumLoaded());
@@ -211,8 +232,14 @@ export default function HomePage() {
               } catch {}
               reject(new Error(message));
             };
-            xhr.onerror = () => reject(new Error("network error"));
-            xhr.onabort = () => reject(new Error("Upload cancelled"));
+            xhr.onerror = () => {
+              cleanup();
+              reject(new Error("network error"));
+            };
+            xhr.onabort = () => {
+              cleanup();
+              reject(new Error("Upload cancelled"));
+            };
             xhr.send(blob);
           });
 
@@ -228,7 +255,7 @@ export default function HomePage() {
         setIsFinalizing(true);
         const completeRes = await fetch(
           `${uploadHost}/api/upload/file/complete?uploadId=${encodeURIComponent(uploadId)}`,
-          { method: "POST" }
+          { method: "POST", signal: abortSignal }
         );
         setIsFinalizing(false);
         if (!completeRes.ok) {
@@ -272,6 +299,12 @@ export default function HomePage() {
       });
       setUploadState("success");
     } catch (err) {
+      // User-initiated cancel: go back to idle without a scary toast.
+      // handleCancel already reset the UI state, so just exit.
+      if (cancelRequested.current) {
+        return;
+      }
+
       const raw = err instanceof Error ? err.message : "Unknown error";
       // User-friendly error messages
       let friendly = "Something went wrong. Please try again.";
@@ -284,6 +317,33 @@ export default function HomePage() {
       setUploadState("error");
     }
   }, [files, emailTo, emailFrom, settings]);
+
+  const handleCancel = useCallback(() => {
+    // Signal the in-flight handleTransfer to bail out quietly.
+    cancelRequested.current = true;
+
+    // Abort every open XHR upload.
+    for (const xhr of activeXhrs.current) {
+      try {
+        xhr.abort();
+      } catch {
+        // ignore — abort() throws if the XHR is already in DONE state
+      }
+    }
+    activeXhrs.current.clear();
+
+    // Cancel any in-flight fetch (init/create/complete).
+    uploadAbortController.current?.abort();
+    uploadAbortController.current = null;
+
+    setUploadState("idle");
+    setUploadProgress(0);
+    setBytesUploaded(0);
+    setUploadSpeed(0);
+    setEtaSeconds(null);
+    setIsFinalizing(false);
+    setErrorMsg("");
+  }, []);
 
   const handleFilesAdded = useCallback(
     (newFiles: File[]) => {
@@ -479,6 +539,16 @@ export default function HomePage() {
                     ? `${formatDuration(etaSeconds)} left`
                     : ""}
                 </span>
+              </div>
+              <div className="mt-3 flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCancel}
+                  disabled={isFinalizing}
+                >
+                  Cancel
+                </Button>
               </div>
             </div>
           )}
