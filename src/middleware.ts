@@ -41,8 +41,8 @@ export function middleware(request: NextRequest) {
     const origin = request.headers.get("origin");
     const allowedOrigins = [
       process.env.APP_URL || "http://localhost:3000",
-      "https://nigeriatransfer.com",
-      "https://www.nigeriatransfer.com",
+      "https://naijatransfer.com",
+      "https://www.naijatransfer.com",
     ];
 
     if (origin && allowedOrigins.includes(origin)) {
@@ -76,7 +76,11 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - api/upload/file (streaming upload — Next.js middleware
+     *   buffers the request body for any matched path, which
+     *   OOM-kills Node on multi-GB uploads. Skipping middleware
+     *   here lets the route handler stream request.body directly.)
      */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/upload/file).*)",
   ],
 };
