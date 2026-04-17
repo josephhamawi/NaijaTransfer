@@ -13,8 +13,10 @@ module.exports = {
   apps: [
     {
       name: "naijatransfer",
-      script: "node_modules/.bin/next",
-      args: "start",
+      // Custom Node server — disables Node's 5-minute request
+      // timeout so long uploads (2 GB / 9+ min) aren't killed
+      // mid-stream. `next start` doesn't let us tune this.
+      script: "server.js",
       cwd: "/home/naija/NaijaTransfer",
       // Matches the running fork-mode instance on prod. Moving to
       // cluster mode requires `pm2 delete && pm2 start`, which is a

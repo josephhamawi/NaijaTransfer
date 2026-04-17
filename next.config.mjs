@@ -3,9 +3,6 @@ const nextConfig = {
   // Enable React strict mode for development
   reactStrictMode: true,
 
-  // Output standalone for optimized production deployment on ARM
-  output: "standalone",
-
   // Skew protection: stamp every chunk request with the build's deployment ID
   // so clients loaded before a deploy hard-refresh instead of fetching dead
   // chunk hashes and hitting React hydration errors (#418/#423).
