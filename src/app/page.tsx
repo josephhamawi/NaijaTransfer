@@ -17,6 +17,12 @@ import ShareCard from "@/components/upload/ShareCard";
 import { useToast } from "@/contexts/ToastContext";
 import { useAuth } from "@/contexts/AuthContext";
 
+// Force dynamic rendering. Without this Next.js generates the page
+// at build time and emits Cache-Control: s-maxage=31536000, which
+// pins the HTML (and its script-chunk references) in the browser
+// cache for a year — so users keep loading stale JS after deploys.
+export const dynamic = "force-dynamic";
+
 let fileIdCounter = 0;
 
 type UploadState = "idle" | "uploading" | "success" | "error";
