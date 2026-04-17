@@ -8,40 +8,44 @@ export const runtime = "nodejs";
  * Multipart upload — step 2 of 3.
  *
  * Streams one part's raw bytes to GCS as a standalone object under
- * transfers/<transferId>/parts/<uploadId>/<partNumber>. These are
+ * transfers/<transferId>/parts/<uploadId>/<chunkNumber>. These are
  * temporary — /complete will compose them into the real object and
  * delete these part files. No quota interaction here — /init already
  * reserved space for the whole file.
  *
  * This path is excluded from the Next.js middleware matcher so the
  * request body streams through without being buffered. Do not add
- * middleware logic that depends on /api/upload/file/part.
+ * middleware logic that depends on /api/upload/file/chunk.
+ *
+ * Named "chunk" (not "part") because some ad-block/privacy lists
+ * block URLs matching /upload/.../part — which quietly killed every
+ * upload attempt client-side with no server trace.
  */
 export async function POST(request: NextRequest) {
   const uploadId = request.nextUrl.searchParams.get("uploadId");
-  const partNumberStr = request.nextUrl.searchParams.get("partNumber");
+  const chunkNumberStr = request.nextUrl.searchParams.get("chunkNumber");
   const contentType =
     request.headers.get("content-type") || "application/octet-stream";
 
-  if (!uploadId || !partNumberStr) {
+  if (!uploadId || !chunkNumberStr) {
     return NextResponse.json(
       {
         error: {
           code: "MISSING_FIELDS",
-          message: "uploadId and partNumber query params are required.",
+          message: "uploadId and chunkNumber query params are required.",
         },
       },
       { status: 400 }
     );
   }
 
-  const partNumber = Number(partNumberStr);
-  if (!Number.isInteger(partNumber) || partNumber < 1) {
+  const chunkNumber = Number(chunkNumberStr);
+  if (!Number.isInteger(chunkNumber) || chunkNumber < 1) {
     return NextResponse.json(
       {
         error: {
           code: "INVALID_PART",
-          message: "partNumber must be a positive integer.",
+          message: "chunkNumber must be a positive integer.",
         },
       },
       { status: 400 }
@@ -70,12 +74,12 @@ export async function POST(request: NextRequest) {
   }
   const upload = uploadSnap.data()!;
 
-  if (partNumber > upload.partCount) {
+  if (chunkNumber > upload.partCount) {
     return NextResponse.json(
       {
         error: {
           code: "INVALID_PART",
-          message: `partNumber ${partNumber} exceeds partCount ${upload.partCount}.`,
+          message: `chunkNumber ${chunkNumber} exceeds partCount ${upload.partCount}.`,
         },
       },
       { status: 400 }
@@ -85,13 +89,13 @@ export async function POST(request: NextRequest) {
   // Zero-padded so GCS Compose sees parts in lexicographic == numeric
   // order when we assemble them in /complete.
   const partKey = `transfers/${upload.transferId}/parts/${uploadId}/${String(
-    partNumber
+    chunkNumber
   ).padStart(4, "0")}`;
 
   try {
     await uploadFileStream(partKey, request.body, contentType);
   } catch (err) {
-    console.error(`Part ${partNumber} upload failed for ${uploadId}:`, err);
+    console.error(`Part ${chunkNumber} upload failed for ${uploadId}:`, err);
     return NextResponse.json(
       {
         error: {
@@ -104,6 +108,6 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({
-    data: { partNumber, uploaded: true },
+    data: { chunkNumber, uploaded: true },
   });
 }

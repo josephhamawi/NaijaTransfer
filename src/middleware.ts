@@ -79,7 +79,9 @@ export const config = {
      * - api/upload/file (streaming upload — Next.js middleware
      *   buffers the request body for any matched path, which
      *   OOM-kills Node on multi-GB uploads. Skipping middleware
-     *   here lets the route handler stream request.body directly.)
+     *   here lets the route handler stream request.body directly.
+     *   Covers /file, /file/chunk, /file/init, /file/complete via
+     *   prefix match.)
      */
     "/((?!_next/static|_next/image|favicon.ico|api/upload/file).*)",
   ],

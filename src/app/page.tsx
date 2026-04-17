@@ -183,9 +183,9 @@ export default function HomePage() {
             const xhr = new XMLHttpRequest();
             xhr.open(
               "POST",
-              `${uploadHost}/api/upload/file/part?uploadId=${encodeURIComponent(
+              `${uploadHost}/api/upload/file/chunk?uploadId=${encodeURIComponent(
                 uploadId
-              )}&partNumber=${partNumber}`
+              )}&chunkNumber=${partNumber}`
             );
             xhr.setRequestHeader(
               "Content-Type",
