@@ -117,15 +117,17 @@ export default function HomePage() {
 
       const { data } = await res.json();
 
-      // 2. Upload each file with XMLHttpRequest so upload.onprogress
-      //    gives us byte-level events. fetch() can't observe request
-      //    body progress in browsers. The body is still a File, which
-      //    the browser streams — no JS-side buffering of 4 GB.
+      // 2. Upload each file as parallel parts.
       //
       //    Cloudflare's Free/Pro/Business plans cap request bodies at
-      //    ≤200 MB, which rejects every real transfer before it reaches
-      //    our server. In production we POST to upload.naijatransfer.com
+      //    ≤200 MB, so real transfers POST to upload.naijatransfer.com
       //    (DNS-only, bypasses Cloudflare). Same-origin in dev.
+      //
+      //    Splitting each file into N parts and uploading them in
+      //    parallel lets the browser saturate the user's uplink — a
+      //    single TCP flow from Nigerian residential links usually
+      //    tops out well below the real ceiling. The server composes
+      //    the parts back into one object in /complete.
       const uploadHost =
         window.location.hostname.endsWith("naijatransfer.com")
           ? "https://upload.naijatransfer.com"
@@ -133,54 +135,111 @@ export default function HomePage() {
 
       let priorFilesBytes = 0;
       for (const selectedFile of files) {
-        await new Promise<void>((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open(
-            "POST",
-            `${uploadHost}/api/upload/file?transferId=${encodeURIComponent(data.transferId)}`
+        // 2a. Init — server reserves quota, decides part layout.
+        const initRes = await fetch(
+          `${uploadHost}/api/upload/file/init?transferId=${encodeURIComponent(data.transferId)}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileName: selectedFile.file.name,
+              fileSize: selectedFile.file.size,
+              contentType:
+                selectedFile.file.type || "application/octet-stream",
+            }),
+          }
+        );
+        if (!initRes.ok) {
+          const err = await initRes.json().catch(() => ({}));
+          throw new Error(
+            err.error?.message || `Failed to start ${selectedFile.name}`
           );
-          xhr.setRequestHeader(
-            "Content-Type",
-            selectedFile.file.type || "application/octet-stream"
-          );
-          xhr.setRequestHeader(
-            "X-File-Name",
-            encodeURIComponent(selectedFile.file.name)
-          );
-          xhr.setRequestHeader("X-File-Size", String(selectedFile.file.size));
+        }
+        const { data: initData } = await initRes.json();
+        const { uploadId, partCount, partSize } = initData as {
+          uploadId: string;
+          partCount: number;
+          partSize: number;
+        };
 
-          xhr.upload.onprogress = (e) => {
-            if (!e.lengthComputable) return;
-            reportProgress(priorFilesBytes + e.loaded);
-            // The server still has to flush the last chunk to GCS after
-            // the browser reports 100%; show "Finalizing" until onload.
-            if (e.loaded >= e.total) setIsFinalizing(true);
-          };
-          xhr.onload = () => {
-            setIsFinalizing(false);
-            if (xhr.status >= 200 && xhr.status < 300) {
-              priorFilesBytes += selectedFile.size;
-              reportProgress(priorFilesBytes);
-              resolve();
-              return;
-            }
-            let message = `Failed to upload ${selectedFile.name}`;
-            try {
-              const body = JSON.parse(xhr.responseText || "{}");
-              if (body?.error?.message) message = body.error.message;
-            } catch {}
-            reject(new Error(message));
-          };
-          xhr.onerror = () => {
-            setIsFinalizing(false);
-            reject(new Error("network error"));
-          };
-          xhr.onabort = () => {
-            setIsFinalizing(false);
-            reject(new Error("Upload cancelled"));
-          };
-          xhr.send(selectedFile.file);
-        });
+        // 2b. Upload parts in parallel. Track per-part loaded bytes so
+        //     the aggregate progress across concurrent uploads stays
+        //     accurate — can't rely on onload alone because parts may
+        //     finish out of order.
+        const fileStartBytes = priorFilesBytes;
+        const partLoaded = new Array(partCount).fill(0);
+        const sumLoaded = () =>
+          partLoaded.reduce((a: number, b: number) => a + b, 0);
+
+        const uploadPart = (partNumber: number) =>
+          new Promise<void>((resolve, reject) => {
+            const start = (partNumber - 1) * partSize;
+            const end = Math.min(
+              start + partSize,
+              selectedFile.file.size
+            );
+            const blob = selectedFile.file.slice(start, end);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open(
+              "POST",
+              `${uploadHost}/api/upload/file/part?uploadId=${encodeURIComponent(
+                uploadId
+              )}&partNumber=${partNumber}`
+            );
+            xhr.setRequestHeader(
+              "Content-Type",
+              selectedFile.file.type || "application/octet-stream"
+            );
+
+            xhr.upload.onprogress = (e) => {
+              if (!e.lengthComputable) return;
+              partLoaded[partNumber - 1] = e.loaded;
+              reportProgress(fileStartBytes + sumLoaded());
+            };
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                partLoaded[partNumber - 1] = end - start;
+                reportProgress(fileStartBytes + sumLoaded());
+                resolve();
+                return;
+              }
+              let message = `Failed to upload part ${partNumber}`;
+              try {
+                const body = JSON.parse(xhr.responseText || "{}");
+                if (body?.error?.message) message = body.error.message;
+              } catch {}
+              reject(new Error(message));
+            };
+            xhr.onerror = () => reject(new Error("network error"));
+            xhr.onabort = () => reject(new Error("Upload cancelled"));
+            xhr.send(blob);
+          });
+
+        const partNumbers = Array.from(
+          { length: partCount },
+          (_, i) => i + 1
+        );
+        await Promise.all(partNumbers.map(uploadPart));
+
+        // 2c. Complete — server composes parts into final object and
+        //     writes the file record. This is the "Finalizing" phase
+        //     from the user's point of view.
+        setIsFinalizing(true);
+        const completeRes = await fetch(
+          `${uploadHost}/api/upload/file/complete?uploadId=${encodeURIComponent(uploadId)}`,
+          { method: "POST" }
+        );
+        setIsFinalizing(false);
+        if (!completeRes.ok) {
+          const err = await completeRes.json().catch(() => ({}));
+          throw new Error(
+            err.error?.message || `Failed to finalize ${selectedFile.name}`
+          );
+        }
+
+        priorFilesBytes += selectedFile.size;
+        reportProgress(priorFilesBytes);
       }
 
       // 3. Send email notification if recipients provided

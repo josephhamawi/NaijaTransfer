@@ -54,6 +54,35 @@ export async function getDownloadUrl(key: string, expiresInMs: number = 5 * 60 *
   return url;
 }
 
+/**
+ * Concatenate source objects into a single destination object using
+ * GCS Compose. Used by the multipart-upload `/complete` endpoint to
+ * stitch parallel parts back into the original file.
+ *
+ * Compose requires ≥ 2 sources. For the degenerate 1-source case
+ * (tiny file that only had one part) we do a simple copy instead.
+ * All sources must live in the same bucket as the destination.
+ */
+export async function composeFiles(
+  destinationKey: string,
+  sourceKeys: string[],
+  contentType: string
+): Promise<string> {
+  const b = bucket();
+  const destination = b.file(destinationKey);
+
+  if (sourceKeys.length === 1) {
+    await b.file(sourceKeys[0]).copy(destination);
+    await destination.setMetadata({ contentType });
+    return destinationKey;
+  }
+
+  const sources = sourceKeys.map((k) => b.file(k));
+  await b.combine(sources, destination);
+  await destination.setMetadata({ contentType });
+  return destinationKey;
+}
+
 export async function deleteFile(key: string): Promise<void> {
   try {
     await bucket().file(key).delete();
