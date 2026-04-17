@@ -5,9 +5,15 @@
 # a DNS-only subdomain that bypasses Cloudflare's 100 MB body cap.
 # ─────────────────────────────────────────────────────────
 
-naijatransfer.com {
-    # Rate limiting: 300 requests/minute per IP
-    rate_limit {remote.ip} 300r/m
+# Primary site is served as HTTP here because Cloudflare fronts it
+# in Flexible SSL mode: browsers reach CF over HTTPS, CF reaches
+# Caddy over HTTP. If we let Caddy auto-HTTPS this domain it would
+# 308-redirect to HTTPS, and CF's HTTP→origin request would bounce.
+http://naijatransfer.com {
+    # Rate limiting handled at the Cloudflare edge — Caddy's
+    # rate_limit directive requires the caddy-ratelimit plugin
+    # which isn't compiled into the prod binary, and adding it
+    # would break `caddy validate` in the deploy script.
 
     # Security headers
     header {
@@ -121,7 +127,7 @@ upload.naijatransfer.com {
     respond 404
 }
 
-# www redirect
-www.naijatransfer.com {
+# www redirect (also served as HTTP, proxied through Cloudflare)
+http://www.naijatransfer.com {
     redir https://naijatransfer.com{uri} permanent
 }
