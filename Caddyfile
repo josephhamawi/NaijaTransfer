@@ -1,9 +1,11 @@
 # ─────────────────────────────────────────────────────────
-# NigeriaTransfer — Caddy Reverse Proxy Configuration
-# Production: serves nigeriatransfer.com with auto-HTTPS
+# NaijaTransfer — Caddy Reverse Proxy Configuration
+# Production: serves naijatransfer.com with auto-HTTPS.
+# Large file uploads (>100 MB) are routed to upload.naijatransfer.com,
+# a DNS-only subdomain that bypasses Cloudflare's 100 MB body cap.
 # ─────────────────────────────────────────────────────────
 
-nigeriatransfer.com {
+naijatransfer.com {
     # Rate limiting: 300 requests/minute per IP
     rate_limit {remote.ip} 300r/m
 
@@ -15,7 +17,7 @@ nigeriatransfer.com {
         X-XSS-Protection "1; mode=block"
         Referrer-Policy "strict-origin-when-cross-origin"
         Permissions-Policy "camera=(), microphone=(), geolocation=()"
-        Content-Security-Policy "default-src 'self'; script-src 'self' https://pagead2.googlesyndication.com https://analytics.nigeriatransfer.com https://www.biowise.cc 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.googleusercontent.com https://*.r2.cloudflarestorage.com; connect-src 'self' https://analytics.nigeriatransfer.com https://api.paystack.co https://www.biowise.cc; frame-src https://pagead2.googlesyndication.com; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests;"
+        Content-Security-Policy "default-src 'self'; script-src 'self' https://pagead2.googlesyndication.com https://analytics.nigeriatransfer.com https://www.biowise.cc 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.googleusercontent.com https://*.r2.cloudflarestorage.com; connect-src 'self' https://upload.naijatransfer.com https://analytics.nigeriatransfer.com https://api.paystack.co https://www.biowise.cc; frame-src https://pagead2.googlesyndication.com; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests;"
     }
 
     # Static assets: long cache (Next.js hashed filenames)
@@ -51,7 +53,9 @@ nigeriatransfer.com {
     # Compression
     encode gzip zstd
 
-    # Large file uploads: increase timeouts and body size
+    # Legacy upload path — kept for clients loaded before the bypass
+    # subdomain existed. Cloudflare still caps request bodies at 100 MB
+    # here, so real >100 MB uploads MUST use upload.naijatransfer.com.
     @uploads path /api/upload/file /api/upload/file/* /api/upload/files/*
     handle @uploads {
         request_body {
@@ -73,7 +77,51 @@ nigeriatransfer.com {
     }
 }
 
+# ─────────────────────────────────────────────────────────
+# Upload bypass subdomain
+#
+# This subdomain must be configured as DNS-only (grey cloud) in
+# Cloudflare, pointing at the Hetzner IP. That makes file POSTs hit
+# Caddy directly, bypassing Cloudflare's 100 MB request-body cap on
+# the Free/Pro/Business plans. Caddy auto-provisions a Let's Encrypt
+# cert on first request once DNS resolves.
+# ─────────────────────────────────────────────────────────
+upload.naijatransfer.com {
+    # CORS: the page is served from naijatransfer.com and XHRs land here
+    # with custom headers (X-File-Name, X-File-Size) that trigger a
+    # preflight — we answer it below.
+    header Access-Control-Allow-Origin "https://naijatransfer.com"
+    header Access-Control-Allow-Methods "POST, OPTIONS"
+    header Access-Control-Allow-Headers "Content-Type, X-File-Name, X-File-Size"
+    header Access-Control-Max-Age "86400"
+    header Vary "Origin"
+
+    @preflight method OPTIONS
+    handle @preflight {
+        respond 204
+    }
+
+    @upload path /api/upload/file /api/upload/file/*
+    handle @upload {
+        request_body {
+            max_size 50GB
+        }
+        reverse_proxy localhost:3000 {
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            transport http {
+                read_timeout 2h
+                write_timeout 2h
+            }
+        }
+    }
+
+    # Upload-only subdomain — reject everything else.
+    respond 404
+}
+
 # www redirect
-www.nigeriatransfer.com {
-    redir https://nigeriatransfer.com{uri} permanent
+www.naijatransfer.com {
+    redir https://naijatransfer.com{uri} permanent
 }

@@ -121,13 +121,23 @@ export default function HomePage() {
       //    gives us byte-level events. fetch() can't observe request
       //    body progress in browsers. The body is still a File, which
       //    the browser streams — no JS-side buffering of 4 GB.
+      //
+      //    Cloudflare's Free/Pro/Business plans cap request bodies at
+      //    ≤200 MB, which rejects every real transfer before it reaches
+      //    our server. In production we POST to upload.naijatransfer.com
+      //    (DNS-only, bypasses Cloudflare). Same-origin in dev.
+      const uploadHost =
+        window.location.hostname.endsWith("naijatransfer.com")
+          ? "https://upload.naijatransfer.com"
+          : "";
+
       let priorFilesBytes = 0;
       for (const selectedFile of files) {
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           xhr.open(
             "POST",
-            `/api/upload/file?transferId=${encodeURIComponent(data.transferId)}`
+            `${uploadHost}/api/upload/file?transferId=${encodeURIComponent(data.transferId)}`
           );
           xhr.setRequestHeader(
             "Content-Type",
