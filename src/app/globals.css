@@ -119,6 +119,8 @@
   --gold-bg: #FFF8DC;
   --input-bg: #FFFFFF;
   --elevated-border: #3D3D52;
+  --tab-active-bg: #FFFFFF;
+  --tab-active-ring: rgba(0, 0, 0, 0.06);
 
   color-scheme: light;
 }
@@ -140,6 +142,8 @@
   --gold-bg: #3D3520;
   --input-bg: #2D2D42;
   --elevated-border: #3D3D52;
+  --tab-active-bg: #4E4E68;
+  --tab-active-ring: rgba(255, 255, 255, 0.12);
 
   color-scheme: dark;
 }

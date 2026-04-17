@@ -129,7 +129,7 @@ export function Tab({ id, children, className, disabled = false }: TabProps) {
         "rounded-[var(--radius-sm)]",
         "cursor-pointer select-none",
         isActive
-          ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm font-semibold"
+          ? "bg-[var(--tab-active-bg)] text-[var(--text-primary)] shadow-sm font-semibold ring-1 ring-inset ring-[var(--tab-active-ring)]"
           : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
         disabled && "opacity-40 cursor-not-allowed",
         className
