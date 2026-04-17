@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { cn, formatBytes } from "@/lib/utils";
+import { cn, formatBytes, formatDuration, formatSpeed } from "@/lib/utils";
 import { TIER_LIMITS } from "@/lib/tier-limits";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card } from "@/components/ui/Card";
@@ -42,6 +42,10 @@ export default function HomePage() {
   const [emailFrom, setEmailFrom] = useState("");
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [bytesUploaded, setBytesUploaded] = useState(0);
+  const [uploadSpeed, setUploadSpeed] = useState(0);
+  const [etaSeconds, setEtaSeconds] = useState<number | null>(null);
+  const [isFinalizing, setIsFinalizing] = useState(false);
   const [transferResult, setTransferResult] = useState<{ shortCode: string; downloadUrl: string } | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -51,7 +55,43 @@ export default function HomePage() {
     if (files.length === 0) return;
     setUploadState("uploading");
     setUploadProgress(0);
+    setBytesUploaded(0);
+    setUploadSpeed(0);
+    setEtaSeconds(null);
+    setIsFinalizing(false);
     setErrorMsg("");
+
+    const totalBytes = files.reduce((s, f) => s + f.size, 0);
+
+    // Rolling speed: EMA over XHR progress samples, ≥250ms apart so a
+    // burst of small events doesn't collapse the window to ~0ms and
+    // produce huge instantaneous speeds. ETA = (remaining / speed).
+    let lastSampleTime = Date.now();
+    let lastSampleBytes = 0;
+    let smoothedSpeed = 0;
+
+    const reportProgress = (absBytes: number) => {
+      setBytesUploaded(absBytes);
+      setUploadProgress(
+        totalBytes > 0 ? Math.min(100, (absBytes / totalBytes) * 100) : 0
+      );
+
+      const now = Date.now();
+      const dt = (now - lastSampleTime) / 1000;
+      if (dt >= 0.25) {
+        const instant = (absBytes - lastSampleBytes) / dt;
+        smoothedSpeed =
+          smoothedSpeed === 0 ? instant : smoothedSpeed * 0.7 + instant * 0.3;
+        setUploadSpeed(smoothedSpeed);
+        setEtaSeconds(
+          smoothedSpeed > 0
+            ? Math.max(0, (totalBytes - absBytes) / smoothedSpeed)
+            : null
+        );
+        lastSampleTime = now;
+        lastSampleBytes = absBytes;
+      }
+    };
 
     try {
       // 1. Create transfer
@@ -77,38 +117,60 @@ export default function HomePage() {
 
       const { data } = await res.json();
 
-      // 2. Upload each file to Firebase Storage, streaming the body
-      //    directly — no FormData, no client-side Blob copy. This lets
-      //    the server pipe straight to GCS without buffering the file.
-      let uploaded = 0;
+      // 2. Upload each file with XMLHttpRequest so upload.onprogress
+      //    gives us byte-level events. fetch() can't observe request
+      //    body progress in browsers. The body is still a File, which
+      //    the browser streams — no JS-side buffering of 4 GB.
+      let priorFilesBytes = 0;
       for (const selectedFile of files) {
-        const uploadRes = await fetch(
-          `/api/upload/file?transferId=${encodeURIComponent(data.transferId)}`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                selectedFile.file.type || "application/octet-stream",
-              "X-File-Name": encodeURIComponent(selectedFile.file.name),
-              "X-File-Size": String(selectedFile.file.size),
-            },
-            body: selectedFile.file,
-            // @ts-expect-error — `duplex: "half"` is required by the
-            // Fetch spec when sending a streaming body, but TS libs
-            // haven't caught up on all targets.
-            duplex: "half",
-          }
-        );
-
-        if (!uploadRes.ok) {
-          const err = await uploadRes.json().catch(() => ({}));
-          throw new Error(
-            err.error?.message || `Failed to upload ${selectedFile.name}`
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open(
+            "POST",
+            `/api/upload/file?transferId=${encodeURIComponent(data.transferId)}`
           );
-        }
+          xhr.setRequestHeader(
+            "Content-Type",
+            selectedFile.file.type || "application/octet-stream"
+          );
+          xhr.setRequestHeader(
+            "X-File-Name",
+            encodeURIComponent(selectedFile.file.name)
+          );
+          xhr.setRequestHeader("X-File-Size", String(selectedFile.file.size));
 
-        uploaded++;
-        setUploadProgress(Math.round((uploaded / files.length) * 100));
+          xhr.upload.onprogress = (e) => {
+            if (!e.lengthComputable) return;
+            reportProgress(priorFilesBytes + e.loaded);
+            // The server still has to flush the last chunk to GCS after
+            // the browser reports 100%; show "Finalizing" until onload.
+            if (e.loaded >= e.total) setIsFinalizing(true);
+          };
+          xhr.onload = () => {
+            setIsFinalizing(false);
+            if (xhr.status >= 200 && xhr.status < 300) {
+              priorFilesBytes += selectedFile.size;
+              reportProgress(priorFilesBytes);
+              resolve();
+              return;
+            }
+            let message = `Failed to upload ${selectedFile.name}`;
+            try {
+              const body = JSON.parse(xhr.responseText || "{}");
+              if (body?.error?.message) message = body.error.message;
+            } catch {}
+            reject(new Error(message));
+          };
+          xhr.onerror = () => {
+            setIsFinalizing(false);
+            reject(new Error("network error"));
+          };
+          xhr.onabort = () => {
+            setIsFinalizing(false);
+            reject(new Error("Upload cancelled"));
+          };
+          xhr.send(selectedFile.file);
+        });
       }
 
       // 3. Send email notification if recipients provided
@@ -326,14 +388,28 @@ export default function HomePage() {
           {uploadState === "uploading" && (
             <div className="mt-6">
               <div className="flex items-center justify-between text-body-sm mb-2">
-                <span>Uploading...</span>
-                <span>{uploadProgress}%</span>
+                <span>
+                  {isFinalizing
+                    ? "Finalizing…"
+                    : `${formatBytes(bytesUploaded)} of ${formatBytes(totalSize)}`}
+                </span>
+                <span>{uploadProgress.toFixed(1)}%</span>
               </div>
               <div className="w-full h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-nigerian-green rounded-full transition-all duration-300"
+                  className="h-full bg-nigerian-green rounded-full transition-[width] duration-200 ease-linear"
                   style={{ width: `${uploadProgress}%` }}
                 />
+              </div>
+              <div className="flex items-center justify-between text-body-sm text-[var(--text-secondary)] mt-2">
+                <span>{uploadSpeed > 0 ? formatSpeed(uploadSpeed) : "Starting…"}</span>
+                <span>
+                  {isFinalizing
+                    ? "Almost done"
+                    : etaSeconds != null && etaSeconds > 0
+                    ? `${formatDuration(etaSeconds)} left`
+                    : ""}
+                </span>
               </div>
             </div>
           )}
@@ -421,6 +497,10 @@ export default function HomePage() {
               setFiles([]);
               setTransferResult(null);
               setUploadProgress(0);
+              setBytesUploaded(0);
+              setUploadSpeed(0);
+              setEtaSeconds(null);
+              setIsFinalizing(false);
             }}>
               Send another transfer
             </Button>
