@@ -23,7 +23,7 @@ http://naijatransfer.com {
         X-XSS-Protection "1; mode=block"
         Referrer-Policy "strict-origin-when-cross-origin"
         Permissions-Policy "camera=(), microphone=(), geolocation=()"
-        Content-Security-Policy "default-src 'self'; script-src 'self' https://pagead2.googlesyndication.com https://analytics.nigeriatransfer.com https://www.biowise.cc 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://*.googleusercontent.com https://*.r2.cloudflarestorage.com; connect-src 'self' https://upload.naijatransfer.com https://analytics.nigeriatransfer.com https://api.paystack.co https://www.biowise.cc; frame-src https://pagead2.googlesyndication.com; font-src 'self' https://fonts.gstatic.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests;"
+        Content-Security-Policy "default-src 'self'; script-src 'self' https://pagead2.googlesyndication.com https://analytics.nigeriatransfer.com https://www.biowise.cc https://static.cloudflareinsights.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://*.googleusercontent.com https://*.r2.cloudflarestorage.com; connect-src 'self' https://upload.naijatransfer.com https://analytics.nigeriatransfer.com https://api.paystack.co https://www.biowise.cc https://cloudflareinsights.com; frame-src https://pagead2.googlesyndication.com; font-src 'self' https://fonts.gstatic.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests;"
     }
 
     # Static assets: long cache (Next.js hashed filenames)
