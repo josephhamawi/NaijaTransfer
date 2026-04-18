@@ -249,11 +249,51 @@ export default function HomePage() {
             xhr.send(blob);
           });
 
+        // Retry wrapper: ISPs drop TCP flows on long uploads. A dropped
+        // chunk shouldn't kill a 2-hour upload — retry the single chunk
+        // with exponential backoff and let the rest keep running. The
+        // server is idempotent (uploading the same part key overwrites),
+        // so a retry picks up cleanly where the failed attempt left off.
+        const uploadPartWithRetry = async (partNumber: number) => {
+          const MAX_ATTEMPTS = 4; // initial + 3 retries
+          let lastError: unknown;
+          for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            if (cancelRequested.current) {
+              throw new Error("Upload cancelled");
+            }
+            try {
+              await uploadPart(partNumber);
+              return;
+            } catch (err) {
+              lastError = err;
+              const msg = err instanceof Error ? err.message : "";
+              // Permanent failures — retrying won't change the answer.
+              if (
+                cancelRequested.current ||
+                msg.includes("cancelled") ||
+                msg.includes("FILE_TOO_LARGE") ||
+                msg.includes("TRANSFER_TOO_LARGE") ||
+                msg.includes("TOO_MANY_FILES") ||
+                msg.includes("UPLOAD_NOT_FOUND")
+              ) {
+                throw err;
+              }
+              if (attempt === MAX_ATTEMPTS) throw err;
+              // Exponential backoff: 1s, 2s, 4s between retries. Gives
+              // the ISP a moment to sort itself out before we try again.
+              await new Promise((r) =>
+                setTimeout(r, 1000 * Math.pow(2, attempt - 1))
+              );
+            }
+          }
+          throw lastError;
+        };
+
         const partNumbers = Array.from(
           { length: partCount },
           (_, i) => i + 1
         );
-        await Promise.all(partNumbers.map(uploadPart));
+        await Promise.all(partNumbers.map(uploadPartWithRetry));
 
         // 2c. Complete — server composes parts into final object and
         //     writes the file record. This is the "Finalizing" phase
