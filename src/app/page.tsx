@@ -52,7 +52,7 @@ export default function HomePage() {
   const [uploadSpeed, setUploadSpeed] = useState(0);
   const [etaSeconds, setEtaSeconds] = useState<number | null>(null);
   const [isFinalizing, setIsFinalizing] = useState(false);
-  const [transferResult, setTransferResult] = useState<{ shortCode: string; downloadUrl: string } | null>(null);
+  const [transferResult, setTransferResult] = useState<{ shortCode: string; downloadUrl: string; durationSeconds: number } | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
   // Refs to track in-flight work so Cancel can abort everything fast.
@@ -62,6 +62,12 @@ export default function HomePage() {
   const activeXhrs = useRef<Set<XMLHttpRequest>>(new Set());
   const uploadAbortController = useRef<AbortController | null>(null);
   const cancelRequested = useRef(false);
+
+  // Wall-clock start of the user's current Transfer attempt. Preserved
+  // across retries so "Transfer complete in 3h 12m" reflects the total
+  // time from the first click, not just the final successful attempt.
+  // Cleared on success and on cancel.
+  const transferStartTime = useRef<number | null>(null);
 
   // Resume state: remember each in-progress file's (transferId,
   // uploadId) across attempts so a Try-again skips re-uploading
@@ -100,6 +106,12 @@ export default function HomePage() {
     activeXhrs.current.clear();
     uploadAbortController.current = new AbortController();
     const abortSignal = uploadAbortController.current.signal;
+
+    // Start the wall clock on the first attempt; retries keep the
+    // original time so the duration shown at the end is total effort.
+    if (transferStartTime.current === null) {
+      transferStartTime.current = Date.now();
+    }
 
     // Stable identity for a File — used to key the resume map.
     // lastModified differs between two files with the same name/size,
@@ -507,9 +519,14 @@ export default function HomePage() {
       }
 
       // 4. Success
+      const durationSeconds = transferStartTime.current
+        ? (Date.now() - transferStartTime.current) / 1000
+        : 0;
+      transferStartTime.current = null;
       setTransferResult({
         shortCode: transfer.shortCode,
         downloadUrl: `${window.location.origin}/d/${transfer.shortCode}`,
+        durationSeconds,
       });
       setUploadState("success");
     } catch (err) {
@@ -561,6 +578,7 @@ export default function HomePage() {
     // User explicitly cancelled — don't let a later "Transfer" click
     // try to resume this abandoned session.
     resumeSessions.current.clear();
+    transferStartTime.current = null;
 
     setUploadState("idle");
     setUploadProgress(0);
@@ -825,6 +843,9 @@ export default function HomePage() {
               <h2 className="text-h3 font-bold">Transfer complete!</h2>
               <p className="text-body-sm text-[var(--text-secondary)]">
                 {files.length} file{files.length !== 1 ? "s" : ""} · {formatBytes(totalSize)}
+                {transferResult.durationSeconds > 0 && (
+                  <> · {formatDuration(transferResult.durationSeconds)}</>
+                )}
               </p>
             </div>
 
