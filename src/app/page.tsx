@@ -63,6 +63,24 @@ export default function HomePage() {
   const uploadAbortController = useRef<AbortController | null>(null);
   const cancelRequested = useRef(false);
 
+  // Resume state: remember each in-progress file's (transferId,
+  // uploadId) across attempts so a Try-again skips re-uploading
+  // chunks that already landed on GCS. Keyed by file identity
+  // (name+size+lastModified). Cleared per-file on successful
+  // completion or user cancellation.
+  const resumeSessions = useRef<
+    Map<
+      string,
+      {
+        transferId: string;
+        shortCode: string;
+        uploadId: string;
+        partCount: number;
+        partSize: number;
+      }
+    >
+  >(new Map());
+
   const totalSize = files.reduce((sum, f) => sum + f.size, 0);
 
   const handleTransfer = useCallback(async () => {
@@ -82,6 +100,47 @@ export default function HomePage() {
     activeXhrs.current.clear();
     uploadAbortController.current = new AbortController();
     const abortSignal = uploadAbortController.current.signal;
+
+    // Stable identity for a File — used to key the resume map.
+    // lastModified differs between two files with the same name/size,
+    // which is usually enough to tell "same file chosen after reload"
+    // from "a different file the user picked that happens to share a
+    // name."
+    const fileKey = (f: SelectedFile) =>
+      `${f.file.name}:${f.file.size}:${f.file.lastModified}`;
+
+    // Wait for the browser to come back online before a retry. Flaky
+    // residential ISPs drop the whole connection for tens of seconds
+    // at a time; burning retries into a dead network is wasted effort.
+    const waitForOnline = (maxWaitMs = 60_000) =>
+      new Promise<void>((resolve) => {
+        if (
+          typeof navigator === "undefined" ||
+          navigator.onLine !== false
+        ) {
+          resolve();
+          return;
+        }
+        const cleanup = () => {
+          clearTimeout(timer);
+          window.removeEventListener("online", onOnline);
+          abortSignal.removeEventListener("abort", onAbort);
+        };
+        const onOnline = () => {
+          cleanup();
+          resolve();
+        };
+        const onAbort = () => {
+          cleanup();
+          resolve();
+        };
+        const timer = setTimeout(() => {
+          cleanup();
+          resolve();
+        }, maxWaitMs);
+        window.addEventListener("online", onOnline);
+        abortSignal.addEventListener("abort", onAbort, { once: true });
+      });
 
     const totalBytes = files.reduce((s, f) => s + f.size, 0);
 
@@ -116,84 +175,174 @@ export default function HomePage() {
     };
 
     try {
-      // 1. Create transfer
       const recipientEmails = emailTo ? emailTo.split(",").map(e => e.trim()).filter(Boolean) : undefined;
-      const res = await fetch("/api/upload/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          uid: user?.uid || undefined,
-          senderEmail: emailFrom || undefined,
-          recipientEmails,
-          message: settings.message || undefined,
-          password: settings.password || undefined,
-          expiryDays: settings.expiryDays,
-          downloadLimit: settings.downloadLimit,
-        }),
-        signal: abortSignal,
-      });
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error?.message || "Failed to create transfer");
-      }
+      // If the first file has a live resume session, reuse its
+      // transferId and shortCode — we want the retry to continue
+      // into the *same* transfer the previous attempt started, not
+      // spawn a new one (which would strand the parts already on GCS).
+      let data: { transferId: string; shortCode: string } | null = null;
 
-      const { data } = await res.json();
-
-      // 2. Upload each file as parallel parts.
-      //
-      //    Cloudflare's Free/Pro/Business plans cap request bodies at
-      //    ≤200 MB, so real transfers POST to upload.naijatransfer.com
-      //    (DNS-only, bypasses Cloudflare). Same-origin in dev.
-      //
-      //    Splitting each file into N parts and uploading them in
-      //    parallel lets the browser saturate the user's uplink — a
-      //    single TCP flow from Nigerian residential links usually
-      //    tops out well below the real ceiling. The server composes
-      //    the parts back into one object in /complete.
       const uploadHost =
         window.location.hostname.endsWith("naijatransfer.com")
           ? "https://upload.naijatransfer.com"
           : "";
 
+      if (files.length > 0) {
+        const firstSaved = resumeSessions.current.get(fileKey(files[0]));
+        if (firstSaved) {
+          try {
+            const probe = await fetch(
+              `${uploadHost}/api/upload/file/status?uploadId=${encodeURIComponent(firstSaved.uploadId)}`,
+              { signal: abortSignal }
+            );
+            if (probe.ok) {
+              data = {
+                transferId: firstSaved.transferId,
+                shortCode: firstSaved.shortCode,
+              };
+            } else {
+              // Stale session on the server — scrap everything saved
+              // so the next branch creates a fresh transfer.
+              resumeSessions.current.clear();
+            }
+          } catch {
+            // Ignore; fall through to fresh create
+          }
+        }
+      }
+
+      if (!data) {
+        // No resume — create a fresh transfer and discard any stale
+        // per-file sessions pointing at a transfer we're not using.
+        resumeSessions.current.clear();
+        const res = await fetch("/api/upload/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            uid: user?.uid || undefined,
+            senderEmail: emailFrom || undefined,
+            recipientEmails,
+            message: settings.message || undefined,
+            password: settings.password || undefined,
+            expiryDays: settings.expiryDays,
+            downloadLimit: settings.downloadLimit,
+          }),
+          signal: abortSignal,
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error?.message || "Failed to create transfer");
+        }
+
+        data = (await res.json()).data;
+      }
+
+      if (!data) {
+        // Defensive: neither branch set data. Shouldn't happen; guards
+        // the downstream non-null usages from TS flow analysis.
+        throw new Error("Failed to initialise transfer");
+      }
+      const transfer = data;
+
+      // 2. Upload each file as parallel chunks. Resume-aware: if a
+      //    prior attempt left a live session for this file on the
+      //    server, re-use it and skip chunks that already landed on
+      //    GCS. Cloudflare's 100 MB cap means real transfers go to
+      //    upload.naijatransfer.com (DNS-only, bypasses CF).
       let priorFilesBytes = 0;
       for (const selectedFile of files) {
-        // 2a. Init — server reserves quota, decides part layout.
-        const initRes = await fetch(
-          `${uploadHost}/api/upload/file/init?transferId=${encodeURIComponent(data.transferId)}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              fileName: selectedFile.file.name,
-              fileSize: selectedFile.file.size,
-              contentType:
-                selectedFile.file.type || "application/octet-stream",
-            }),
-            signal: abortSignal,
-          }
-        );
-        if (!initRes.ok) {
-          const err = await initRes.json().catch(() => ({}));
-          throw new Error(
-            err.error?.message || `Failed to start ${selectedFile.name}`
-          );
-        }
-        const { data: initData } = await initRes.json();
-        const { uploadId, partCount, partSize } = initData as {
-          uploadId: string;
-          partCount: number;
-          partSize: number;
-        };
+        const key = fileKey(selectedFile);
+        const saved = resumeSessions.current.get(key);
 
-        // 2b. Upload parts in parallel. Track per-part loaded bytes so
-        //     the aggregate progress across concurrent uploads stays
-        //     accurate — can't rely on onload alone because parts may
-        //     finish out of order.
+        let uploadId: string | undefined;
+        let partCount = 0;
+        let partSize = 0;
+        let completedChunks: number[] = [];
+
+        // 2a. Try to resume if we have a saved session pointing at the
+        //     current transfer. Mismatched transferIds mean the saved
+        //     session belongs to a different transfer (shouldn't happen
+        //     normally, but be defensive).
+        if (saved && saved.transferId === transfer.transferId) {
+          try {
+            const statusRes = await fetch(
+              `${uploadHost}/api/upload/file/status?uploadId=${encodeURIComponent(saved.uploadId)}`,
+              { signal: abortSignal }
+            );
+            if (statusRes.ok) {
+              const { data: status } = await statusRes.json();
+              uploadId = saved.uploadId;
+              partCount = saved.partCount;
+              partSize = saved.partSize;
+              completedChunks = Array.isArray(status.completedChunks)
+                ? (status.completedChunks as number[])
+                : [];
+            } else {
+              resumeSessions.current.delete(key);
+            }
+          } catch {
+            resumeSessions.current.delete(key);
+          }
+        }
+
+        // 2b. Fresh /init when there's no usable saved session. Reserves
+        //     quota atomically; server decides chunk layout.
+        if (!uploadId) {
+          const initRes = await fetch(
+            `${uploadHost}/api/upload/file/init?transferId=${encodeURIComponent(transfer.transferId)}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                fileName: selectedFile.file.name,
+                fileSize: selectedFile.file.size,
+                contentType:
+                  selectedFile.file.type || "application/octet-stream",
+              }),
+              signal: abortSignal,
+            }
+          );
+          if (!initRes.ok) {
+            const err = await initRes.json().catch(() => ({}));
+            throw new Error(
+              err.error?.message || `Failed to start ${selectedFile.name}`
+            );
+          }
+          const { data: initData } = await initRes.json();
+          uploadId = initData.uploadId as string;
+          partCount = initData.partCount as number;
+          partSize = initData.partSize as number;
+
+          // Stash the session so a later Try-again can resume this file
+          // without re-uploading what already made it to GCS.
+          resumeSessions.current.set(key, {
+            transferId: transfer.transferId,
+            shortCode: transfer.shortCode,
+            uploadId,
+            partCount,
+            partSize,
+          });
+        }
+
+        // 2c. Seed progress with bytes that are already on the server.
         const fileStartBytes = priorFilesBytes;
         const partLoaded = new Array(partCount).fill(0);
+        for (const n of completedChunks) {
+          if (n >= 1 && n <= partCount) {
+            const start = (n - 1) * partSize;
+            const end = Math.min(start + partSize, selectedFile.file.size);
+            partLoaded[n - 1] = end - start;
+          }
+        }
         const sumLoaded = () =>
           partLoaded.reduce((a: number, b: number) => a + b, 0);
+        reportProgress(fileStartBytes + sumLoaded());
+
+        // Captured once per iteration so the inner XHR callbacks don't
+        // re-read the possibly-mutating loop variable.
+        const currentUploadId = uploadId;
 
         const uploadPart = (partNumber: number) =>
           new Promise<void>((resolve, reject) => {
@@ -210,7 +359,7 @@ export default function HomePage() {
             xhr.open(
               "POST",
               `${uploadHost}/api/upload/file/chunk?uploadId=${encodeURIComponent(
-                uploadId
+                currentUploadId
               )}&chunkNumber=${partNumber}`
             );
             xhr.setRequestHeader(
@@ -231,6 +380,13 @@ export default function HomePage() {
                 resolve();
                 return;
               }
+              // 5xx / 0 means network or proxy-layer failure — mark the
+              // error as retryable via the "network" keyword the outer
+              // catch block maps to "Connection lost."
+              if (xhr.status >= 500 || xhr.status === 0) {
+                reject(new Error(`network: HTTP ${xhr.status}`));
+                return;
+              }
               let message = `Failed to upload part ${partNumber}`;
               try {
                 const body = JSON.parse(xhr.responseText || "{}");
@@ -249,13 +405,12 @@ export default function HomePage() {
             xhr.send(blob);
           });
 
-        // Retry wrapper: ISPs drop TCP flows on long uploads. A dropped
-        // chunk shouldn't kill a 2-hour upload — retry the single chunk
-        // with exponential backoff and let the rest keep running. The
-        // server is idempotent (uploading the same part key overwrites),
-        // so a retry picks up cleanly where the failed attempt left off.
+        // Retry wrapper: ISPs drop TCP flows on long uploads. On each
+        // failure, reset progress for that chunk, wait for the browser
+        // to report itself back online (up to 60s), then back off
+        // exponentially. Permanent server errors bypass retries.
         const uploadPartWithRetry = async (partNumber: number) => {
-          const MAX_ATTEMPTS = 4; // initial + 3 retries
+          const MAX_ATTEMPTS = 6;
           let lastError: unknown;
           for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             if (cancelRequested.current) {
@@ -267,7 +422,6 @@ export default function HomePage() {
             } catch (err) {
               lastError = err;
               const msg = err instanceof Error ? err.message : "";
-              // Permanent failures — retrying won't change the answer.
               if (
                 cancelRequested.current ||
                 msg.includes("cancelled") ||
@@ -279,28 +433,39 @@ export default function HomePage() {
                 throw err;
               }
               if (attempt === MAX_ATTEMPTS) throw err;
-              // Exponential backoff: 1s, 2s, 4s between retries. Gives
-              // the ISP a moment to sort itself out before we try again.
+              // Reset the failed chunk's progress so the bar doesn't
+              // lie while the retry re-climbs.
+              partLoaded[partNumber - 1] = 0;
+              reportProgress(fileStartBytes + sumLoaded());
+              await waitForOnline(60_000);
+              if (cancelRequested.current) {
+                throw new Error("Upload cancelled");
+              }
+              // Backoff: 1s, 2s, 4s, 8s, 16s. Capped so a total retry
+              // cycle takes <1 min per chunk in the worst case.
               await new Promise((r) =>
-                setTimeout(r, 1000 * Math.pow(2, attempt - 1))
+                setTimeout(
+                  r,
+                  1000 * Math.min(16, Math.pow(2, attempt - 1))
+                )
               );
             }
           }
           throw lastError;
         };
 
-        const partNumbers = Array.from(
-          { length: partCount },
-          (_, i) => i + 1
-        );
-        await Promise.all(partNumbers.map(uploadPartWithRetry));
+        // Only upload chunks the server doesn't already have.
+        const chunksToUpload: number[] = [];
+        for (let i = 1; i <= partCount; i++) {
+          if (!completedChunks.includes(i)) chunksToUpload.push(i);
+        }
+        await Promise.all(chunksToUpload.map(uploadPartWithRetry));
 
-        // 2c. Complete — server composes parts into final object and
-        //     writes the file record. This is the "Finalizing" phase
-        //     from the user's point of view.
+        // 2d. Complete — server composes parts into final object and
+        //     writes the file record. "Finalizing" phase UI-wise.
         setIsFinalizing(true);
         const completeRes = await fetch(
-          `${uploadHost}/api/upload/file/complete?uploadId=${encodeURIComponent(uploadId)}`,
+          `${uploadHost}/api/upload/file/complete?uploadId=${encodeURIComponent(currentUploadId)}`,
           { method: "POST", signal: abortSignal }
         );
         setIsFinalizing(false);
@@ -311,6 +476,9 @@ export default function HomePage() {
           );
         }
 
+        // File is done — purge its resume session.
+        resumeSessions.current.delete(key);
+
         priorFilesBytes += selectedFile.size;
         reportProgress(priorFilesBytes);
       }
@@ -318,7 +486,7 @@ export default function HomePage() {
       // 3. Send email notification if recipients provided
       if (recipientEmails && recipientEmails.length > 0) {
         try {
-          const notifyRes = await fetch(`/api/transfer/${data.shortCode}/notify`, {
+          const notifyRes = await fetch(`/api/transfer/${transfer.shortCode}/notify`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -340,8 +508,8 @@ export default function HomePage() {
 
       // 4. Success
       setTransferResult({
-        shortCode: data.shortCode,
-        downloadUrl: `${window.location.origin}/d/${data.shortCode}`,
+        shortCode: transfer.shortCode,
+        downloadUrl: `${window.location.origin}/d/${transfer.shortCode}`,
       });
       setUploadState("success");
     } catch (err) {
@@ -352,11 +520,19 @@ export default function HomePage() {
       }
 
       const raw = err instanceof Error ? err.message : "Unknown error";
-      // User-friendly error messages
-      let friendly = "Something went wrong. Please try again.";
+      // User-friendly error messages. When we reach this catch block
+      // after a partial upload, the per-file resume sessions are still
+      // in place — clicking "Try again" will pick up from the last
+      // chunk that made it to GCS instead of starting from zero.
+      const hasResume = resumeSessions.current.size > 0;
+      const resumeHint = hasResume
+        ? " Click Try again to resume from where you left off."
+        : "";
+      let friendly =
+        "Something went wrong. Please try again." + resumeHint;
       if (raw.includes("DAILY_LIMIT")) friendly = "You've reached your daily transfer limit. Try again tomorrow or upgrade to Pro.";
       else if (raw.includes("too large") || raw.includes("size")) friendly = "File is too large for your plan. Upgrade for bigger transfers.";
-      else if (raw.includes("network") || raw.includes("fetch")) friendly = "Connection lost. Check your internet and try again.";
+      else if (raw.includes("network") || raw.includes("fetch")) friendly = "Connection lost. Check your internet and try again." + resumeHint;
 
       toast.error("Upload failed", friendly);
       setErrorMsg(friendly);
@@ -381,6 +557,10 @@ export default function HomePage() {
     // Cancel any in-flight fetch (init/create/complete).
     uploadAbortController.current?.abort();
     uploadAbortController.current = null;
+
+    // User explicitly cancelled — don't let a later "Transfer" click
+    // try to resume this abandoned session.
+    resumeSessions.current.clear();
 
     setUploadState("idle");
     setUploadProgress(0);

@@ -107,6 +107,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Record which chunks have succeeded so /status (resume) can tell
+  // the client what to skip. Best-effort — if this write fails, the
+  // chunk is still on GCS and a later status-less retry will just
+  // re-upload it.
+  try {
+    const { FieldValue } = await import("firebase-admin/firestore");
+    await collection("uploads").doc(uploadId).update({
+      completedChunks: FieldValue.arrayUnion(chunkNumber),
+    });
+  } catch (err) {
+    console.error(
+      `Failed to record completion for chunk ${chunkNumber} / ${uploadId}:`,
+      err
+    );
+  }
+
   return NextResponse.json({
     data: { chunkNumber, uploaded: true },
   });
