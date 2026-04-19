@@ -48,6 +48,7 @@ export default function Header({ className }: HeaderProps) {
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-1" aria-label="Main navigation">
           <NavLink href="/pricing">Pricing</NavLink>
+          <NavLink href="/blog">Blog</NavLink>
           <NavLink href="/about">About</NavLink>
           <NavLink href="/docs/api">API</NavLink>
           {isAuthenticated && <NavLink href="/dashboard">Dashboard</NavLink>}
@@ -129,6 +130,7 @@ export default function Header({ className }: HeaderProps) {
           aria-label="Mobile navigation"
         >
           <MobileNavLink href="/pricing" onClick={() => setMobileMenuOpen(false)}>Pricing</MobileNavLink>
+          <MobileNavLink href="/blog" onClick={() => setMobileMenuOpen(false)}>Blog</MobileNavLink>
           <MobileNavLink href="/about" onClick={() => setMobileMenuOpen(false)}>About</MobileNavLink>
           <MobileNavLink href="/docs/api" onClick={() => setMobileMenuOpen(false)}>API Docs</MobileNavLink>
           {isAuthenticated ? (

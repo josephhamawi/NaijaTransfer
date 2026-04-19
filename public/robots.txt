@@ -3,5 +3,21 @@ Allow: /
 Disallow: /api/
 Disallow: /dashboard/
 Disallow: /_next/
+Disallow: /d/
 
-Sitemap: https://nigeriatransfer.com/sitemap.xml
+User-agent: GPTBot
+Allow: /blog/
+Disallow: /api/
+Disallow: /dashboard/
+
+User-agent: ClaudeBot
+Allow: /blog/
+Disallow: /api/
+Disallow: /dashboard/
+
+User-agent: PerplexityBot
+Allow: /blog/
+Disallow: /api/
+Disallow: /dashboard/
+
+Sitemap: https://naijatransfer.com/sitemap.xml
