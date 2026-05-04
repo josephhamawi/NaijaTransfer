@@ -41,7 +41,14 @@ export default function Footer({ hideBranding = false, className }: FooterProps)
             <ul className="space-y-2">
               <FooterLink href="/pricing">Pricing</FooterLink>
               <FooterLink href="/docs/api">API Docs</FooterLink>
-              <FooterLink href="/artists">Artists</FooterLink>
+              <li className="list-none">
+                <a
+                  href="mailto:hello@kodefoundry.com?subject=Artist%20submission%20for%20NaijaTransfer&body=Hi%2C%20I%27d%20like%20to%20submit%20my%20work%20to%20be%20featured%20as%20a%20NaijaTransfer%20wallpaper.%20Here%20are%20my%20samples%2Fportfolio%3A%0A%0A"
+                  className="text-xs text-white/50 hover:text-white transition-colors"
+                >
+                  Submit your art
+                </a>
+              </li>
             </ul>
           </div>
 
