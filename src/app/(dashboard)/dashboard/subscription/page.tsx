@@ -196,7 +196,7 @@ function SubscriptionPageInner() {
             disabled={!!upgrading}
             onClick={() => handleUpgrade("BUSINESS")}
           >
-            Upgrade to Business — {sub?.pricing?.BUSINESS || "₦10,000"}/mo
+            Upgrade to Business at {sub?.pricing?.BUSINESS || "₦10,000"}/mo
           </Button>
         </Card>
       )}

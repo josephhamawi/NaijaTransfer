@@ -46,7 +46,7 @@ I had a session in 2024 where I committed a whole mix before sending, and the mi
 
 A committed Pro Tools session with all audio collected typically runs 2 to 8 GB. Film and post sessions go much bigger, 20 GB plus when there's a lot of dialogue and effects. For music, stay in the 2 to 5 GB range and you're normal.
 
-On a Nigerian uplink, that's 40 to 90 minutes on a good 4G line at 2am. For the ISP-specific numbers, [sending large files in Nigeria](/send-large-files-nigeria) has the breakdown. [Upload the zip here](/) when you're ready, and don't try to split it into smaller chunks unless you absolutely have to.
+On a Nigerian uplink, that's 40 to 90 minutes on a good 4G line at 2am. For the ISP-specific numbers, [sending large files in Nigeria](/send-large-files-nigeria) has the breakdown. [Upload the zip here](/) when you're ready, and don't try to split it into smaller chunks unless you have to.
 
 ## Sample libraries
 

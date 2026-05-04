@@ -102,7 +102,7 @@ export default function DownloadPage() {
             <h1 className="text-h2 mb-2">Transfer Expired</h1>
             <p className="text-body-sm text-[var(--text-secondary)] mb-6">This transfer has expired or been deleted.</p>
             <Button variant="primary" size="lg" onClick={() => window.location.href = "/"}>
-              Send your own files — free!
+              Send your own files free.
             </Button>
           </Card>
         </div>
@@ -224,7 +224,7 @@ export default function DownloadPage() {
           {/* CTA */}
           <div className="text-center">
             <a href="/" className="text-body-sm text-nigerian-green hover:underline font-medium">
-              Send your own files — free!
+              Send your own files free.
             </a>
           </div>
         </div>

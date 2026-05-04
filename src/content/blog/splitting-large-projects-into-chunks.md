@@ -66,7 +66,7 @@ Share the list of checksums with the recipient in the same email as the download
 
 We wrote about this in detail in [checksum your deliverables](/checksum-your-deliverables). Ten lines of hashes prevents hours of guessing.
 
-## What actually breaks in transit
+## What breaks in transit
 
 Incomplete downloads are the classic failure. A file that's 3.9 GB when it should be 4.0 GB. File managers often don't flag this, the browser stops and the user assumes it finished.
 
@@ -76,7 +76,7 @@ Transfer service timeouts are the most common on very large single files. Every 
 
 [Cloudflare's learning center](https://www.cloudflare.com/learning/cdn/what-is-a-cdn/) has a readable writeup on why large-file delivery is hard over HTTP, if you want the infrastructure context.
 
-## What I actually do
+## What I do
 
 For anything under 20 GB, single file via [NaijaTransfer](/). The service handles the download resume properly, so splitting is wasted effort.
 

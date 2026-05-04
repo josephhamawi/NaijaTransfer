@@ -60,7 +60,7 @@ The recipient runs the same command on their downloaded copy. They compare the o
 
 You can even send a `checksums.txt` file with your delivery. Tools like `shasum -c checksums.txt` on macOS or `sha256sum -c checksums.txt` on Linux verify every file in the list against the recorded hash in one command. The output is a clean "OK" or "FAILED" per file.
 
-## What a hash mismatch actually means
+## What a hash mismatch means
 
 Download was incomplete. The most common cause. Browser stopped early, user assumed it finished, file is truncated. Hash doesn't match. Solution: re-download.
 

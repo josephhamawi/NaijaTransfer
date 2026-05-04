@@ -10,7 +10,7 @@ WeTransfer has been the default file-sending tool for Nigerian creatives since r
 
 I sent the same 6.8 GB folder (a wedding day's worth of 4K clips) through both services on the same MTN 4G connection last Tuesday. WeTransfer took 52 minutes and I had to split it into two transfers because the free tier caps at 2 GB. NaijaTransfer took 31 minutes in one shot. That gap isn't a marketing claim, it's a geography bill.
 
-## File size caps and what they actually mean
+## File size caps and what they mean
 
 WeTransfer Free: 2 GB per transfer. WeTransfer Pro: 200 GB. NaijaTransfer: no artificial cap on paid plans, practical limits come from your browser session and your line.
 
@@ -22,7 +22,7 @@ WeTransfer routes through Amsterdam for most African traffic. Round-trip to AMS 
 
 For longer-session context, see [sending large files in Nigeria](/send-large-files-nigeria) where we break down the line-by-line numbers.
 
-## Pricing, in the currency you actually earn in
+## Pricing, in the currency you earn in
 
 WeTransfer Pro runs about USD 12 a month, or USD 120 billed annually. At current rates that's roughly NGN 19,000 to 22,000 per month. Then your card either declines or your bank charges an FX fee of 1 to 4 percent. My Access card has declined on WeTransfer checkout three times this year.
 

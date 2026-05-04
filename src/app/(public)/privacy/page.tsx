@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import PageLayout from "@/components/layout/PageLayout";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — NaijaTransfer",
+  title: "Privacy Policy | NaijaTransfer",
   description: "NaijaTransfer privacy policy. NDPA compliant.",
 };
 
@@ -36,7 +36,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-h2 text-[var(--text-primary)] mb-3">Your rights</h2>
-            <p>Under the NDPA, you have the right to: access your data, correct inaccurate data, request deletion of your data, and object to processing. To exercise these rights, contact us at kodefoundryatelier@gmail.com. We will respond within 30 days.</p>
+            <p>Under the NDPA, you have the right to: access your data, correct inaccurate data, request deletion of your data, and object to processing. To exercise these rights, contact us at hello@kodefoundry.com. We will respond within 30 days.</p>
           </section>
 
           <section>
@@ -51,7 +51,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-h2 text-[var(--text-primary)] mb-3">Contact</h2>
-            <p>For privacy inquiries: kodefoundryatelier@gmail.com</p>
+            <p>For privacy inquiries: hello@kodefoundry.com</p>
           </section>
         </div>
       </div>

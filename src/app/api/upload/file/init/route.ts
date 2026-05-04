@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
         {
           error: {
             code,
-            message: `This transfer already has ${limits.maxFilesPerTransfer} files — the cap for your plan.`,
+            message: `This transfer already has ${limits.maxFilesPerTransfer} files, the cap for your plan.`,
           },
         },
         { status: 413 }
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
         {
           error: {
             code,
-            message: `Total transfer size would exceed ${maxGB}GB — the cap for your plan.`,
+            message: `Total transfer size would exceed ${maxGB}GB, the cap for your plan.`,
           },
         },
         { status: 413 }

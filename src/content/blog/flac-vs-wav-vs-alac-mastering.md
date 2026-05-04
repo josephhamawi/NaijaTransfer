@@ -12,7 +12,7 @@ A mastering engineer will accept WAV, FLAC, or ALAC. They will not accept MP3, A
 
 WAV is the universal default. FLAC is half the size and open source. ALAC is Apple's answer to FLAC, similar compression, native on macOS and iOS. All three are bit-perfect. The differences are in metadata handling, filesize, and what your engineer's DAW prefers to import.
 
-## WAV, and what it actually is
+## WAV, and what it is
 
 WAV has been around since 1991, developed jointly by Microsoft and IBM. It's uncompressed PCM audio wrapped in a RIFF container. A 24-bit 48 kHz stereo WAV runs about 16.5 MB per minute. A four-minute song is around 65 MB.
 
@@ -60,7 +60,7 @@ Mastering engineers want 24-bit. Not 16-bit. 16-bit is the delivery format (CD, 
 
 Don't upsample. Ever. A 44.1 kHz recording upsampled to 96 kHz is still 44.1 kHz of information wrapped in a larger file.
 
-## What I actually send
+## What I send
 
 For mastering, 24-bit 48 kHz WAV by default. It's the format every engineer can open without thinking. Upload size hurts but [NaijaTransfer's pricing](/pricing) handles the volume without the artificial caps of free tiers.
 

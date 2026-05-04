@@ -22,7 +22,7 @@ Dropbox Transfer (their dedicated delivery product) is genuinely good. It caps a
 
 If you already pay for Dropbox for sync, Dropbox Transfer is free on top. If you don't, the monthly fee is three to four times what [our pricing](/pricing) costs for the same delivery job. You're paying for a warehouse when you wanted a courier.
 
-## Where each one actually shines
+## Where each one shines
 
 ### Dropbox
 

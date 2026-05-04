@@ -8,7 +8,7 @@ tags: ["cdn", "technical", "infrastructure"]
 
 CDN marketing talks about "200+ edge locations" like it's a competition. For a reader in Lagos, what matters is whether one of those edge locations is in Lagos, or at least on your continent. The difference between an edge at your door and an origin across an ocean is not a little bit. It's two different services pretending to be the same.
 
-## What an "edge" actually is
+## What an "edge" is
 
 A CDN edge is a server the CDN owns, sitting in a data center close to end users, that caches content and accepts uploads. When you hit the CDN, DNS routes you to the nearest edge, which talks to the origin on your behalf over its own internal network.
 
@@ -20,7 +20,7 @@ Cloudflare has a POP in Lagos, confirmed in their public infrastructure map. AWS
 
 When you upload to a service with a Lagos edge, your bytes travel maybe 15 to 30 milliseconds to reach that edge. When you upload to a service whose nearest server is in Frankfurt, your bytes travel 180 to 240 milliseconds, assuming no congestion. At 9 pm with congestion, the Frankfurt number regularly doubles.
 
-Latency doesn't sound like it should affect throughput, but TCP's congestion window is literally shaped by round-trip time. Double the latency, and your effective upload speed on a single stream drops by more than half on a lossy link. That's why the same file, same ISP, takes 11 minutes to Lagos and 47 to Frankfurt on a bad evening.
+Latency doesn't sound like it should affect throughput, but TCP's congestion window is shaped by round-trip time. Double the latency, and your effective upload speed on a single stream drops by more than half on a lossy link. That's why the same file, same ISP, takes 11 minutes to Lagos and 47 to Frankfurt on a bad evening.
 
 ## Upload vs download at the edge
 

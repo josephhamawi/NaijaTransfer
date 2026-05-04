@@ -8,7 +8,7 @@ tags: ["technical", "upload-speed", "resume"]
 
 You've uploaded 8 GB of a 10 GB file. Your Wi-Fi blips for 30 seconds. You come back to the tab showing "Upload failed. Try again." You click try again. It starts at 0 percent. That's the service lying to you about resume. A real resumable upload doesn't do that.
 
-## What "resume" actually means under the hood
+## What "resume" means under the hood
 
 There are two kinds of resume, and only one is useful.
 
@@ -66,7 +66,7 @@ Does it handle files bigger than 4 GB on single-file upload? Older services stil
 
 ## The Nigerian angle
 
-This matters more in Nigeria than in places with reliable residential internet. A 4 hour upload from Lagos on a residential line will experience between 2 and 15 transient failures, depending on carrier and time of day. If your service treats each of those as "upload failed, try again from zero," you will literally never complete the transfer during evening peak.
+This matters more in Nigeria than in places with reliable residential internet. A 4 hour upload from Lagos on a residential line will experience between 2 and 15 transient failures, depending on carrier and time of day. If your service treats each of those as "upload failed, try again from zero," you will never complete the transfer during evening peak.
 
 With proper resume and retry, the same upload might take the same 4 hours but the user experience is "it just keeps going" rather than "I've restarted seven times." That's the difference between a tool that works in Nigeria and a tool that works elsewhere.
 

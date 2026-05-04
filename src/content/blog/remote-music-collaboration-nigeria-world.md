@@ -35,7 +35,7 @@ A typical stem pack for a four-minute song at 24-bit, 48 kHz, with 20 tracks, ru
 
 On a Lagos MTN 4G line at 3am, 1.3 GB uploads in 25 to 45 minutes. Start it before bed, check it when you wake up. On a Glo mobile line at 9pm, triple that and pray the network doesn't drop. For the ISP-specific numbers, we've written more on [sending large files in Nigeria](/send-large-files-nigeria).
 
-[Upload the stems directly](/) and paste the link in an email with the notes. Don't split the stem pack into multiple uploads unless you absolutely have to. One link is easier for the receiver to track than five.
+[Upload the stems directly](/) and paste the link in an email with the notes. Don't split the stem pack into multiple uploads unless you have to. One link is easier for the receiver to track than five.
 
 ## Session notes, the underrated glue
 

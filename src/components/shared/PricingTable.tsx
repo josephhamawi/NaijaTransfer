@@ -83,37 +83,37 @@ const tiers: TierData[] = [
 const faqItems = [
   {
     id: "free",
-    question: "Is it really free?",
+    question: "Is the free tier free for good?",
     answer:
-      "Yes! Send files up to 4 GB per transfer with no account needed. Free forever, no credit card required.",
+      "Yes. Send up to 4 GB per transfer with no account, no card. Pro subscriptions pay for the free tier.",
   },
   {
     id: "pay",
     question: "How do I pay?",
     answer:
-      "We accept card, bank transfer, and USSD payments via Paystack. All prices are in Nigerian Naira (NGN).",
+      "Card, bank transfer, or USSD through Paystack. Pricing is in Nigerian Naira (NGN).",
   },
   {
     id: "cancel",
-    question: "Can I cancel anytime?",
+    question: "Can I cancel any time?",
     answer:
-      "Yes. Cancel from your dashboard anytime. You keep access until the end of your billing period.",
+      "Yes. Cancel from your dashboard. You keep access until the end of the billing period.",
   },
   {
     id: "methods",
     question: "What payment methods do you accept?",
-    answer: "Visa, Mastercard, bank transfer, and USSD via Paystack.",
+    answer: "Visa, Mastercard, bank transfer, and USSD through Paystack.",
   },
   {
     id: "annual",
     question: "Do you offer annual pricing?",
-    answer: "Annual pricing with a discount is coming soon.",
+    answer: "Annual plans at a discount are shipping soon.",
   },
   {
     id: "files-cancel",
     question: "What happens to my files if I cancel?",
     answer:
-      "Active transfers remain available until their expiry date, even after cancellation.",
+      "Any active transfers stay live until their expiry date. Cancellation does not delete them early.",
   },
 ];
 

@@ -243,7 +243,7 @@ export function ToastContainer() {
               <span className="shrink-0">{iconsByType[n.type]}</span>
               <span>
                 <strong>{n.title}</strong>
-                {n.message && <span className="opacity-80"> — {n.message}</span>}
+                {n.message && <span className="opacity-80">: {n.message}</span>}
               </span>
               {n.action && (
                 <button

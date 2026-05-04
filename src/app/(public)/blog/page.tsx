@@ -11,7 +11,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Blog | NaijaTransfer — Guides for Nigerian creators",
+  title: "Blog | NaijaTransfer: guides for Nigerian creators",
   description:
     "Guides on sending large files, delivering creative work, and getting past slow Nigerian upload speeds. Writing for producers, designers, photographers, and video editors.",
   alternates: { canonical: "https://naijatransfer.com/blog" },

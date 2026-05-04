@@ -36,7 +36,7 @@ Parallel uploads aren't free. Three costs:
 
 **Diminishing returns past 8 streams.** Going from 1 to 4 streams is a huge jump. 4 to 8 is smaller. 8 to 16 is usually noise or worse. Too many streams mean the contention becomes the bottleneck. Six to eight parallel streams is the sweet spot for most Nigerian residential links.
 
-## When single-stream is actually better
+## When single-stream is better
 
 If your link is rock-solid with near-zero loss, a single well-tuned stream with a large send buffer can match or beat parallel. This describes data-center-to-data-center transfer, not your apartment in Yaba.
 

@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: "COMPOSE_FAILED",
           message:
-            "Failed to finalize upload. Some parts may be missing — please retry.",
+            "Failed to finalize upload. Some parts may be missing. Please retry.",
         },
       },
       { status: 500 }

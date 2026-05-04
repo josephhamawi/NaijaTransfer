@@ -3,7 +3,7 @@ import PageLayout from "@/components/layout/PageLayout";
 import { Card } from "@/components/ui/Card";
 
 export const metadata: Metadata = {
-  title: "Featured Artists — NaijaTransfer",
+  title: "Featured Artists | NaijaTransfer",
   description: "Nigerian artists whose work is featured as backgrounds on NaijaTransfer.",
 };
 
@@ -44,7 +44,7 @@ export default function ArtistsPage() {
         <div className="text-center mt-12">
           <p className="text-body text-[var(--text-secondary)] mb-2">Are you a Nigerian artist or photographer?</p>
           <p className="text-body-sm text-[var(--text-muted)]">
-            We&apos;re always looking for new backgrounds. Contact us at <a href="mailto:kodefoundryatelier@gmail.com" className="text-nigerian-green hover:underline">kodefoundryatelier@gmail.com</a>
+            We&apos;re always looking for new backgrounds. Contact us at <a href="mailto:hello@kodefoundry.com" className="text-nigerian-green hover:underline">hello@kodefoundry.com</a>
           </p>
         </div>
       </div>

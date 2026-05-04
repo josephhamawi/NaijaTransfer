@@ -10,7 +10,7 @@ Two regulations apply to most Nigerian agencies sending data abroad. The Nigeria
 
 Most creative agencies in Lagos operate in a gray zone here. They sign NDAs, they use consumer-grade transfer tools, they hope it works out. For 95 percent of transfers, it does. For the other 5 percent, the regulatory exposure is real and the fines are material: up to 2 percent of annual gross revenue under NDPR, up to 4 percent under GDPR.
 
-## What actually triggers these rules
+## What triggers these rules
 
 Both regulations care about personal data: information that can identify a living person. Photos with faces, voice recordings, customer email lists, HR documents, health records. If you're sending any of that across borders, you're in scope.
 
@@ -49,7 +49,7 @@ The [Nigeria Data Protection Commission](https://ndpc.gov.ng/) published the 202
 
 Practical translation: if you're sending customer data to a US processor, you need consent from the data subjects or a signed Standard Contractual Clause. A freelance colorist in Los Angeles is not automatically allowed to receive your client's customer list, even if your client asked you to send it. This catches agencies off guard regularly.
 
-## What "good enough" actually looks like
+## What "good enough" looks like
 
 For most Lagos agencies doing creative work (not fintech, not health, not legal), the realistic bar is:
 

@@ -14,7 +14,7 @@ Your filename must answer three questions without anyone having to open the file
 
 Everything else (producer initials, camera source, channel count, codec) is gravy. The three-question test is non-negotiable.
 
-## A naming scheme that actually works
+## A naming scheme that works
 
 The format I've landed on after years of messing this up:
 

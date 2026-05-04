@@ -4,8 +4,8 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
 export const metadata: Metadata = {
-  title: "Best WeTransfer Alternative in Nigeria — NaijaTransfer",
-  description: "NaijaTransfer is the best WeTransfer alternative for Nigerians. 4GB free (2x WeTransfer), resumable uploads, Naira pricing, WhatsApp sharing. No account needed.",
+  title: "WeTransfer Alternative in Nigeria | NaijaTransfer",
+  description: "4 GB free (twice WeTransfer's cap), resumable uploads, Naira pricing through Paystack, WhatsApp sharing in one tap. No account needed.",
   keywords: ["wetransfer alternative", "wetransfer nigeria", "file transfer nigeria", "send large files nigeria", "naijatransfer"],
   alternates: { canonical: "https://naijatransfer.com/wetransfer-alternative-nigeria" },
 };
@@ -14,9 +14,9 @@ export default function WeTransferAlternativePage() {
   return (
     <PageLayout>
       <div className="max-w-3xl mx-auto px-4 pt-24 pb-16">
-        <h1 className="text-h1 sm:text-display font-bold mb-4">Best WeTransfer Alternative in Nigeria</h1>
+        <h1 className="text-h1 sm:text-display font-bold mb-4">A WeTransfer alternative for Nigeria</h1>
         <p className="text-body text-[var(--text-secondary)] mb-8">
-          WeTransfer is great — but it wasn&apos;t built for Nigeria. Slow uploads from Lagos, no resume when your connection drops, USD pricing your Naira card might reject, and only 2GB free. NaijaTransfer fixes all of that.
+          WeTransfer works fine when you have fibre and a dollar card. From Lagos at 9pm with a Naira card and 5 Mbps up, the picture changes. Uploads time out, the file can&apos;t resume, your card gets declined for FX, and the free cap is 2 GB. NaijaTransfer was built for that picture.
         </p>
 
         <a href="/"><Button variant="primary" size="lg">Try NaijaTransfer free</Button></a>
@@ -37,14 +37,14 @@ export default function WeTransferAlternativePage() {
                 <tbody className="text-[var(--text-secondary)]">
                   {[
                     ["Free transfer limit", "4 GB", "2 GB"],
-                    ["Resumable uploads", "Yes — picks up where it left off", "No — starts over if interrupted"],
-                    ["Account required", "No", "No (but limited)"],
-                    ["Pricing", "Naira (₦2,000/mo)", "USD ($12/mo)"],
+                    ["Resumable uploads", "Picks up at the chunk that failed", "Starts over from zero"],
+                    ["Account required", "No", "No, but limited"],
+                    ["Pricing", "Naira, ₦2,000/mo", "USD, $12/mo"],
                     ["Payment methods", "Card, bank transfer, USSD", "International card only"],
-                    ["WhatsApp sharing", "One-tap deep link", "Copy & paste manually"],
-                    ["Password protection", "Free for everyone", "Paid only"],
-                    ["File quality", "Original — never compressed", "Original"],
-                    ["Upload speed from Nigeria", "Fast — optimized routing", "Slow — EU/US servers"],
+                    ["WhatsApp sharing", "One tap from the share screen", "Copy and paste manually"],
+                    ["Password protection", "Free on every transfer", "Paid only"],
+                    ["File quality", "Bytes you sent, unchanged", "Original"],
+                    ["Upload speed from Nigeria", "Routed through Africa-region edge", "Round trip to EU or US"],
                     ["Built for", "Nigeria", "Europe"],
                   ].map(([feature, nt, wt]) => (
                     <tr key={feature} className="border-b border-[var(--border-color)]">
@@ -63,10 +63,10 @@ export default function WeTransferAlternativePage() {
             <h2 className="text-h2 font-bold mb-4">Why Nigerians are switching from WeTransfer</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               {[
-                { title: "Uploads that actually finish", desc: "WeTransfer fails at 87% with no way to resume. NaijaTransfer picks up exactly where it left off when your connection drops." },
-                { title: "2x the free limit", desc: "4GB free vs WeTransfer's 2GB. That's enough for most Nollywood rough cuts, photo shoots, and business documents." },
-                { title: "Pay in Naira, not dollars", desc: "Pro from ₦2,000/month via Paystack. No FX charges, no card declines, USSD payment for everyone." },
-                { title: "WhatsApp-native sharing", desc: "One tap to share your download link via WhatsApp. Not copy-paste-switch-app. One tap." },
+                { title: "Uploads that finish", desc: "WeTransfer dies at 87 percent and there's no resume. We pick the upload back up at the chunk that failed when your line comes back." },
+                { title: "Twice the free cap", desc: "4 GB free, against WeTransfer's 2 GB. Enough for a Nollywood rough cut, a wedding photo set, or a board pack." },
+                { title: "Pay in Naira", desc: "Pro from ₦2,000 a month via Paystack. No FX, no foreign card, USSD if you don't have a card at all." },
+                { title: "WhatsApp on the share screen", desc: "Tap WhatsApp and the link is in the chat. No copy, paste, app switch." },
               ].map((item) => (
                 <Card key={item.title} padding="md" elevation="sm">
                   <h3 className="text-body font-semibold mb-1">{item.title}</h3>
@@ -81,10 +81,10 @@ export default function WeTransferAlternativePage() {
             <h2 className="text-h2 font-bold mb-4">Frequently Asked Questions</h2>
             <div className="space-y-4">
               {[
-                { q: "Is NaijaTransfer really free?", a: "Yes. 4GB transfers, no account needed. Free forever. We make money from Pro subscriptions, not tricks." },
-                { q: "Is it safe?", a: "Files are encrypted in transit and at rest. Password protection is free. Files auto-delete on expiry." },
-                { q: "Can I use it for Nollywood post-production?", a: "Absolutely. Built for exactly this — large video files that survive Nigerian internet connections." },
-                { q: "How is it faster than WeTransfer?", a: "Resumable uploads mean a dropped connection doesn't restart your upload. Plus Cloudflare CDN for static assets." },
+                { q: "Is the free tier free for good?", a: "Yes. 4 GB per transfer, no account, no card. Pro subscriptions pay for the free tier." },
+                { q: "Is it safe?", a: "Transfers are encrypted in transit and at rest. You can password-protect any transfer for free. We delete files at expiry." },
+                { q: "Will it handle a Nollywood post workflow?", a: "Yes. The resume behaviour is the reason large video uploads from Lagos finish at all when the line stutters." },
+                { q: "Why is it faster from Nigeria than WeTransfer?", a: "Two things. The resume means a dropped connection doesn't reset progress. And the upload endpoint sits closer than Frankfurt or Virginia, so the round trip is shorter on every chunk." },
               ].map((item) => (
                 <div key={item.q} className="border-b border-[var(--border-color)] pb-4">
                   <h3 className="text-body font-semibold mb-1">{item.q}</h3>
@@ -96,7 +96,7 @@ export default function WeTransferAlternativePage() {
         </div>
 
         <div className="mt-12 text-center">
-          <a href="/"><Button variant="primary" size="lg">Switch to NaijaTransfer — free</Button></a>
+          <a href="/"><Button variant="primary" size="lg">Try NaijaTransfer free</Button></a>
         </div>
       </div>
     </PageLayout>

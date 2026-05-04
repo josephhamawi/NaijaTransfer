@@ -8,7 +8,7 @@ cluster: "creators"
 
 A Nigerian wedding shoot runs 400 to 700 frames if you're working solo, easily 1,200 if you're running second shooters. Each RAW is 25 to 45 MB on a modern full-frame body. That's a minimum of 10 GB and usually more like 25 GB to hand back to the couple. On a Nigerian uplink, that's not a trivial send. It's an engineering problem.
 
-## The first question: do they actually want the RAWs?
+## The first question: do they want the RAWs?
 
 Most couples don't. They want the finished JPEGs, edited, color-graded, delivered as a gallery they can download and share on WhatsApp. RAWs are large, uneditable without Lightroom or Capture One, and visually flat compared to the edited delivery. A newlywed couple opening a folder of .CR3 or .ARW files gets confused, not excited.
 

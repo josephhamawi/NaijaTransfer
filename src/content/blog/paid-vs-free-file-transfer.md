@@ -10,7 +10,7 @@ Most free file-transfer tiers are loss leaders. They exist to get you into the p
 
 I ran our own pipeline on a free tier for about eight weeks. Cost of upgrading: NGN 4,500 a month. Cost of the free tier in re-uploads, lost links, and "sorry, can you resend" messages: about four billable hours a month. At any freelance rate above NGN 1,200 an hour, the math stops being close.
 
-## The four features that actually matter
+## The four features that matter
 
 Not every paid feature is worth paying for. The ones that move the economics are narrower than the pricing page suggests.
 
@@ -36,7 +36,7 @@ Rough math. If you're sending more than three transfers a week, at least one of 
 
 If you're sending fewer than three a month and nothing is time-sensitive, free is fine. Just don't use it for billable client work where the relationship matters.
 
-## What you're actually paying for
+## What you're paying for
 
 The pricing page lists features. What you're buying is different: predictable delivery. The paid tier is insurance against the specific failure modes that cost you more to recover from than the subscription costs. See [our pricing](/pricing) for the tier breakdown.
 

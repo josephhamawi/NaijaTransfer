@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import PageLayout from "@/components/layout/PageLayout";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — NaijaTransfer",
+  title: "Terms of Service | NaijaTransfer",
   description: "NaijaTransfer terms of service.",
 };
 

@@ -4,32 +4,32 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
 export const metadata: Metadata = {
-  title: "Send Large Files in Nigeria — Free | NaijaTransfer",
-  description: "Send large files up to 4GB for free in Nigeria. No account required. Resumable uploads built for Nigerian internet. WhatsApp sharing. Naira pricing.",
+  title: "Send Large Files in Nigeria, Free | NaijaTransfer",
+  description: "Send files up to 4 GB free, no account. Uploads resume after dropped connections. WhatsApp share, Naira pricing through Paystack.",
 };
 
 export default function SEOLandingPage() {
   return (
     <PageLayout>
       <div className="max-w-3xl mx-auto px-4 pt-24 pb-16">
-        <h1 className="text-h1 sm:text-display font-bold mb-4">Send Large Files in Nigeria — Free</h1>
+        <h1 className="text-h1 sm:text-display font-bold mb-4">Send large files in Nigeria, free</h1>
         <p className="text-body text-[var(--text-secondary)] mb-8">
-          NaijaTransfer lets you send files up to 4 GB for free, with no account required. Built specifically for Nigerian internet — uploads resume when your connection drops, and you can share via WhatsApp with one tap.
+          NaijaTransfer sends files up to 4 GB at no cost, with no account. Your upload picks back up at the chunk that failed when the connection drops, and a WhatsApp share is one tap from the share screen.
         </p>
 
-        <a href="/"><Button variant="primary" size="lg">Send files now — free</Button></a>
+        <a href="/"><Button variant="primary" size="lg">Send a file free</Button></a>
 
         <div className="mt-12 space-y-8">
           <section>
             <h2 className="text-h2 font-bold mb-3">Why NaijaTransfer?</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               {[
-                { title: "4 GB free", desc: "Double WeTransfer's 2 GB limit. No tricks." },
-                { title: "Resumable uploads", desc: "Connection drops at 73%? It picks up at 73%. Built for Nigerian internet." },
-                { title: "No account needed", desc: "Upload, get a link, share. 30 seconds. Zero sign-up." },
-                { title: "WhatsApp sharing", desc: "One tap to share your download link via WhatsApp." },
-                { title: "Original quality", desc: "We never compress or modify your files. Unlike WhatsApp." },
-                { title: "Naira pricing", desc: "Pro from ₦2,000/month. Pay via card, bank transfer, or USSD." },
+                { title: "4 GB free", desc: "Twice WeTransfer's 2 GB cap." },
+                { title: "Resumable uploads", desc: "Connection drops at 73 percent, your upload picks up at 73 percent. Not at zero." },
+                { title: "No account needed", desc: "Drop the file, get the link, share it. Around 30 seconds end to end." },
+                { title: "WhatsApp sharing", desc: "Tap WhatsApp on the share screen and the link is in the chat." },
+                { title: "Files arrive uncompressed", desc: "We send the bytes you uploaded. WhatsApp will mangle a video. We won't." },
+                { title: "Naira pricing", desc: "Pro starts at ₦2,000 a month. Card, bank transfer, or USSD via Paystack." },
               ].map((item) => (
                 <Card key={item.title} padding="md" elevation="sm">
                   <h3 className="text-body font-semibold mb-1">{item.title}</h3>
@@ -42,11 +42,11 @@ export default function SEOLandingPage() {
           <section>
             <h2 className="text-h2 font-bold mb-3">How to send large files in Nigeria</h2>
             <ol className="list-decimal list-inside space-y-2 text-body text-[var(--text-secondary)]">
-              <li>Go to <a href="/" className="text-nigerian-green hover:underline">nigeriatransfer.com</a></li>
-              <li>Drag and drop your files (or tap to select on mobile)</li>
-              <li>Optionally set a password, expiry, or download limit</li>
-              <li>Click Transfer — get a link in seconds</li>
-              <li>Share via WhatsApp, SMS, email, or QR code</li>
+              <li>Open <a href="/" className="text-nigerian-green hover:underline">nigeriatransfer.com</a></li>
+              <li>Drag your files in, or tap to pick on mobile</li>
+              <li>Add a password, expiry, or download limit if you want one</li>
+              <li>Hit Transfer. The share link appears in seconds</li>
+              <li>Send it via WhatsApp, SMS, email, or as a QR code</li>
             </ol>
           </section>
 
@@ -86,7 +86,7 @@ export default function SEOLandingPage() {
         </div>
 
         <div className="mt-12 text-center">
-          <a href="/"><Button variant="primary" size="lg">Start sending files — free</Button></a>
+          <a href="/"><Button variant="primary" size="lg">Send your first file</Button></a>
         </div>
       </div>
     </PageLayout>

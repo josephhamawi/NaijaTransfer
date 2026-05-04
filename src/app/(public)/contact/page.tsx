@@ -5,23 +5,23 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
 export const metadata: Metadata = {
-  title: "Contact — NaijaTransfer",
-  description: "Get in touch with the NaijaTransfer team.",
+  title: "Contact NaijaTransfer",
+  description: "Reach the NaijaTransfer team by email, WhatsApp, or web form.",
 };
 
 export default function ContactPage() {
   return (
     <PageLayout>
       <div className="max-w-2xl mx-auto px-4 pt-24 pb-16">
-        <h1 className="text-h1 sm:text-display font-bold mb-3 text-center">Contact Us</h1>
+        <h1 className="text-h1 sm:text-display font-bold mb-3 text-center">Contact us</h1>
         <p className="text-body text-[var(--text-secondary)] text-center mb-8">
-          Have a question, partnership inquiry, or feedback? We&apos;d love to hear from you.
+          Question, partnership, or feedback? Send us a note. A person reads every one.
         </p>
 
         <div className="grid gap-6 md:grid-cols-2 mb-8">
           <Card padding="md" elevation="sm" className="text-center">
             <h3 className="text-body font-semibold mb-1">Email</h3>
-            <a href="mailto:kodefoundryatelier@gmail.com" className="text-nigerian-green hover:underline text-body-sm">kodefoundryatelier@gmail.com</a>
+            <a href="mailto:hello@kodefoundry.com" className="text-nigerian-green hover:underline text-body-sm">hello@kodefoundry.com</a>
           </Card>
           <Card padding="md" elevation="sm" className="text-center">
             <h3 className="text-body font-semibold mb-1">WhatsApp</h3>

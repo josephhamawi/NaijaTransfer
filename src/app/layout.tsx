@@ -4,7 +4,7 @@ import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   title: {
-    default: "NaijaTransfer — Send Large Files Free. No Account. No Wahala.",
+    default: "NaijaTransfer: Send Large Files Free. No Account. No Wahala.",
     template: "%s | NaijaTransfer",
   },
   description:
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     locale: "en_NG",
     url: "https://naijatransfer.com",
     siteName: "NaijaTransfer",
-    title: "NaijaTransfer — Send Large Files Free. No Account. No Wahala.",
+    title: "NaijaTransfer: Send Large Files Free. No Account. No Wahala.",
     description:
       "Send files up to 4GB free. Resumable uploads for Nigerian internet. WhatsApp sharing. Naira pricing. Built in Nigeria, for Nigeria.",
     images: [
@@ -41,13 +41,13 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "NaijaTransfer — Send Large Files",
+        alt: "NaijaTransfer: Send Large Files",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "NaijaTransfer — Send Large Files Free",
+    title: "NaijaTransfer: Send Large Files Free",
     description: "4GB free. Resumable uploads. WhatsApp sharing. No account needed.",
   },
   robots: {

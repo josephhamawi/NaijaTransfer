@@ -34,7 +34,7 @@ Fix: temporarily disable real-time scanning. Try again. If it completes, add the
 
 ## 4. Browser hit its memory ceiling
 
-Large uploads hold file state in the browser tab. Chrome and Safari both cap tab memory at around 4 GB on most systems. Upload a 5 GB file, and the tab can literally run out of room to buffer the next chunk.
+Large uploads hold file state in the browser tab. Chrome and Safari both cap tab memory at around 4 GB on most systems. Upload a 5 GB file, and the tab can run out of room to buffer the next chunk.
 
 Symptom: progress bar stops updating, tab becomes unresponsive, eventually the browser shows "Aw snap" or similar.
 

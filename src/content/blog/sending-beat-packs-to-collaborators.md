@@ -8,7 +8,7 @@ tags: ["music-production", "workflow", "collaboration"]
 
 A beat pack looks simple until you're on WhatsApp at 11pm trying to explain to a co-producer in London why the kick sample is missing. Then it's a real thing. I've shipped enough of these that I now pack every session the same way, regardless of whether the person on the other end is down the road in Yaba or five time zones out.
 
-## What actually goes in a beat pack
+## What goes in a beat pack
 
 A full beat pack, the kind another producer can actually finish, is five things. Stems at 24-bit WAV, bounced from the start of the arrangement so everything lines up. A full-mix reference bounce, also WAV, so they hear what you heard when you stopped. A MIDI export of the drum and melody parts, in case they want to reprogram. A short text note, 10 lines max, saying the BPM, the key, what you think is working, and what you're stuck on. And a folder of any custom one-shots or chops that aren't from a standard sample library.
 

@@ -8,7 +8,7 @@ tags: ["file-formats", "archives", "compression"]
 
 Three archive formats have survived long enough to matter in 2026: ZIP, RAR, and 7z. Every creative has opinions. Most of those opinions are wrong because they're based on what a 2011 tutorial said. I've shipped hundreds of project bundles since then, and the short version is that the right format depends on who you're sending it to, not which one is technically best.
 
-## What each format actually is
+## What each format is
 
 ZIP is the oldest of the three, dating back to 1989, and it's baked into every operating system that matters. Double-click on macOS, right-click Extract All on Windows, unzip from the command line on Linux. No extra software. That's the whole pitch.
 
@@ -24,7 +24,7 @@ The gains shrink when your content is already compressed. A folder of MP4 video 
 
 Text-heavy stuff compresses hard in all three. Source code, XML, JSON, DAW session files (which are often XML underneath) will shrink by 70 to 90 percent. That's where 7z pulls ahead.
 
-## Compatibility, which is where it actually falls apart
+## Compatibility, which is where it falls apart
 
 ZIP opens everywhere. macOS Finder, Windows Explorer, iOS Files app, Android file managers, Chromebooks, every Linux distro. There's nothing to install.
 
@@ -40,7 +40,7 @@ If you want format politics, Ars Technica has a solid [overview of archive histo
 
 But your client probably can't open it without downloading something, and that's the whole problem. ZIP is the diplomatic choice. RAR is a coin flip. 7z is the right answer for power users who already have Keka or 7-Zip installed.
 
-## What I actually use
+## What I use
 
 For anything going to a client I haven't worked with before, ZIP. Every time. No surprises, no support calls.
 

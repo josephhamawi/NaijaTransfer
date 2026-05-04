@@ -8,7 +8,7 @@ cluster: "creators"
 
 Watermarks sit in an awkward place. Too subtle and the client crops them out or screenshots the preview, posts it without paying, and you've lost leverage. Too aggressive and the client feels accused of theft before they've had a chance to pay. The sweet spot is a watermark that makes unauthorized use obviously stolen, without making the client feel like you don't trust them.
 
-## What watermarks actually protect
+## What watermarks protect
 
 A watermark is not theft-proof. Anyone with basic Photoshop skills can remove a watermark from most photos in under five minutes. Content-aware fill is a free feature on every client's phone now, and it erases even moderately complex watermarks.
 

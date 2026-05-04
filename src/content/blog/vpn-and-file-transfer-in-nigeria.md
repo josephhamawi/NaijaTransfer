@@ -14,7 +14,7 @@ A VPN adds work. Every packet gets encrypted on your laptop, sent to the VPN ser
 
 On a healthy direct connection, a VPN will make your upload slower by 10 to 40 percent. That's the encryption overhead plus the detour through the VPN server. If your ISP is routing your packets efficiently to the destination already, you're paying for nothing.
 
-## When VPN is actually faster
+## When VPN is faster
 
 There's one specific case where VPN makes uploads faster in Nigeria: your ISP's international transit is the bottleneck, and the VPN provider has better peering than your ISP.
 

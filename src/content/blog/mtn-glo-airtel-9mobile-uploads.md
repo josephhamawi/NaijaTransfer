@@ -32,7 +32,7 @@ Also, Airtel drops. At 11 pm on a random Tuesday last October, I lost the tower 
 
 For Port Harcourt and Abuja specifically, several creators have told me 9mobile is their go-to secondary SIM for resilience when MTN is acting up. In Lagos, it's more hit-or-miss.
 
-## APN and tethering tweaks that actually help
+## APN and tethering tweaks that help
 
 Three things move the needle. First, on Android tethering, switch the hotspot to 5 GHz-only if your laptop supports it. Fewer devices contend on 5 GHz and you avoid microwave interference. Second, for iPhone, disable "Low Data Mode" during uploads, because it throttles background TCP streams. Third, if you're using an MTN SIM in a MiFi, set the APN manually to `web.gprs.mtnnigeria.net` rather than letting the device autoconfigure. The autoconfig APN sometimes gets routed through a proxy that caps upload.
 

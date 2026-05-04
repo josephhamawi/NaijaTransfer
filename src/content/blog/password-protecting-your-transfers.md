@@ -10,7 +10,7 @@ A transfer password is a speed bump, not a vault door. It keeps a casual link-fo
 
 Knowing what the feature does at a mechanical level changes how you use it. Most creators I talk to either treat passwords as overkill ("I'm just sending a mixdown") or as absolute protection ("the file is password-locked, we're fine"). Both are wrong in ways that matter.
 
-## What a transfer password actually does
+## What a transfer password does
 
 When you set a password on a link, the service requires the recipient to enter that string before the download starts. The file sits on the server in the clear (or encrypted at rest with keys the service controls), and the password gates access to the download endpoint. That's it. It's an access-control check, not end-to-end encryption.
 

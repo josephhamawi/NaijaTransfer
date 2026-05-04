@@ -18,7 +18,7 @@ XMP (Extensible Metadata Platform) is Adobe's 2001 spec that wraps around both. 
 
 Most modern tools write all three when you tag a photo. Lightroom writes XMP by default and mirrors key fields into IPTC and EXIF where applicable.
 
-## What actually strips metadata
+## What strips metadata
 
 Re-encoding a JPEG. If you open a JPEG in any editor and "Save As" JPEG, most editors keep EXIF by default but may strip XMP or IPTC depending on settings. Photoshop's Export As dialog is particularly aggressive about stripping metadata unless you explicitly check the box.
 
@@ -80,7 +80,7 @@ Lightroom's Metadata panel in the Library module shows EXIF, IPTC, and XMP for a
 
 Open the file after transfer and spot-check two or three fields. If they're there, the rest probably is.
 
-## What I actually do
+## What I do
 
 Ship RAW plus sidecar, packed into a ZIP. The ZIP preserves both files bit-perfect. Upload to [NaijaTransfer](/) which doesn't re-encode. The client unzips and imports, metadata intact.
 

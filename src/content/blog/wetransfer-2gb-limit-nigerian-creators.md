@@ -8,7 +8,7 @@ tags: ["wetransfer", "file-size", "nigerian-internet"]
 
 A 2 GB free transfer cap sounds generous until you try to send anything a Nigerian creator actually makes. A raw wedding video edit, one day of shoots, fits in 2 GB exactly once: when it's already been compressed beyond what the client will accept. For the rest of us, the cap is the first thing you hit, not the last.
 
-## What 2 GB actually holds
+## What 2 GB holds
 
 A five-minute 4K ProRes clip at 422 HQ is 8.5 GB. A single RAW file from a Canon R5 is around 50 MB, so 2 GB holds about 40 photos. A Logic Pro session with 30 tracks of recorded audio, no compression, runs 3 to 6 GB. An Ableton project with stem bounces for a collaborator regularly clears 1 GB before you've added any samples.
 
@@ -32,7 +32,7 @@ For a full comparison with numbers, we broke down [NaijaTransfer vs WeTransfer](
 
 **FTP/SFTP to your own VPS.** If you're technical, a $5 a month Hetzner box in Falkenstein gives you unlimited SFTP for whatever fits in 40 GB of SSD. The setup is three hours of following a tutorial. The ongoing cost is "did the client's IT department whitelist SFTP?"
 
-## What actually changes when the origin is local
+## What changes when the origin is local
 
 The content of what WeTransfer does, which is receive your bytes and give someone a download link, is not complicated. What's complicated is doing it over the Atlantic at 9 pm from a residential ISP in Lagos.
 

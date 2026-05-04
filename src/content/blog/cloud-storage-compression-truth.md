@@ -64,7 +64,7 @@ The right answer is to use a storage or transfer service that explicitly promise
 
 [Our pricing page](/pricing) covers the storage tiers, and there's a fuller writeup in [NaijaTransfer vs WeTransfer](/wetransfer-alternative-nigeria) on how we differ from the competition.
 
-## What professionals actually do
+## What professionals do
 
 For masters and deliverables, use a transfer service or a preservation-focused storage provider. Verify with a hash on a test file before committing your workflow to it.
 

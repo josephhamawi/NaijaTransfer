@@ -25,17 +25,17 @@ export async function generateMetadata({
 
   if (!transfer) {
     return {
-      title: "Transfer — NaijaTransfer",
+      title: "Transfer | NaijaTransfer",
       description: "Download files shared via NaijaTransfer.",
     };
   }
 
   const fileCount = transfer.files?.length || 0;
   const sizeFormatted = formatSize(transfer.totalSizeBytes || 0);
-  const title = `${fileCount} file${fileCount !== 1 ? "s" : ""} (${sizeFormatted}) — NaijaTransfer`;
+  const title = `${fileCount} file${fileCount !== 1 ? "s" : ""} (${sizeFormatted}) | NaijaTransfer`;
   const description = transfer.message
-    ? `"${transfer.message.slice(0, 100)}" — ${fileCount} file${fileCount !== 1 ? "s" : ""}, ${sizeFormatted}. Download now.`
-    : `${fileCount} file${fileCount !== 1 ? "s" : ""} (${sizeFormatted}) shared via NaijaTransfer. Download now — no account needed.`;
+    ? `"${transfer.message.slice(0, 100)}" · ${fileCount} file${fileCount !== 1 ? "s" : ""}, ${sizeFormatted}. Download now.`
+    : `${fileCount} file${fileCount !== 1 ? "s" : ""} (${sizeFormatted}) shared via NaijaTransfer. Download now, no account needed.`;
 
   return {
     title,
@@ -51,7 +51,7 @@ export async function generateMetadata({
           url: "https://naijatransfer.com/og-download.svg",
           width: 1200,
           height: 630,
-          alt: "NaijaTransfer — Download Files",
+          alt: "NaijaTransfer: Download Files",
         },
       ],
     },

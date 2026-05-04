@@ -20,7 +20,7 @@ Adobe DNG (Digital Negative) is the oddball. It's not a camera brand's format. I
 
 Fuji shoots RAF. Olympus shoots ORF. Leica shoots DNG natively on most recent bodies. Panasonic shoots RW2. Pentax shoots PEF or DNG (user-configurable).
 
-## What's actually in a RAW file
+## What's in a RAW file
 
 A RAW file contains three things. The sensor data itself, usually 12 or 14 bits per channel before demosaicing. EXIF metadata (camera model, lens, aperture, shutter, ISO, timestamp, GPS if enabled). And a JPEG preview, embedded for thumbnail display, typically 1 to 2 MB.
 

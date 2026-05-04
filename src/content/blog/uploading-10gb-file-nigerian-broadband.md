@@ -56,7 +56,7 @@ Once the upload completes, open the download link yourself. Does the file size m
 
 The Nigerian Communications Commission publishes broadband quality reports quarterly. The trend since 2022 has been gradual improvement in median residential upload, especially in urban Lagos, but the variance is still wide. [The NCC data](https://ncc.gov.ng/) is worth skimming once a year.
 
-## What 10 GB actually is
+## What 10 GB is
 
 A 60 minute 4K ProRes 422 HQ video is roughly 45 GB. A feature film master in ProRes LT is 60 to 80 GB. A fully tracked Logic session with recorded strings and no compression is 8 to 15 GB. 10 GB is the size of something real, which is why the planning matters.
 

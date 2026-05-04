@@ -36,7 +36,7 @@ Yahoo just fails. Older versions of Yahoo Mail would accept the message, then si
 
 If you're sending from a mail client like Apple Mail or Thunderbird, the client hands off to your SMTP server, which may or may not reject the message. I've seen attachments go out fine, then bounce three hours later when the recipient's server refused them.
 
-## The options that actually work
+## The options that work
 
 Cloud storage links are the default fallback. Google Drive, Dropbox, OneDrive, iCloud Drive. Upload, grab a shareable link, paste into the email. This works but it ties your file to whoever the recipient's identity provider is. A link to Google Drive that requires a sign-in is a headache for a client who doesn't use Google.
 

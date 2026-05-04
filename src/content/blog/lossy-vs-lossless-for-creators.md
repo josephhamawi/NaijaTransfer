@@ -8,7 +8,7 @@ tags: ["file-formats", "audio", "video"]
 
 Lossy versus lossless is a question that gets treated like religion, which is silly because the answer is obvious 90 percent of the time. The short version: lossy for delivery to humans, lossless for work in progress and archive. The long version has some interesting edge cases.
 
-## What the words actually mean
+## What the words mean
 
 Lossless means every bit of original information survives. FLAC, WAV, ALAC, ProRes, DNxHR, PNG, TIFF, DNG. Run the file through a decoder, you get back exactly what you put in. No quality loss, ever, no matter how many times you re-save.
 
@@ -52,7 +52,7 @@ Ask yourself: am I archiving this? If yes, lossless. Disk is cheap, redoing work
 
 Ask yourself: is the recipient a professional who will re-encode anyway? If yes, lossy is fine. YouTube, Spotify, Netflix, they all re-encode your upload. Sending a 100 GB ProRes to YouTube achieves nothing their ingest wouldn't already do with a 5 GB H.264.
 
-## What I actually send
+## What I send
 
 Client deliverables: lossy, final-quality (H.264 at 15 Mbps for 1080p, AAC at 256 kbps for audio, JPEG at 90 quality for photos).
 

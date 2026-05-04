@@ -46,7 +46,7 @@ For a full breakdown on the edge argument, [NaijaTransfer vs WeTransfer](/wetran
 
 ## The weekly billing nobody talks about
 
-If you're on a retainer, file transfer time is just time you've already been paid for. If you're on hourly, it becomes a line item. Some Lagos freelancers bill "transfer time" as part of project management, which is reasonable given that you're literally babysitting a connection for 90 minutes instead of doing billable work.
+If you're on a retainer, file transfer time is just time you've already been paid for. If you're on hourly, it becomes a line item. Some Lagos freelancers bill "transfer time" as part of project management, which is reasonable given that you're babysitting a connection for 90 minutes instead of doing billable work.
 
 More sustainably, invest in a better pipe. Swift or ipNX fiber, 50 Mbps symmetric, costs 35,000 to 45,000 naira monthly. If it saves you 4 hours a week of waiting for uploads, the ROI is instant at any hourly rate worth having.
 

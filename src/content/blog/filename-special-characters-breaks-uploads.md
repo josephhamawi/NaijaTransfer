@@ -14,7 +14,7 @@ Stick to ASCII letters (A to Z, a to z), digits (0 to 9), underscores (`_`), hyp
 
 That's the whole rule. Everything that follows is why.
 
-## What actually breaks
+## What breaks
 
 ### Spaces
 
@@ -58,7 +58,7 @@ Same story as accented characters, but worse because emojis live in higher Unico
 
 ## The one exception: localized display
 
-If you absolutely need non-ASCII in a user-facing label, do it at the metadata layer, not the filename layer. The filename is plumbing. The metadata is the label.
+If you need non-ASCII in a user-facing label, do it at the metadata layer, not the filename layer. The filename is plumbing. The metadata is the label.
 
 `AfolabiAlbum_20260418_v01.wav` as the filename. Inside the WAV, the BWF Description field reads "Àlbùm Afolabi, session 2". That's the right split.
 

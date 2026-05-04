@@ -28,7 +28,7 @@ Building a client portal where users generate reports and have them delivered vi
 
 A newsroom's video desk produces edits that go to broadcast TV and to digital platforms. The broadcast handoff needs specific codecs, the digital version needs another. An automated pipeline renders both, pushes both to their respective transfer targets, and posts a summary to Slack. Human touches the keyboard once at the edit stage, not at the delivery stage.
 
-## What an API integration actually looks like
+## What an API integration looks like
 
 A basic transfer API has five endpoints:
 

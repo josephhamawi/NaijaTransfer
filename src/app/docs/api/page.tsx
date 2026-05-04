@@ -3,7 +3,7 @@ import PageLayout from "@/components/layout/PageLayout";
 import { Card } from "@/components/ui/Card";
 
 export const metadata: Metadata = {
-  title: "API Documentation — NaijaTransfer",
+  title: "API Documentation | NaijaTransfer",
   description: "NaijaTransfer public API for developers. Upload files, manage transfers, and integrate file sharing into your products.",
 };
 

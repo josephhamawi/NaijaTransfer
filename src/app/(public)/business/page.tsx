@@ -4,77 +4,77 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
 export const metadata: Metadata = {
-  title: "NaijaTransfer for Business — Custom Branding, 50GB, API Access",
-  description: "Enterprise file transfer for Nigerian businesses. Custom branding, 50GB transfers, API access, file request portals, and priority support. From ₦10,000/month.",
+  title: "NaijaTransfer for Business: 50 GB transfers, branding, API",
+  description: "File transfer for Nigerian businesses. Custom branding, 50 GB transfers, API access, file request portals, priority support. From ₦10,000 a month.",
 };
 
 const features = [
   {
     icon: "🎨",
-    title: "Custom Branding",
-    description: "Your logo, your colors, your background on every download page. Recipients see your brand, not ours.",
+    title: "Custom branding",
+    description: "Your logo, your colours, your wallpaper on the download page. Recipients see your brand.",
   },
   {
     icon: "📦",
-    title: "50 GB Transfers",
-    description: "Send massive files — Nollywood dailies, architectural plans, legal archives. Up to 50 GB per transfer.",
+    title: "50 GB transfers",
+    description: "Send a Nollywood dailies bundle, an architectural plan set, or a legal archive in one transfer.",
   },
   {
     icon: "🔌",
-    title: "API Access",
-    description: "Integrate file transfer into your own apps. Embeddable upload widget, webhooks, and full REST API.",
+    title: "API access",
+    description: "Drop file transfer into your own product. Embeddable upload widget, webhooks, REST API.",
   },
   {
     icon: "📥",
-    title: "File Request Portals",
-    description: "Create upload links for clients: \"Submit your documents here.\" Perfect for HR, legal, media.",
+    title: "File request portals",
+    description: "Send a link that says \"submit your documents here.\" Useful for HR, legal, media handoffs.",
   },
   {
     icon: "🔒",
-    title: "Password Protection",
-    description: "Every transfer can be password-protected. Control exactly who downloads your files.",
+    title: "Password protection",
+    description: "Lock any transfer behind a password. You decide who downloads it.",
   },
   {
     icon: "📊",
-    title: "Transfer Analytics",
-    description: "See who downloaded, when, and how many times. Full audit trail for compliance.",
+    title: "Transfer analytics",
+    description: "Who downloaded, when, and how many times. Full audit trail for compliance reviews.",
   },
   {
     icon: "⚡",
-    title: "Priority Speed",
-    description: "500 transfers per day. 60-day expiry. Unlimited downloads. No ads on any page.",
+    title: "Bigger ceilings",
+    description: "500 transfers a day. 60-day expiry. Unlimited downloads. No ads on the share or download page.",
   },
   {
     icon: "🤝",
-    title: "Dedicated Support",
-    description: "Direct email support with priority response. We help you get set up and running.",
+    title: "Dedicated support",
+    description: "Email us and a person replies within a working day. We help you with setup if you need it.",
   },
 ];
 
 const useCases = [
   {
-    industry: "Law Firms",
-    description: "Share contracts, court filings, and compliance documents securely with clients. Password protection + audit trail.",
+    industry: "Law firms",
+    description: "Send contracts, court filings, and compliance packs to clients. Password the transfer, keep the audit trail.",
   },
   {
-    industry: "Media & Nollywood",
-    description: "Send 50GB video files to directors, editors, and distributors. Resumable uploads survive any connection.",
+    industry: "Media and Nollywood",
+    description: "Ship 50 GB video bundles to directors, editors, and distributors. Uploads pick back up after a connection drop.",
   },
   {
-    industry: "HR Departments",
-    description: "Collect CVs, certificates, and onboarding documents via File Request Portals. No IT setup needed.",
+    industry: "HR departments",
+    description: "Use a file request portal to collect CVs, certificates, and onboarding docs. No IT ticket required.",
   },
   {
-    industry: "Real Estate",
-    description: "Share property documents, survey plans, and certificates of occupancy with buyers and lawyers.",
+    industry: "Real estate",
+    description: "Share property documents, survey plans, and Certificates of Occupancy with buyers and lawyers.",
   },
   {
-    industry: "Advertising Agencies",
-    description: "Distribute campaign assets — videos, print files, audio spots — to clients and media houses.",
+    industry: "Advertising agencies",
+    description: "Distribute campaign assets to clients and media houses: videos, print files, audio spots, all in one transfer.",
   },
   {
-    industry: "Schools & Universities",
-    description: "Collect student submissions, share course materials, and distribute exam results securely.",
+    industry: "Schools and universities",
+    description: "Collect student submissions, share course materials, send out exam results behind a password.",
   },
 ];
 
@@ -91,22 +91,21 @@ export default function BusinessPage() {
             File transfer built for<br />Nigerian businesses
           </h1>
           <p className="text-body text-[var(--text-secondary)] max-w-2xl mx-auto mb-8">
-            Custom branding, 50 GB transfers, API access, file request portals, and priority support.
-            Everything your team needs to share files professionally.
+            50 GB per transfer. Branded download pages. An API your engineers can drop in. A file request portal so clients can send you documents without an account. Priority support that replies the same day.
           </p>
           <div className="flex items-center justify-center gap-4 flex-wrap">
             <a href="/pricing">
-              <Button variant="primary" size="lg">Start with Business — ₦10,000/mo</Button>
+              <Button variant="primary" size="lg">Start Business at ₦10,000/mo</Button>
             </a>
             <a href="/contact">
-              <Button variant="outline" size="lg">Contact Sales</Button>
+              <Button variant="outline" size="lg">Talk to sales</Button>
             </a>
           </div>
         </div>
 
         {/* Features Grid */}
         <section className="mb-16">
-          <h2 className="text-h2 font-bold text-center mb-8">Everything you need</h2>
+          <h2 className="text-h2 font-bold text-center mb-8">What you get</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {features.map((f) => (
               <Card key={f.title} padding="md" elevation="sm">
@@ -121,13 +120,13 @@ export default function BusinessPage() {
         {/* Pricing */}
         <section className="mb-16">
           <Card padding="lg" elevation="md" className="text-center">
-            <h2 className="text-h2 font-bold mb-2">Simple pricing</h2>
+            <h2 className="text-h2 font-bold mb-2">One price</h2>
             <div className="flex items-baseline justify-center gap-1 mb-2">
               <span className="text-display font-bold">₦10,000</span>
               <span className="text-body text-[var(--text-muted)]">/month</span>
             </div>
             <p className="text-body-sm text-[var(--text-secondary)] mb-6 max-w-md mx-auto">
-              Everything included. No per-seat pricing. No hidden fees. Cancel anytime.
+              Flat. Not per seat. Cancel from your dashboard the day you want to.
             </p>
             <div className="grid gap-2 sm:grid-cols-2 max-w-md mx-auto text-left mb-6">
               {[
@@ -156,7 +155,7 @@ export default function BusinessPage() {
 
         {/* Use Cases */}
         <section className="mb-16">
-          <h2 className="text-h2 font-bold text-center mb-8">Built for every industry</h2>
+          <h2 className="text-h2 font-bold text-center mb-8">Where teams use it</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {useCases.map((uc) => (
               <Card key={uc.industry} padding="md" elevation="sm">
@@ -171,9 +170,9 @@ export default function BusinessPage() {
         <section className="mb-16">
           <Card padding="lg" elevation="md" className="bg-charcoal-800 text-white">
             <div className="text-center">
-              <h2 className="text-h2 font-bold mb-2">Need a white-label solution?</h2>
+              <h2 className="text-h2 font-bold mb-2">Need a white-label setup?</h2>
               <p className="text-body-sm text-white/60 mb-6 max-w-lg mx-auto">
-                For enterprises that need custom domains, dedicated infrastructure, SLA guarantees, and full API integration — we offer white-label partnerships from ₦50,000/month.
+                If your team needs a custom domain, dedicated infrastructure, an SLA, and deeper API integration, we run white-label deployments from ₦50,000 a month.
               </p>
               <a href="/contact">
                 <Button variant="gold" size="lg">Talk to us</Button>
@@ -184,12 +183,12 @@ export default function BusinessPage() {
 
         {/* CTA */}
         <div className="text-center">
-          <h2 className="text-h2 font-bold mb-2">Ready to upgrade your file sharing?</h2>
+          <h2 className="text-h2 font-bold mb-2">Send your first transfer first.</h2>
           <p className="text-body-sm text-[var(--text-secondary)] mb-6">
-            Start with a free transfer. No credit card needed. Upgrade when you&apos;re ready.
+            No card. No account. Upgrade once you&apos;ve seen it work on your line.
           </p>
           <div className="flex items-center justify-center gap-4 flex-wrap">
-            <a href="/"><Button variant="primary" size="lg">Try free first</Button></a>
+            <a href="/"><Button variant="primary" size="lg">Send a free transfer</Button></a>
             <a href="/pricing"><Button variant="outline" size="lg">See all plans</Button></a>
           </div>
         </div>
