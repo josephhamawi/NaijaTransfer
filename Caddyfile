@@ -27,8 +27,15 @@ http://naijatransfer.com {
     }
 
     # Static assets: long cache (Next.js hashed filenames)
-    @static path /_next/static/* /favicon.ico /robots.txt /sitemap.xml
+    @static path /_next/static/* /favicon.ico
     header @static Cache-Control "public, max-age=31536000, immutable"
+
+    # robots.txt and sitemap.xml are intentionally NOT in @static.
+    # The previous config gave them `max-age=31536000, immutable`, which
+    # told Google's edge cache to pin a stale sitemap for a year — so
+    # newly published blog posts stayed invisible to the crawler. Now
+    # they fall through to the default reverse_proxy and inherit
+    # Next.js's no-store header, so crawlers always revalidate.
 
     # The home page itself must NOT be cached by browsers — Next.js's
     # default s-maxage=31536000 pins the HTML (and its chunk refs)
