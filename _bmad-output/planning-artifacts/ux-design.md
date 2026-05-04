@@ -792,7 +792,7 @@ This is NOT a separate page. The upload widget transitions from Progress State t
 
 **Contact (`/contact`):**
 - Contact form: Name, Email, Subject, Message, Submit
-- Email: support@nigeriatransfer.com
+- Email: hello@kodefoundry.com
 - WhatsApp Business link (important for Nigeria)
 - Response time expectation: "We typically respond within 24 hours"
 
