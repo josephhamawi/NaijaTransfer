@@ -14,7 +14,7 @@ import {
 } from "@/components/fx/format";
 import { getLatestRates, type Currency } from "@/services/fx.service";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export function generateMetadata(): Metadata {
   const date = todayWat();

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import CurrencyPage from "@/components/fx/CurrencyPage";
 import { todayWat } from "@/components/fx/format";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export function generateMetadata(): Metadata {
   const date = todayWat();
