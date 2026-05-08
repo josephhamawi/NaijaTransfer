@@ -146,7 +146,7 @@ model Payment {
   paystackRef     String   @unique
   paystackSubCode String?
   status          String   @default("PENDING") // PENDING | SUCCESS | FAILED | REFUNDED
-  metadata        String?  // JSON string (SQLite has no JSON type)
+  metadata        String? // JSON string (SQLite has no JSON type)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -220,10 +220,23 @@ model WebhookEvent {
   id        String   @id @default(cuid())
   provider  String
   eventType String
-  payload   String   // JSON string (SQLite has no JSON type)
+  payload   String // JSON string (SQLite has no JSON type)
   processed Boolean  @default(false)
   error     String?
   createdAt DateTime @default(now())
 
   @@map("webhook_events")
+}
+
+model FxRate {
+  id        String   @id @default(cuid())
+  currency  String // "USD" | "EUR" | "GBP"
+  market    String // "parallel" | "official"
+  buyRate   Float // NGN per 1 unit
+  sellRate  Float // NGN per 1 unit
+  source    String
+  fetchedAt DateTime @default(now())
+
+  @@index([currency, market, fetchedAt(sort: Desc)])
+  @@map("fx_rates")
 }
