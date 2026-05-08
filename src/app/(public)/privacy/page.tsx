@@ -4,6 +4,7 @@ import PageLayout from "@/components/layout/PageLayout";
 export const metadata: Metadata = {
   title: "Privacy Policy | NaijaTransfer",
   description: "NaijaTransfer privacy policy. NDPA compliant.",
+  alternates: { canonical: "https://naijatransfer.com/privacy" },
 };
 
 export default function PrivacyPage() {

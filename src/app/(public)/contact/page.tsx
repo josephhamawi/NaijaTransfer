@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 export const metadata: Metadata = {
   title: "Contact NaijaTransfer",
   description: "Reach the NaijaTransfer team by email, WhatsApp, or web form.",
+  alternates: { canonical: "https://naijatransfer.com/contact" },
 };
 
 export default function ContactPage() {

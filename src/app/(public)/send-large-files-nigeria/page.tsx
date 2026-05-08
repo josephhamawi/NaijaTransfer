@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 export const metadata: Metadata = {
   title: "Send Large Files in Nigeria, Free | NaijaTransfer",
   description: "Send files up to 4 GB free, no account. Uploads resume after dropped connections. WhatsApp share, Naira pricing through Paystack.",
+  alternates: { canonical: "https://naijatransfer.com/send-large-files-nigeria" },
 };
 
 export default function SEOLandingPage() {

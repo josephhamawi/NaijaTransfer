@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 export const metadata: Metadata = {
   title: "NaijaTransfer for Business: 50 GB transfers, branding, API",
   description: "File transfer for Nigerian businesses. Custom branding, 50 GB transfers, API access, file request portals, priority support. From ₦10,000 a month.",
+  alternates: { canonical: "https://naijatransfer.com/business" },
 };
 
 const features = [

@@ -15,6 +15,7 @@ export const metadata: Metadata = {
   title: "Send big files in Nigeria | NaijaTransfer",
   description:
     "Send up to 4 GB free. Built for Nigerian internet. Pays in Naira, resumes after dropped connections, never compresses your files.",
+  alternates: { canonical: "https://naijatransfer.com/" },
 };
 
 /**

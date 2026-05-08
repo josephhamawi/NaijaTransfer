@@ -25,9 +25,10 @@ export const metadata: Metadata = {
   creator: "NaijaTransfer",
   publisher: "NaijaTransfer",
   metadataBase: new URL("https://naijatransfer.com"),
-  alternates: {
-    canonical: "https://naijatransfer.com",
-  },
+  // Per-page canonicals are set in each route's `metadata` / generateMetadata.
+  // We deliberately do NOT set a layout-wide canonical: Next.js inherits it
+  // into every child route, which used to make every page tell Google it was
+  // a duplicate of "/" and torpedoed indexing.
   openGraph: {
     type: "website",
     locale: "en_NG",

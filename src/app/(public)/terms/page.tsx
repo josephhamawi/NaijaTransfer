@@ -4,6 +4,7 @@ import PageLayout from "@/components/layout/PageLayout";
 export const metadata: Metadata = {
   title: "Terms of Service | NaijaTransfer",
   description: "NaijaTransfer terms of service.",
+  alternates: { canonical: "https://naijatransfer.com/terms" },
 };
 
 export default function TermsPage() {

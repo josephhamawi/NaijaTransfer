@@ -6,6 +6,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 export const metadata: Metadata = {
   title: "Pricing | NaijaTransfer",
   description: "Naira pricing. 4 GB free. Pro from NGN 2,000 a month. Business from NGN 10,000 a month.",
+  alternates: { canonical: "https://naijatransfer.com/pricing" },
 };
 
 const faqs = [

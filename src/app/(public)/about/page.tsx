@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 export const metadata: Metadata = {
   title: "About NaijaTransfer",
   description: "The first Nigerian-owned file transfer service. Built in Nigeria, for Nigeria.",
+  alternates: { canonical: "https://naijatransfer.com/about" },
 };
 
 export default function AboutPage() {
