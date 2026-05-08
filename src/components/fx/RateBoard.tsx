@@ -8,21 +8,23 @@ interface RateBoardProps {
   focus?: Currency;
 }
 
+// Solid, saturated backgrounds with white symbols — the previous
+// light-tint-on-tint scheme had poor contrast and the symbol blended in.
 const CURRENCY_TINT: Record<Currency, { bg: string; text: string; ring: string }> = {
   USD: {
-    bg: "bg-blue-100 dark:bg-blue-950/50",
-    text: "text-blue-700 dark:text-blue-300",
-    ring: "ring-blue-200/80 dark:ring-blue-900/60",
+    bg: "bg-blue-600 dark:bg-blue-500",
+    text: "text-white",
+    ring: "ring-blue-700/30 dark:ring-blue-400/30",
   },
   EUR: {
-    bg: "bg-amber-100 dark:bg-amber-950/50",
-    text: "text-amber-700 dark:text-amber-300",
-    ring: "ring-amber-200/80 dark:ring-amber-900/60",
+    bg: "bg-amber-500 dark:bg-amber-500",
+    text: "text-white",
+    ring: "ring-amber-600/30 dark:ring-amber-400/30",
   },
   GBP: {
-    bg: "bg-violet-100 dark:bg-violet-950/50",
-    text: "text-violet-700 dark:text-violet-300",
-    ring: "ring-violet-200/80 dark:ring-violet-900/60",
+    bg: "bg-violet-600 dark:bg-violet-500",
+    text: "text-white",
+    ring: "ring-violet-700/30 dark:ring-violet-400/30",
   },
 };
 
