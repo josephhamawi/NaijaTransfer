@@ -85,24 +85,24 @@ export default async function BlogPostPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <article className="max-w-3xl mx-auto px-4 pt-28 pb-16 text-white">
-        <nav className="mb-6 text-sm text-white/50">
-          <Link href="/" className="hover:text-white">
+      <article className="max-w-3xl mx-auto px-4 pt-28 pb-16 text-[var(--text-primary)]">
+        <nav className="mb-6 text-sm text-[var(--text-secondary)]">
+          <Link href="/" className="hover:text-[var(--text-primary)]">
             Home
           </Link>{" "}
           <span className="mx-2">/</span>
-          <Link href="/blog" className="hover:text-white">
+          <Link href="/blog" className="hover:text-[var(--text-primary)]">
             Blog
           </Link>{" "}
           <span className="mx-2">/</span>
-          <span className="text-white/70">{clusterLabel(post.cluster)}</span>
+          <span>{clusterLabel(post.cluster)}</span>
         </nav>
 
         <header className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold mb-4 leading-tight">
             {post.title}
           </h1>
-          <div className="flex items-center gap-3 text-sm text-white/50">
+          <div className="flex items-center gap-3 text-sm text-[var(--text-secondary)]">
             <time dateTime={post.date}>{formatPostDate(post.date)}</time>
             <span>&middot;</span>
             <span>{post.readingTimeMinutes} min read</span>
@@ -118,7 +118,7 @@ export default async function BlogPostPage({ params }: Props) {
           <h3 className="text-lg font-semibold mb-2">
             Got a file to send right now?
           </h3>
-          <p className="text-white/70 mb-4">
+          <p className="text-[var(--text-secondary)] mb-4">
             NaijaTransfer does up to 4 GB free, resumable if your ISP drops,
             and uploads from a Lagos edge on paid plans.
           </p>
@@ -138,10 +138,10 @@ export default async function BlogPostPage({ params }: Props) {
                 <Link
                   key={r.slug}
                   href={`/blog/${r.slug}`}
-                  className="block p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
+                  className="block p-4 rounded-xl border border-[var(--border-color)] bg-[var(--bg-elevated)] hover:border-nigerian-green/60 hover:shadow-md transition-all"
                 >
                   <h3 className="text-sm font-semibold mb-1">{r.title}</h3>
-                  <p className="text-xs text-white/50 line-clamp-2">
+                  <p className="text-xs text-[var(--text-secondary)] line-clamp-2">
                     {r.description}
                   </p>
                 </Link>
