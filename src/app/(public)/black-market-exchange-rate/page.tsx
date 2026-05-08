@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 export function generateMetadata(): Metadata {
   const date = todayWat();
   return {
-    title: `Black Market Exchange Rate Today, ${date} — Dollar, Euro, Pound to Naira | NaijaTransfer`,
+    title: `Black Market Exchange Rate Today, ${date} — Dollar, Euro, Pound to Naira`,
     description: `Today's parallel-market rates for USD, EUR, and GBP to naira (${date}), refreshed hourly from Nigerian BDC quotes. Compare with the official CBN rate and convert any amount.`,
     alternates: { canonical: "https://naijatransfer.com/black-market-exchange-rate" },
     openGraph: {

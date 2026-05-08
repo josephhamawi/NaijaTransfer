@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export function generateMetadata(): Metadata {
   const date = todayWat();
   return {
-    title: `Euro to Naira Black Market Rate Today, ${date} | NaijaTransfer`,
+    title: `Euro to Naira Black Market Rate Today, ${date}`,
     description: `Live EUR to naira parallel-market rate for ${date}, refreshed hourly from Nigerian BDC quotes. Compare with the official CBN rate, see today's buy/sell, and convert any euro amount.`,
     alternates: { canonical: "https://naijatransfer.com/euro-to-naira-black-market" },
     openGraph: {
