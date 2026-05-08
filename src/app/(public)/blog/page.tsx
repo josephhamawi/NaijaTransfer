@@ -38,7 +38,7 @@ export default function BlogIndex() {
 
   return (
     <PageLayout>
-      <div className="max-w-4xl mx-auto px-4 pt-28 pb-16 text-white">
+      <div className="max-w-4xl mx-auto px-4 pt-28 pb-16 text-[var(--text-primary)]">
         <header className="mb-12">
           <p className="text-sm text-nigerian-green font-medium mb-3 uppercase tracking-wide">
             NaijaTransfer Blog
@@ -46,7 +46,7 @@ export default function BlogIndex() {
           <h1 className="text-4xl sm:text-5xl font-bold mb-4 leading-tight">
             Guides for Nigerian creators who send big files.
           </h1>
-          <p className="text-lg text-white/70 max-w-2xl">
+          <p className="text-lg text-[var(--text-secondary)] max-w-2xl">
             Producers, designers, photographers, video editors. If your work
             is measured in gigabytes and your uplink is measured in
             megabits, you&apos;re in the right place.
@@ -56,7 +56,7 @@ export default function BlogIndex() {
         {CLUSTERS.map((c) =>
           byCluster[c].length > 0 ? (
             <section key={c} className="mb-14">
-              <h2 className="text-2xl font-bold mb-6 text-white">
+              <h2 className="text-2xl font-bold mb-6">
                 {clusterLabel(c)}
               </h2>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -64,15 +64,15 @@ export default function BlogIndex() {
                   <Link
                     key={post.slug}
                     href={`/blog/${post.slug}`}
-                    className="block p-5 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-colors"
+                    className="block p-5 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-elevated)] hover:border-nigerian-green/60 hover:shadow-md transition-all"
                   >
-                    <h3 className="text-lg font-semibold mb-2 text-white">
+                    <h3 className="text-lg font-semibold mb-2">
                       {post.title}
                     </h3>
-                    <p className="text-sm text-white/60 mb-3 line-clamp-2">
+                    <p className="text-sm text-[var(--text-secondary)] mb-3 line-clamp-2">
                       {post.description}
                     </p>
-                    <div className="flex items-center gap-3 text-xs text-white/40">
+                    <div className="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
                       <time dateTime={post.date}>
                         {formatPostDate(post.date)}
                       </time>
@@ -89,7 +89,7 @@ export default function BlogIndex() {
           <h2 className="text-2xl font-bold mb-2">
             Stop reading, start sending.
           </h2>
-          <p className="text-white/70 mb-5">
+          <p className="text-[var(--text-secondary)] mb-5">
             Up to 4 GB free. No signup. Built for Nigerian internet.
           </p>
           <Link
