@@ -15,7 +15,7 @@ export interface RateRow {
 export interface RefreshResult {
   written: number;
   errors: string[];
-  parallel: Partial<Record<Currency, { buy: number; sell: number }>>;
+  parallel: Partial<Record<Currency, { dates: number; latest: { buy: number; sell: number } }>>;
   official: Partial<Record<Currency, number>>;
 }
 
@@ -47,6 +47,14 @@ async function fetchText(url: string, init?: RequestInit): Promise<string> {
   return res.text();
 }
 
+interface DatedQuote {
+  /** Quote date at noon UTC (12:00). Stamped this way so it lands on the
+   *  correct calendar day in Africa/Lagos regardless of clock skew. */
+  date: Date;
+  buy: number;
+  sell: number;
+}
+
 /**
  * Parse parallel-market buy/sell pairs out of ngnrates.com/black-market HTML.
  *
@@ -55,57 +63,75 @@ async function fetchText(url: string, init?: RequestInit): Promise<string> {
  *
  *   <td>USD</td><td>₦ 1395</td><td>08/05/2026</td>...
  *
- * We pull every (currency, amount) pair in document order and, since the
- * BDC sell rate (what the BDC charges you) is always >= the BDC buy rate
- * (what the BDC pays you), we resolve buy = max, sell = min for the
- * displayed quotes per currency. This is robust to which table appears
- * first on the page.
+ * Returns a per-currency list of one consensus quote per visible date
+ * (typically the last 5–10 days). For each (currency, date) we take the
+ * max value as the buy rate (BDC sell-to-you) and the min as the sell
+ * rate (BDC buy-from-you). When only one value exists for a date, both
+ * sides use it.
  */
-export function parseParallelRates(
-  html: string,
-): Partial<Record<Currency, { buy: number; sell: number }>> {
+export function parseParallelRates(html: string): Partial<Record<Currency, DatedQuote[]>> {
   const stripped = html.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/&nbsp;/g, " ");
 
-  const samples: Record<Currency, number[]> = { USD: [], EUR: [], GBP: [] };
+  const samples: Record<Currency, { dateStr: string; value: number }[]> = {
+    USD: [],
+    EUR: [],
+    GBP: [],
+  };
 
-  // Match the consecutive-cell pattern: currency cell directly followed by an
-  // amount cell. Anchoring on the </td><td> boundary avoids matching the date
-  // column (which doesn't have ₦/N prefix).
+  // Match: <td>CURRENCY</td><td>₦ AMOUNT</td><td>DD/MM/YYYY</td>
   const rowRegex =
-    /<td[^>]*>\s*(USD|EUR|GBP)\s*<\/td>\s*<td[^>]*>\s*(?:₦|N|NGN)?\s*([0-9]{3,5}(?:[,.][0-9]{1,3})?)/gi;
+    /<td[^>]*>\s*(USD|EUR|GBP)\s*<\/td>\s*<td[^>]*>\s*(?:₦|N|NGN)?\s*([0-9]{3,5}(?:[,.][0-9]{1,3})?)\s*<\/td>\s*<td[^>]*>\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4})/gi;
 
   let match: RegExpExecArray | null;
   while ((match = rowRegex.exec(stripped)) !== null) {
     const currency = match[1].toUpperCase() as Currency;
     const value = Number(match[2].replace(/,/g, ""));
-    if (isPlausibleRate(value)) samples[currency].push(value);
+    const dateStr = match[3];
+    if (isPlausibleRate(value)) samples[currency].push({ dateStr, value });
   }
 
-  const result: Partial<Record<Currency, { buy: number; sell: number }>> = {};
+  const result: Partial<Record<Currency, DatedQuote[]>> = {};
   for (const currency of CURRENCIES) {
-    const list = samples[currency];
-    if (list.length === 0) continue;
-    // Use median of the high half (buy / BDC sell-to-you) and low half
-    // (sell / BDC buy-from-you). Single-quote currencies fall back to that
-    // value for both directions.
-    const sorted = [...list].sort((a, b) => a - b);
-    if (sorted.length === 1) {
-      result[currency] = { buy: sorted[0], sell: sorted[0] };
-      continue;
+    const byDate = new Map<string, number[]>();
+    for (const s of samples[currency]) {
+      const arr = byDate.get(s.dateStr) ?? [];
+      arr.push(s.value);
+      byDate.set(s.dateStr, arr);
     }
-    const midHigh = sorted.slice(Math.ceil(sorted.length / 2));
-    const midLow = sorted.slice(0, Math.ceil(sorted.length / 2));
-    const median = (arr: number[]) => arr[Math.floor(arr.length / 2)];
-    result[currency] = { buy: median(midHigh), sell: median(midLow) };
+    const quotes: DatedQuote[] = [];
+    for (const [dateStr, values] of byDate) {
+      const [d, m, y] = dateStr.split("/").map(Number);
+      if (!d || !m || !y) continue;
+      const date = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+      const sorted = [...values].sort((a, b) => a - b);
+      const buy = sorted[sorted.length - 1];
+      const sell = sorted[0];
+      quotes.push({ date, buy, sell });
+    }
+    if (quotes.length) {
+      quotes.sort((a, b) => b.date.getTime() - a.date.getTime());
+      result[currency] = quotes;
+    }
   }
   return result;
 }
 
-async function fetchParallelRates(): Promise<
-  Partial<Record<Currency, { buy: number; sell: number }>>
-> {
+async function fetchParallelRates(): Promise<Partial<Record<Currency, DatedQuote[]>>> {
   const html = await fetchText(PARALLEL_SOURCE_URL);
   return parseParallelRates(html);
+}
+
+/** Africa/Lagos has no DST and is fixed at UTC+1 — day boundaries are
+ *  reliably YYYY-MM-DD 23:00 UTC of the previous day. */
+function lagosDayBounds(quoteDate: Date): { from: Date; to: Date } {
+  const y = quoteDate.getUTCFullYear();
+  const m = quoteDate.getUTCMonth();
+  const d = quoteDate.getUTCDate();
+  // The quote was stamped at 12:00 UTC on day `d`, which is 13:00 WAT — same
+  // calendar day. Lagos midnight on `d` is 23:00 UTC on `d-1`.
+  const from = new Date(Date.UTC(y, m, d - 1, 23, 0, 0));
+  const to = new Date(Date.UTC(y, m, d, 23, 0, 0));
+  return { from, to };
 }
 
 async function fetchOfficialRate(currency: Currency): Promise<number> {
@@ -124,33 +150,54 @@ export async function refreshFxRates(): Promise<RefreshResult> {
   const result: RefreshResult = { written: 0, errors: [], parallel: {}, official: {} };
   const now = new Date();
 
-  // Parallel — one HTTP call, three currencies.
+  // Parallel — one HTTP call, three currencies, multiple visible dates.
+  // We get ~5–10 days of historical quotes per scrape (ngnrates shows recent
+  // submissions), so each cron run backfills any new days that appeared
+  // and refreshes the latest entry for today.
   try {
     const parallel = await fetchParallelRates();
-    result.parallel = parallel;
     for (const currency of CURRENCIES) {
-      const pair = parallel[currency];
-      if (!pair) {
+      const quotes = parallel[currency];
+      if (!quotes || quotes.length === 0) {
         result.errors.push(`parallel ${currency}: not found in source`);
         continue;
       }
-      await db.fxRate.create({
-        data: {
-          currency,
-          market: "parallel",
-          buyRate: pair.buy,
-          sellRate: pair.sell,
-          source: PARALLEL_SOURCE_NAME,
-          fetchedAt: now,
-        },
-      });
-      result.written += 1;
+      for (const q of quotes) {
+        const { from, to } = lagosDayBounds(q.date);
+        // Idempotent per-day write: drop any existing row for this Lagos
+        // calendar day, then insert the fresh consensus quote. Keeps the
+        // table to one row per (currency, market, source, day).
+        await db.fxRate.deleteMany({
+          where: {
+            currency,
+            market: "parallel",
+            source: PARALLEL_SOURCE_NAME,
+            fetchedAt: { gte: from, lt: to },
+          },
+        });
+        await db.fxRate.create({
+          data: {
+            currency,
+            market: "parallel",
+            buyRate: q.buy,
+            sellRate: q.sell,
+            source: PARALLEL_SOURCE_NAME,
+            fetchedAt: q.date,
+          },
+        });
+        result.written += 1;
+      }
+      result.parallel[currency] = {
+        dates: quotes.length,
+        latest: { buy: quotes[0].buy, sell: quotes[0].sell },
+      };
     }
   } catch (e) {
     result.errors.push(`parallel fetch: ${(e as Error).message}`);
   }
 
-  // Official — one HTTP call per currency.
+  // Official — one HTTP call per currency. Dedupe per Lagos day so we don't
+  // accumulate 24 rows per (currency, day) at hourly cron cadence.
   for (const currency of CURRENCIES) {
     try {
       const ngn = await fetchOfficialRate(currency);
@@ -159,6 +206,15 @@ export async function refreshFxRates(): Promise<RefreshResult> {
         continue;
       }
       result.official[currency] = ngn;
+      const { from, to } = lagosDayBounds(now);
+      await db.fxRate.deleteMany({
+        where: {
+          currency,
+          market: "official",
+          source: OFFICIAL_SOURCE_NAME,
+          fetchedAt: { gte: from, lt: to },
+        },
+      });
       await db.fxRate.create({
         data: {
           currency,
