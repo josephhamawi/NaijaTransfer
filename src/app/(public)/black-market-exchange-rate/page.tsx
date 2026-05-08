@@ -5,6 +5,7 @@ import RateBoard from "@/components/fx/RateBoard";
 import Converter from "@/components/fx/Converter";
 import Disclaimer from "@/components/fx/Disclaimer";
 import AmountTable from "@/components/fx/AmountTable";
+import RateHistory from "@/components/fx/RateHistory";
 import {
   CURRENCY_META,
   formatNgn,
@@ -188,6 +189,8 @@ export default async function HubPage() {
             </p>
           </div>
         </section>
+
+        <RateHistory currency="USD" />
 
         <section className="mt-10">
           <h2 className="text-h2 font-bold mb-4">Frequently asked questions</h2>

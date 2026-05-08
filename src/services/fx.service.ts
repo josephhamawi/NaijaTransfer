@@ -175,12 +175,63 @@ export async function refreshFxRates(): Promise<RefreshResult> {
     }
   }
 
-  // Trim history — keep last 14 days. Rates page only ever shows the latest
-  // row per (currency, market), so older rows are just storage.
-  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-  await db.fxRate.deleteMany({ where: { fetchedAt: { lt: fourteenDaysAgo } } });
-
   return result;
+}
+
+export type Granularity = "day" | "month" | "year";
+
+interface RawHistoryRow {
+  period: Date;
+  buy_avg: number | null;
+  sell_avg: number | null;
+  samples: bigint;
+}
+
+export interface HistoryRow {
+  period: Date;
+  buy: number;
+  sell: number;
+  samples: number;
+}
+
+/**
+ * Aggregated history of a (currency, market) pair, bucketed by day/month/year
+ * in Africa/Lagos time. Returns the average buy and sell rate across all
+ * samples in each bucket. Most recent bucket first.
+ */
+export async function getRateHistory(
+  currency: Currency,
+  market: Market,
+  granularity: Granularity,
+  limit: number,
+): Promise<HistoryRow[]> {
+  // Granularity is constrained to a tiny enum, so it's safe to inline.
+  const trunc =
+    granularity === "day" ? "day" : granularity === "month" ? "month" : "year";
+
+  const rows = await db.$queryRawUnsafe<RawHistoryRow[]>(
+    `SELECT date_trunc('${trunc}', "fetchedAt" AT TIME ZONE 'Africa/Lagos') AS period,
+            AVG("buyRate")::float AS buy_avg,
+            AVG("sellRate")::float AS sell_avg,
+            COUNT(*) AS samples
+     FROM fx_rates
+     WHERE currency = $1 AND market = $2
+     GROUP BY period
+     ORDER BY period DESC
+     LIMIT $3`,
+    currency,
+    market,
+    limit,
+  );
+
+  return rows
+    .filter((r) => r.buy_avg !== null && r.sell_avg !== null)
+    .map((r) => ({
+      period: r.period,
+      buy: r.buy_avg as number,
+      sell: r.sell_avg as number,
+      samples: Number(r.samples),
+    }));
 }
 
 export interface LatestRate {

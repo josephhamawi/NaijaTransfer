@@ -6,6 +6,7 @@ import RateBoard from "./RateBoard";
 import Converter from "./Converter";
 import Disclaimer from "./Disclaimer";
 import AmountTable from "./AmountTable";
+import RateHistory from "./RateHistory";
 import {
   CURRENCY_META,
   formatNgn,
@@ -281,6 +282,8 @@ export default async function CurrencyPage({ currency }: CurrencyPageProps) {
             for the official guidance.
           </p>
         </section>
+
+        <RateHistory currency={currency} />
 
         <section className="mt-10">
           <h2 className="text-h2 font-bold mb-4">Frequently asked questions</h2>
