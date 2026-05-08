@@ -10,19 +10,19 @@ interface RateBoardProps {
 
 const CURRENCY_TINT: Record<Currency, { bg: string; text: string; ring: string }> = {
   USD: {
-    bg: "bg-blue-50 dark:bg-blue-950/40",
+    bg: "bg-blue-100 dark:bg-blue-950/50",
     text: "text-blue-700 dark:text-blue-300",
-    ring: "ring-blue-200/60 dark:ring-blue-900/60",
+    ring: "ring-blue-200/80 dark:ring-blue-900/60",
   },
   EUR: {
-    bg: "bg-amber-50 dark:bg-amber-950/40",
+    bg: "bg-amber-100 dark:bg-amber-950/50",
     text: "text-amber-700 dark:text-amber-300",
-    ring: "ring-amber-200/60 dark:ring-amber-900/60",
+    ring: "ring-amber-200/80 dark:ring-amber-900/60",
   },
   GBP: {
-    bg: "bg-violet-50 dark:bg-violet-950/40",
+    bg: "bg-violet-100 dark:bg-violet-950/50",
     text: "text-violet-700 dark:text-violet-300",
-    ring: "ring-violet-200/60 dark:ring-violet-900/60",
+    ring: "ring-violet-200/80 dark:ring-violet-900/60",
   },
 };
 
@@ -46,13 +46,10 @@ export default function RateBoard({ rates, focus }: RateBoardProps) {
 function CurrencyMonogram({ currency, size = "md" }: { currency: Currency; size?: "md" | "lg" }) {
   const tint = CURRENCY_TINT[currency];
   const meta = CURRENCY_META[currency];
-  const sizing =
-    size === "lg"
-      ? "w-12 h-12 text-h2"
-      : "w-10 h-10 text-h3";
+  const sizing = size === "lg" ? "w-14 h-14 text-3xl" : "w-11 h-11 text-xl";
   return (
     <div
-      className={`shrink-0 inline-flex items-center justify-center rounded-xl ring-1 ${sizing} ${tint.bg} ${tint.text} ${tint.ring} font-semibold`}
+      className={`shrink-0 inline-flex items-center justify-center rounded-2xl ring-1 font-bold ${sizing} ${tint.bg} ${tint.text} ${tint.ring}`}
       aria-hidden="true"
     >
       {meta.symbol}
@@ -64,42 +61,30 @@ function PremiumPill({ percent }: { percent: number }) {
   const positive = percent > 0.05;
   const negative = percent < -0.05;
   const tone = positive
-    ? "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900/60"
+    ? "bg-amber-100 text-amber-800 ring-amber-200/80 dark:bg-amber-900/40 dark:text-amber-200 dark:ring-amber-800/60"
     : negative
-    ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900/60"
+    ? "bg-emerald-100 text-emerald-800 ring-emerald-200/80 dark:bg-emerald-900/40 dark:text-emerald-200 dark:ring-emerald-800/60"
     : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] ring-[var(--border-color)]";
   const sign = percent > 0 ? "+" : "";
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ring-1 tabular-nums ${tone}`}
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold ring-1 tabular-nums leading-none whitespace-nowrap ${tone}`}
       title="Parallel-market premium over the official rate"
     >
-      {positive && <Arrow direction="up" />}
-      {negative && <Arrow direction="down" />}
-      {sign}
-      {percent.toFixed(2)}%
+      {positive && <TriangleArrow direction="up" />}
+      {negative && <TriangleArrow direction="down" />}
+      <span>
+        {sign}
+        {percent.toFixed(2)}%
+      </span>
     </span>
   );
 }
 
-function Arrow({ direction }: { direction: "up" | "down" }) {
+function TriangleArrow({ direction }: { direction: "up" | "down" }) {
   return (
-    <svg
-      width="10"
-      height="10"
-      viewBox="0 0 10 10"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {direction === "up" ? (
-        <path d="M5 8.5V1.5M5 1.5l3 3M5 1.5l-3 3" />
-      ) : (
-        <path d="M5 1.5V8.5M5 8.5l3-3M5 8.5l-3-3" />
-      )}
+    <svg width="8" height="9" viewBox="0 0 8 9" fill="currentColor" aria-hidden="true">
+      {direction === "up" ? <path d="M4 0L8 7H0L4 0Z" /> : <path d="M4 9L0 2H8L4 9Z" />}
     </svg>
   );
 }
@@ -140,26 +125,27 @@ function HeroCard({ rate }: { rate: LatestRate }) {
     <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-elevated)] overflow-hidden">
       <div className="p-6 md:p-8">
         <div className="flex items-start justify-between gap-3 mb-6">
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-4 min-w-0">
             <CurrencyMonogram currency={rate.currency} size="lg" />
             <div className="min-w-0">
-              <div className="text-h3 font-bold leading-tight">
-                {meta.name} <span className="text-[var(--text-secondary)] font-normal">to Naira</span>
+              <div className="text-2xl font-bold leading-tight tracking-tight">
+                {rate.currency}
+                <span className="text-[var(--text-secondary)] font-normal"> / NGN</span>
               </div>
-              <div className="text-body-sm text-[var(--text-secondary)] flex items-center gap-2 mt-0.5">
+              <div className="text-body-sm text-[var(--text-secondary)] flex items-center gap-2 mt-1">
                 <PulseDot />
-                <span>Updated {formatRelative(parallel.fetchedAt)} · parallel market</span>
+                <span>Updated {formatRelative(parallel.fetchedAt)}</span>
               </div>
             </div>
           </div>
           {spread !== null && <PremiumPill percent={spread} />}
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <RateColumn label="Buy" sublabel={`What you pay per ${meta.symbol}1`} value={parallel.buy} />
+        <div className="grid grid-cols-2 gap-6">
+          <RateColumn label="Buy" sublabel={`per ${meta.symbol}1`} value={parallel.buy} />
           <RateColumn
             label="Sell"
-            sublabel={`What you receive per ${meta.symbol}1`}
+            sublabel={`per ${meta.symbol}1`}
             value={parallel.sell}
             accent
           />
@@ -168,12 +154,10 @@ function HeroCard({ rate }: { rate: LatestRate }) {
 
       {official && (
         <div className="border-t border-[var(--border-color)] bg-[var(--bg-secondary)]/40 px-6 md:px-8 py-3 flex flex-wrap items-center justify-between gap-2 text-body-sm">
-          <span className="text-[var(--text-secondary)]">
-            Official NFEM rate
-          </span>
-          <span className="tabular-nums font-medium">
-            {formatNgn(official.rate)}{" "}
-            <span className="text-[var(--text-secondary)] font-normal">
+          <span className="text-[var(--text-secondary)]">Official NFEM rate</span>
+          <span className="tabular-nums font-semibold">
+            {formatNgn(official.rate)}
+            <span className="text-[var(--text-secondary)] font-normal ml-2">
               · updated {formatRelative(official.fetchedAt)}
             </span>
           </span>
@@ -196,17 +180,17 @@ function RateColumn({
 }) {
   return (
     <div>
-      <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-semibold">
+      <div className="text-[11px] uppercase tracking-[0.12em] text-[var(--text-secondary)] font-bold">
         {label}
       </div>
       <div
-        className={`mt-1 text-display font-bold tabular-nums tracking-tight leading-none ${
+        className={`mt-1.5 text-4xl md:text-5xl font-extrabold tabular-nums tracking-tight leading-none ${
           accent ? "text-nigerian-green" : ""
         }`}
       >
         {formatNgn(value)}
       </div>
-      <div className="mt-1.5 text-body-sm text-[var(--text-secondary)]">{sublabel}</div>
+      <div className="mt-2 text-body-sm text-[var(--text-secondary)]">{sublabel}</div>
     </div>
   );
 }
@@ -217,24 +201,21 @@ function RateRow({ rate, compact }: { rate: LatestRate; compact: boolean }) {
   const official = rate.official;
   const spread = parallel && official ? spreadPercent(parallel.sell, official.rate) : null;
 
-  const cardClass = `group rounded-2xl border border-[var(--border-color)] bg-[var(--bg-elevated)] p-5 transition-all ${
-    compact
-      ? "hover:border-nigerian-green/60 hover:shadow-md hover:-translate-y-0.5"
-      : ""
+  const cardClass = `group flex flex-col rounded-2xl border border-[var(--border-color)] bg-[var(--bg-elevated)] p-5 transition-all ${
+    compact ? "hover:border-nigerian-green/60 hover:shadow-md hover:-translate-y-0.5" : ""
   }`;
 
   const inner = (
     <>
-      <div className="flex items-start justify-between gap-2 mb-4">
+      <div className="flex items-start justify-between gap-3 mb-5">
         <div className="flex items-center gap-3 min-w-0">
           <CurrencyMonogram currency={rate.currency} />
           <div className="min-w-0">
-            <div className="text-body font-semibold leading-tight">
-              {rate.currency}{" "}
-              <span className="text-[var(--text-secondary)] font-normal">→ NGN</span>
+            <div className="text-xl font-bold leading-none tracking-tight">
+              {rate.currency}
             </div>
-            <div className="text-body-sm text-[var(--text-secondary)] truncate">
-              {meta.name} parallel rate
+            <div className="text-body-sm text-[var(--text-secondary)] mt-1 leading-none">
+              to NGN
             </div>
           </div>
         </div>
@@ -245,26 +226,26 @@ function RateRow({ rate, compact }: { rate: LatestRate; compact: boolean }) {
         <>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-semibold mb-0.5">
+              <div className="text-[11px] uppercase tracking-[0.12em] text-[var(--text-secondary)] font-bold mb-1">
                 Buy
               </div>
-              <div className="text-h2 font-bold tabular-nums tracking-tight">
+              <div className="text-3xl font-extrabold tabular-nums tracking-tight leading-none">
                 {formatNgn(parallel.buy)}
               </div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-semibold mb-0.5">
+              <div className="text-[11px] uppercase tracking-[0.12em] text-[var(--text-secondary)] font-bold mb-1">
                 Sell
               </div>
-              <div className="text-h2 font-bold tabular-nums tracking-tight text-nigerian-green">
+              <div className="text-3xl font-extrabold tabular-nums tracking-tight leading-none text-nigerian-green">
                 {formatNgn(parallel.sell)}
               </div>
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-[var(--border-color)] flex items-center justify-between text-body-sm">
+          <div className="mt-5 pt-4 border-t border-[var(--border-color)] flex items-center justify-between text-body-sm">
             <span className="text-[var(--text-secondary)]">
-              Official {official ? formatNgn(official.rate) : "—"}
+              Official <span className="text-[var(--text-primary)] tabular-nums font-medium">{official ? formatNgn(official.rate) : "—"}</span>
             </span>
             <span className="text-[var(--text-secondary)] flex items-center gap-1.5">
               <PulseDot />
@@ -277,11 +258,9 @@ function RateRow({ rate, compact }: { rate: LatestRate; compact: boolean }) {
       )}
 
       {compact && (
-        <div className="mt-3 text-body-sm font-medium text-nigerian-green flex items-center gap-1 group-hover:gap-1.5 transition-all">
+        <div className="mt-4 text-body-sm font-semibold text-nigerian-green flex items-center gap-1 group-hover:gap-2 transition-all">
           View details
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M3 7h8m0 0L7.5 3.5M11 7l-3.5 3.5" />
-          </svg>
+          <ChevronRight />
         </div>
       )}
     </>
@@ -293,5 +272,13 @@ function RateRow({ rate, compact }: { rate: LatestRate; compact: boolean }) {
     </Link>
   ) : (
     <div className={cardClass}>{inner}</div>
+  );
+}
+
+function ChevronRight() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 3l4 4-4 4" />
+    </svg>
   );
 }
