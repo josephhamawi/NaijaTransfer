@@ -6,7 +6,7 @@ import RateBoard from "./RateBoard";
 import Converter from "./Converter";
 import Disclaimer from "./Disclaimer";
 import AmountTable from "./AmountTable";
-import RateHistory from "./RateHistory";
+import RateHistory, { type HistorySearchParams } from "./RateHistory";
 import {
   CURRENCY_META,
   formatNgn,
@@ -17,6 +17,7 @@ import {
 
 interface CurrencyPageProps {
   currency: Currency;
+  searchParams?: HistorySearchParams;
 }
 
 const FAQ: Record<Currency, { q: string; a: string }[]> = {
@@ -76,7 +77,7 @@ const FAQ: Record<Currency, { q: string; a: string }[]> = {
   ],
 };
 
-export default async function CurrencyPage({ currency }: CurrencyPageProps) {
+export default async function CurrencyPage({ currency, searchParams }: CurrencyPageProps) {
   const rates = await getLatestRates();
   const meta = CURRENCY_META[currency];
   const own = rates.find((r) => r.currency === currency);
@@ -283,7 +284,11 @@ export default async function CurrencyPage({ currency }: CurrencyPageProps) {
           </p>
         </section>
 
-        <RateHistory currency={currency} />
+        <RateHistory
+          currency={currency}
+          searchParams={searchParams}
+          basePath={`/${meta.slug}`}
+        />
 
         <section className="mt-10">
           <h2 className="text-h2 font-bold mb-4">Frequently asked questions</h2>

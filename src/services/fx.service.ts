@@ -199,15 +199,35 @@ export interface HistoryRow {
  * in Africa/Lagos time. Returns the average buy and sell rate across all
  * samples in each bucket. Most recent bucket first.
  */
-export async function getRateHistory(
-  currency: Currency,
-  market: Market,
-  granularity: Granularity,
-  limit: number,
-): Promise<HistoryRow[]> {
-  // Granularity is constrained to a tiny enum, so it's safe to inline.
+export async function getRateHistory(args: {
+  currency: Currency;
+  market: Market;
+  granularity: Granularity;
+  /** Inclusive lower bound on fetchedAt. */
+  from?: Date;
+  /** Exclusive upper bound on fetchedAt. */
+  to?: Date;
+  /** Cap result count. Defaults to 1000. */
+  limit?: number;
+}): Promise<HistoryRow[]> {
+  const { currency, market, granularity, from, to, limit = 1000 } = args;
   const trunc =
     granularity === "day" ? "day" : granularity === "month" ? "month" : "year";
+
+  // Build WHERE clause dynamically. Granularity is whitelisted above so safe
+  // to inline; everything else goes through parameterised placeholders.
+  const params: unknown[] = [currency, market];
+  let where = `currency = $1 AND market = $2`;
+  if (from) {
+    params.push(from);
+    where += ` AND "fetchedAt" >= $${params.length}`;
+  }
+  if (to) {
+    params.push(to);
+    where += ` AND "fetchedAt" < $${params.length}`;
+  }
+  params.push(limit);
+  const limitIdx = params.length;
 
   const rows = await db.$queryRawUnsafe<RawHistoryRow[]>(
     `SELECT date_trunc('${trunc}', "fetchedAt" AT TIME ZONE 'Africa/Lagos') AS period,
@@ -215,13 +235,11 @@ export async function getRateHistory(
             AVG("sellRate")::float AS sell_avg,
             COUNT(*) AS samples
      FROM fx_rates
-     WHERE currency = $1 AND market = $2
+     WHERE ${where}
      GROUP BY period
      ORDER BY period DESC
-     LIMIT $3`,
-    currency,
-    market,
-    limit,
+     LIMIT $${limitIdx}`,
+    ...params,
   );
 
   return rows
@@ -232,6 +250,20 @@ export async function getRateHistory(
       sell: r.sell_avg as number,
       samples: Number(r.samples),
     }));
+}
+
+/**
+ * Earliest fetchedAt timestamp for a currency. Used to constrain the year
+ * dropdown in the history filter — we can't show rates for years we don't
+ * have data for.
+ */
+export async function getEarliestRateDate(currency: Currency): Promise<Date | null> {
+  const row = await db.fxRate.findFirst({
+    where: { currency },
+    orderBy: { fetchedAt: "asc" },
+    select: { fetchedAt: true },
+  });
+  return row?.fetchedAt ?? null;
 }
 
 export interface LatestRate {

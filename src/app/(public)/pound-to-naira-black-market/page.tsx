@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import CurrencyPage from "@/components/fx/CurrencyPage";
+import type { HistorySearchParams } from "@/components/fx/RateHistory";
 import { todayWat } from "@/components/fx/format";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,6 @@ export function generateMetadata(): Metadata {
   };
 }
 
-export default function Page() {
-  return <CurrencyPage currency="GBP" />;
+export default function Page({ searchParams }: { searchParams: HistorySearchParams }) {
+  return <CurrencyPage currency="GBP" searchParams={searchParams} />;
 }

@@ -5,7 +5,7 @@ import RateBoard from "@/components/fx/RateBoard";
 import Converter from "@/components/fx/Converter";
 import Disclaimer from "@/components/fx/Disclaimer";
 import AmountTable from "@/components/fx/AmountTable";
-import RateHistory from "@/components/fx/RateHistory";
+import RateHistory, { type HistorySearchParams } from "@/components/fx/RateHistory";
 import {
   CURRENCY_META,
   formatNgn,
@@ -50,7 +50,11 @@ const FAQ = [
   },
 ];
 
-export default async function HubPage() {
+export default async function HubPage({
+  searchParams,
+}: {
+  searchParams: HistorySearchParams;
+}) {
   const rates = await getLatestRates();
   const parallelMap: Partial<Record<Currency, { buy: number; sell: number }>> = {};
   for (const r of rates) {
@@ -190,7 +194,11 @@ export default async function HubPage() {
           </div>
         </section>
 
-        <RateHistory currency="USD" />
+        <RateHistory
+          currency="USD"
+          searchParams={searchParams}
+          basePath="/black-market-exchange-rate"
+        />
 
         <section className="mt-10">
           <h2 className="text-h2 font-bold mb-4">Frequently asked questions</h2>

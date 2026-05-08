@@ -1,4 +1,5 @@
 import {
+  getEarliestRateDate,
   getRateHistory,
   type Currency,
   type Granularity,
@@ -6,80 +7,227 @@ import {
 } from "@/services/fx.service";
 import { CURRENCY_META, formatNgn, spreadPercent } from "./format";
 
+export type HistorySearchParams = {
+  view?: string;
+  year?: string;
+  month?: string;
+};
+
 interface RateHistoryProps {
   currency: Currency;
+  /** URL search params from the page route, used to drive the filter UI. */
+  searchParams?: HistorySearchParams;
+  /** Where this component is rendered (used to scope filter form action). */
+  basePath: string;
 }
 
-export default async function RateHistory({ currency }: RateHistoryProps) {
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function parseView(s: string | undefined): Granularity {
+  return s === "month" || s === "year" ? s : "day";
+}
+
+function lagosNowParts(): { year: number; month: number } {
+  // Decompose "now" into Africa/Lagos year/month using Intl APIs.
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Lagos",
+    year: "numeric",
+    month: "2-digit",
+  });
+  const parts = fmt.formatToParts(new Date());
+  const year = Number(parts.find((p) => p.type === "year")?.value);
+  const month = Number(parts.find((p) => p.type === "month")?.value);
+  return { year, month };
+}
+
+function lagosMonthRange(year: number, month: number): { from: Date; to: Date } {
+  // Africa/Lagos has no DST and is fixed at UTC+1, so "month start in Lagos"
+  // is the previous day at 23:00 UTC. Build the bounds directly in UTC.
+  const from = new Date(Date.UTC(year, month - 1, 1, -1, 0, 0));
+  const to = new Date(Date.UTC(year, month, 1, -1, 0, 0));
+  return { from, to };
+}
+
+function lagosYearRange(year: number): { from: Date; to: Date } {
+  const from = new Date(Date.UTC(year - 1, 11, 31, 23, 0, 0));
+  const to = new Date(Date.UTC(year, 11, 31, 23, 0, 0));
+  return { from, to };
+}
+
+export default async function RateHistory({
+  currency,
+  searchParams,
+  basePath,
+}: RateHistoryProps) {
   const meta = CURRENCY_META[currency];
-  const [daily, monthly, yearly, dailyOfficial, monthlyOfficial, yearlyOfficial] =
-    await Promise.all([
-      getRateHistory(currency, "parallel", "day", 30),
-      getRateHistory(currency, "parallel", "month", 12),
-      getRateHistory(currency, "parallel", "year", 5),
-      getRateHistory(currency, "official", "day", 30),
-      getRateHistory(currency, "official", "month", 12),
-      getRateHistory(currency, "official", "year", 5),
-    ]);
+  const view = parseView(searchParams?.view);
+  const now = lagosNowParts();
+  const year = Number(searchParams?.year) || now.year;
+  const month = Number(searchParams?.month) || now.month;
 
-  const officialDailyMap = new Map(dailyOfficial.map((r) => [+new Date(r.period), r.buy]));
-  const officialMonthlyMap = new Map(monthlyOfficial.map((r) => [+new Date(r.period), r.buy]));
-  const officialYearlyMap = new Map(yearlyOfficial.map((r) => [+new Date(r.period), r.buy]));
+  const earliest = await getEarliestRateDate(currency);
 
-  if (!daily.length && !monthly.length && !yearly.length) {
-    return (
-      <section className="mt-12">
-        <h2 className="text-h2 font-bold mb-3">
-          {meta.name} to Naira historical rates
-        </h2>
-        <p className="text-body text-[var(--text-secondary)]">
-          History is being collected. Check back tomorrow for daily averages, in a
-          month for monthly views, and in a year for the yearly summary.
-        </p>
-      </section>
-    );
+  // Compute date range for the query based on the active view.
+  let from: Date | undefined;
+  let to: Date | undefined;
+  if (view === "day") {
+    const range = lagosMonthRange(year, month);
+    from = range.from;
+    to = range.to;
+  } else if (view === "month") {
+    const range = lagosYearRange(year);
+    from = range.from;
+    to = range.to;
   }
+
+  const [parallel, official] = await Promise.all([
+    getRateHistory({ currency, market: "parallel", granularity: view, from, to, limit: 400 }),
+    getRateHistory({ currency, market: "official", granularity: view, from, to, limit: 400 }),
+  ]);
+
+  const officialMap = new Map(official.map((r) => [+new Date(r.period), r.buy]));
+
+  // Build year options from earliest data → current year.
+  const earliestYear = earliest
+    ? Number(
+        new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Africa/Lagos",
+          year: "numeric",
+        }).format(earliest),
+      )
+    : now.year;
+  const yearOptions: number[] = [];
+  for (let y = now.year; y >= earliestYear; y--) yearOptions.push(y);
 
   return (
     <section className="mt-12">
       <h2 className="text-h2 font-bold mb-2">
         {meta.name} to Naira historical rates
       </h2>
-      <p className="text-body text-[var(--text-secondary)] mb-6">
+      <p className="text-body text-[var(--text-secondary)] mb-4">
         Average parallel-market buy and sell rates across all hourly samples in
-        each period, with the official rate alongside for reference.
+        each period, with the official rate alongside. Use the filters to
+        explore past dates.
       </p>
 
-      <div className="space-y-8">
-        {!!daily.length && (
-          <HistoryTable
-            title="By day (last 30 days)"
-            rows={daily}
-            granularity="day"
-            currency={currency}
-            officialMap={officialDailyMap}
-          />
-        )}
-        {!!monthly.length && (
-          <HistoryTable
-            title="By month (last 12 months)"
-            rows={monthly}
-            granularity="month"
-            currency={currency}
-            officialMap={officialMonthlyMap}
-          />
-        )}
-        {!!yearly.length && (
-          <HistoryTable
-            title="By year"
-            rows={yearly}
-            granularity="year"
-            currency={currency}
-            officialMap={officialYearlyMap}
-          />
+      <FilterBar
+        view={view}
+        year={year}
+        month={month}
+        yearOptions={yearOptions}
+        basePath={basePath}
+      />
+
+      <HistoryTable
+        rows={parallel}
+        view={view}
+        currency={currency}
+        officialMap={officialMap}
+      />
+
+      {!parallel.length && (
+        <p className="text-body-sm text-[var(--text-secondary)] mt-3">
+          No samples in this period yet. Rates are collected hourly — pick a
+          different month or come back tomorrow.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function FilterBar({
+  view,
+  year,
+  month,
+  yearOptions,
+  basePath,
+}: {
+  view: Granularity;
+  year: number;
+  month: number;
+  yearOptions: number[];
+  basePath: string;
+}) {
+  const viewChips: { value: Granularity; label: string }[] = [
+    { value: "day", label: "Daily" },
+    { value: "month", label: "Monthly" },
+    { value: "year", label: "Yearly" },
+  ];
+
+  return (
+    <div className="rounded-[var(--radius-lg)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 mb-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-body-sm font-semibold">View:</span>
+          <div className="flex rounded-lg border border-[var(--border-color)] overflow-hidden text-body-sm">
+            {viewChips.map((chip) => {
+              const params = new URLSearchParams();
+              params.set("view", chip.value);
+              if (chip.value !== "year") params.set("year", String(year));
+              if (chip.value === "day") params.set("month", String(month));
+              return (
+                <a
+                  key={chip.value}
+                  href={`${basePath}?${params.toString()}#history`}
+                  className={`px-3 py-1.5 ${
+                    view === chip.value
+                      ? "bg-nigerian-green text-white"
+                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+                  }`}
+                >
+                  {chip.label}
+                </a>
+              );
+            })}
+          </div>
+        </div>
+
+        {view !== "year" && (
+          <form method="get" action={basePath} className="flex flex-wrap items-end gap-2">
+            <input type="hidden" name="view" value={view} />
+            <label className="text-body-sm">
+              <span className="block text-[var(--text-secondary)] mb-1">Year</span>
+              <select
+                name="year"
+                defaultValue={year}
+                className="px-3 py-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)]"
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {view === "day" && (
+              <label className="text-body-sm">
+                <span className="block text-[var(--text-secondary)] mb-1">Month</span>
+                <select
+                  name="month"
+                  defaultValue={month}
+                  className="px-3 py-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)]"
+                >
+                  {MONTHS.map((name, i) => (
+                    <option key={name} value={i + 1}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <button
+              type="submit"
+              className="px-3 py-1.5 rounded-lg bg-nigerian-green text-white text-body-sm font-semibold hover:bg-nigerian-green/90"
+            >
+              Apply
+            </button>
+          </form>
         )}
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -104,25 +252,26 @@ function formatPeriod(d: Date | string, granularity: Granularity): string {
 }
 
 function HistoryTable({
-  title,
   rows,
-  granularity,
+  view,
   currency,
   officialMap,
 }: {
-  title: string;
   rows: HistoryRow[];
-  granularity: Granularity;
+  view: Granularity;
   currency: Currency;
   officialMap: Map<number, number>;
 }) {
   const meta = CURRENCY_META[currency];
   return (
-    <div>
-      <h3 className="text-h3 font-bold mb-3">{title}</h3>
-      <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--border-color)]">
+    <div
+      id="history"
+      className="rounded-[var(--radius-lg)] border border-[var(--border-color)] overflow-hidden"
+    >
+      {/* Vertical-scroll container — caps at ~16 rows on desktop. */}
+      <div className="max-h-[480px] overflow-y-auto">
         <table className="w-full text-body-sm">
-          <thead className="bg-[var(--bg-secondary)]">
+          <thead className="bg-[var(--bg-secondary)] sticky top-0 z-10">
             <tr>
               <th className="text-left py-2 px-4 font-semibold">Period</th>
               <th className="text-right py-2 px-4 font-semibold">
@@ -140,32 +289,46 @@ function HistoryTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => {
-              const officialRate = officialMap.get(+new Date(r.period));
-              const spread = officialRate ? spreadPercent(r.sell, officialRate) : null;
-              return (
-                <tr
-                  key={String(r.period)}
-                  className="border-t border-[var(--border-color)]"
+            {rows.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={5}
+                  className="py-6 px-4 text-center text-body-sm text-[var(--text-secondary)]"
                 >
-                  <td className="py-2 px-4">{formatPeriod(r.period, granularity)}</td>
-                  <td className="py-2 px-4 text-right tabular-nums">
-                    {formatNgn(r.buy)}
-                  </td>
-                  <td className="py-2 px-4 text-right tabular-nums text-nigerian-green font-medium">
-                    {formatNgn(r.sell)}
-                  </td>
-                  <td className="py-2 px-4 text-right tabular-nums hidden sm:table-cell text-[var(--text-secondary)]">
-                    {officialRate ? formatNgn(officialRate) : "—"}
-                  </td>
-                  <td className="py-2 px-4 text-right tabular-nums hidden md:table-cell text-[var(--text-secondary)]">
-                    {spread !== null
-                      ? `${spread > 0 ? "+" : ""}${spread.toFixed(2)}%`
-                      : "—"}
-                  </td>
-                </tr>
-              );
-            })}
+                  No data for the selected period.
+                </td>
+              </tr>
+            ) : (
+              rows.map((r) => {
+                const officialRate = officialMap.get(+new Date(r.period));
+                const spread =
+                  officialRate !== undefined ? spreadPercent(r.sell, officialRate) : null;
+                return (
+                  <tr
+                    key={String(r.period)}
+                    className="border-t border-[var(--border-color)]"
+                  >
+                    <td className="py-2 px-4 whitespace-nowrap">
+                      {formatPeriod(r.period, view)}
+                    </td>
+                    <td className="py-2 px-4 text-right tabular-nums">
+                      {formatNgn(r.buy)}
+                    </td>
+                    <td className="py-2 px-4 text-right tabular-nums text-nigerian-green font-medium">
+                      {formatNgn(r.sell)}
+                    </td>
+                    <td className="py-2 px-4 text-right tabular-nums hidden sm:table-cell text-[var(--text-secondary)]">
+                      {officialRate !== undefined ? formatNgn(officialRate) : "—"}
+                    </td>
+                    <td className="py-2 px-4 text-right tabular-nums hidden md:table-cell text-[var(--text-secondary)]">
+                      {spread !== null
+                        ? `${spread > 0 ? "+" : ""}${spread.toFixed(2)}%`
+                        : "—"}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
