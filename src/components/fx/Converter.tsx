@@ -4,9 +4,16 @@ import { useMemo, useState } from "react";
 import type { Currency } from "@/services/fx.service";
 import { CURRENCY_META, formatNgn } from "./format";
 
+export interface ConverterRate {
+  buy: number;
+  sell: number;
+  /** Which market the rate represents — drives the footnote line. */
+  market: "parallel" | "official";
+}
+
 interface ConverterProps {
-  /** Currency → { buy, sell } parallel-market pair, NGN per 1 unit */
-  rates: Partial<Record<Currency, { buy: number; sell: number }>>;
+  /** Currency → { buy, sell, market } pair, NGN per 1 unit */
+  rates: Partial<Record<Currency, ConverterRate>>;
   /** Default focused currency */
   defaultCurrency?: Currency;
 }
@@ -123,8 +130,17 @@ export default function Converter({ rates, defaultCurrency = "USD" }: ConverterP
 
       {pair && (
         <p className="mt-3 text-body-sm text-[var(--text-secondary)]">
-          Using parallel-market rate: buy {formatNgn(pair.buy)} / sell {formatNgn(pair.sell)} per{" "}
-          {meta.symbol}1.
+          {pair.market === "parallel" ? (
+            <>
+              Using parallel-market rate: buy {formatNgn(pair.buy)} / sell {formatNgn(pair.sell)}{" "}
+              per {meta.symbol}1.
+            </>
+          ) : (
+            <>
+              Using official rate: {formatNgn(pair.sell)} per {meta.symbol}1. No active Nigerian
+              parallel market for {currency}.
+            </>
+          )}
         </p>
       )}
     </div>

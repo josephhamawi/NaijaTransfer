@@ -1,7 +1,25 @@
 import { db } from "@/lib/db";
 
-export type Currency = "USD" | "EUR" | "GBP";
+export type Currency =
+  | "USD"
+  | "EUR"
+  | "GBP"
+  | "CNY"
+  | "JPY"
+  | "AUD"
+  | "CAD"
+  | "INR"
+  | "PKR";
 export type Market = "parallel" | "official";
+
+/** Primary currencies have an active Nigerian parallel-market quote (BDC). */
+export const PRIMARY_CURRENCIES: Currency[] = ["USD", "EUR", "GBP"];
+/** Secondary currencies use the official rate only — no meaningful parallel premium. */
+export const SECONDARY_CURRENCIES: Currency[] = ["CNY", "JPY", "AUD", "CAD", "INR", "PKR"];
+
+export function isPrimaryCurrency(c: Currency): boolean {
+  return PRIMARY_CURRENCIES.includes(c);
+}
 
 export interface RateRow {
   currency: Currency;
@@ -19,17 +37,24 @@ export interface RefreshResult {
   official: Partial<Record<Currency, number>>;
 }
 
-const CURRENCIES: Currency[] = ["USD", "EUR", "GBP"];
+const ALL_CURRENCIES: Currency[] = [...PRIMARY_CURRENCIES, ...SECONDARY_CURRENCIES];
 const PARALLEL_SOURCE_URL = "https://www.ngnrates.com/black-market";
 const PARALLEL_SOURCE_NAME = "ngnrates.com";
 const OFFICIAL_SOURCE_NAME = "open.er-api.com";
 
-// Sanity bounds — anything outside these means the parser drifted.
+// Sanity bounds for the parallel scrape (USD/EUR/GBP only). Anything outside
+// means the parser drifted.
 const MIN_NGN_PER_UNIT = 200;
 const MAX_NGN_PER_UNIT = 10_000;
 
-function isPlausibleRate(n: number): boolean {
+function isPlausibleParallelRate(n: number): boolean {
   return Number.isFinite(n) && n >= MIN_NGN_PER_UNIT && n <= MAX_NGN_PER_UNIT;
+}
+
+// Official rates span a much wider range — JPY/INR/PKR can be a few naira per
+// unit, GBP can be over a thousand. Just guard against zero/NaN/extreme drift.
+function isPlausibleOfficialRate(n: number): boolean {
+  return Number.isFinite(n) && n > 0.1 && n < 100_000;
 }
 
 async function fetchText(url: string, init?: RequestInit): Promise<string> {
@@ -72,7 +97,7 @@ interface DatedQuote {
 export function parseParallelRates(html: string): Partial<Record<Currency, DatedQuote[]>> {
   const stripped = html.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/&nbsp;/g, " ");
 
-  const samples: Record<Currency, { dateStr: string; value: number }[]> = {
+  const samples: Record<string, { dateStr: string; value: number }[]> = {
     USD: [],
     EUR: [],
     GBP: [],
@@ -84,16 +109,16 @@ export function parseParallelRates(html: string): Partial<Record<Currency, Dated
 
   let match: RegExpExecArray | null;
   while ((match = rowRegex.exec(stripped)) !== null) {
-    const currency = match[1].toUpperCase() as Currency;
+    const currency = match[1].toUpperCase();
     const value = Number(match[2].replace(/,/g, ""));
     const dateStr = match[3];
-    if (isPlausibleRate(value)) samples[currency].push({ dateStr, value });
+    if (isPlausibleParallelRate(value)) samples[currency].push({ dateStr, value });
   }
 
   const result: Partial<Record<Currency, DatedQuote[]>> = {};
-  for (const currency of CURRENCIES) {
+  for (const currency of PRIMARY_CURRENCIES) {
     const byDate = new Map<string, number[]>();
-    for (const s of samples[currency]) {
+    for (const s of samples[currency] ?? []) {
       const arr = byDate.get(s.dateStr) ?? [];
       arr.push(s.value);
       byDate.set(s.dateStr, arr);
@@ -156,7 +181,7 @@ export async function refreshFxRates(): Promise<RefreshResult> {
   // and refreshes the latest entry for today.
   try {
     const parallel = await fetchParallelRates();
-    for (const currency of CURRENCIES) {
+    for (const currency of PRIMARY_CURRENCIES) {
       const quotes = parallel[currency];
       if (!quotes || quotes.length === 0) {
         result.errors.push(`parallel ${currency}: not found in source`);
@@ -198,10 +223,10 @@ export async function refreshFxRates(): Promise<RefreshResult> {
 
   // Official — one HTTP call per currency. Dedupe per Lagos day so we don't
   // accumulate 24 rows per (currency, day) at hourly cron cadence.
-  for (const currency of CURRENCIES) {
+  for (const currency of ALL_CURRENCIES) {
     try {
       const ngn = await fetchOfficialRate(currency);
-      if (!isPlausibleRate(ngn)) {
+      if (!isPlausibleOfficialRate(ngn)) {
         result.errors.push(`official ${currency}: implausible rate ${ngn}`);
         continue;
       }
@@ -328,13 +353,15 @@ export interface LatestRate {
   official: { rate: number; source: string; fetchedAt: Date } | null;
 }
 
-export async function getLatestRates(): Promise<LatestRate[]> {
+export async function getLatestRates(
+  currencies: Currency[] = ALL_CURRENCIES,
+): Promise<LatestRate[]> {
   const rows = await db.fxRate.findMany({
-    where: { currency: { in: CURRENCIES } },
+    where: { currency: { in: currencies } },
     orderBy: { fetchedAt: "desc" },
   });
 
-  return CURRENCIES.map((currency) => {
+  return currencies.map((currency) => {
     const parallel = rows.find((r) => r.currency === currency && r.market === "parallel");
     const official = rows.find((r) => r.currency === currency && r.market === "official");
     return {

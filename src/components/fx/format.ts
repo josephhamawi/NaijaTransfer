@@ -7,6 +7,12 @@ export const CURRENCY_META: Record<
   USD: { name: "Dollar", symbol: "$", slug: "dollar-to-naira-black-market", nameLower: "dollar" },
   EUR: { name: "Euro", symbol: "€", slug: "euro-to-naira-black-market", nameLower: "euro" },
   GBP: { name: "Pound", symbol: "£", slug: "pound-to-naira-black-market", nameLower: "pound" },
+  CNY: { name: "Yuan", symbol: "¥", slug: "yuan-to-naira", nameLower: "yuan" },
+  JPY: { name: "Yen", symbol: "¥", slug: "yen-to-naira", nameLower: "yen" },
+  AUD: { name: "Australian Dollar", symbol: "A$", slug: "australian-dollar-to-naira", nameLower: "Australian dollar" },
+  CAD: { name: "Canadian Dollar", symbol: "C$", slug: "canadian-dollar-to-naira", nameLower: "Canadian dollar" },
+  INR: { name: "Indian Rupee", symbol: "₹", slug: "indian-rupee-to-naira", nameLower: "Indian rupee" },
+  PKR: { name: "Pakistani Rupee", symbol: "₨", slug: "pakistani-rupee-to-naira", nameLower: "Pakistani rupee" },
 };
 
 export function formatNgn(amount: number, opts: { decimals?: number } = {}): string {

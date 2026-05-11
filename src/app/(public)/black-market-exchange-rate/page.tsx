@@ -2,18 +2,23 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import PageLayout from "@/components/layout/PageLayout";
 import RateBoard from "@/components/fx/RateBoard";
-import Converter from "@/components/fx/Converter";
+import SecondaryRateStrip from "@/components/fx/SecondaryRateStrip";
+import Converter, { type ConverterRate } from "@/components/fx/Converter";
 import Disclaimer from "@/components/fx/Disclaimer";
 import AmountTable from "@/components/fx/AmountTable";
 import RateHistory, { type HistorySearchParams } from "@/components/fx/RateHistory";
 import {
   CURRENCY_META,
   formatNgn,
-  formatRelative,
   formatWat,
   todayWat,
 } from "@/components/fx/format";
-import { getLatestRates, type Currency } from "@/services/fx.service";
+import {
+  getLatestRates,
+  PRIMARY_CURRENCIES,
+  SECONDARY_CURRENCIES,
+  type Currency,
+} from "@/services/fx.service";
 
 export const dynamic = "force-dynamic";
 
@@ -57,8 +62,22 @@ export default async function HubPage({
 }) {
   const rates = await getLatestRates();
   const parallelMap: Partial<Record<Currency, { buy: number; sell: number }>> = {};
+  const convertMap: Partial<Record<Currency, ConverterRate>> = {};
   for (const r of rates) {
-    if (r.parallel) parallelMap[r.currency] = { buy: r.parallel.buy, sell: r.parallel.sell };
+    if (r.parallel) {
+      parallelMap[r.currency] = { buy: r.parallel.buy, sell: r.parallel.sell };
+      convertMap[r.currency] = {
+        buy: r.parallel.buy,
+        sell: r.parallel.sell,
+        market: "parallel",
+      };
+    } else if (r.official) {
+      convertMap[r.currency] = {
+        buy: r.official.rate,
+        sell: r.official.rate,
+        market: "official",
+      };
+    }
   }
 
   const lastUpdate = rates
@@ -149,7 +168,8 @@ export default async function HubPage({
 
         <div className="space-y-6">
           <RateBoard rates={rates} />
-          <Converter rates={parallelMap} defaultCurrency="USD" />
+          <SecondaryRateStrip rates={rates} />
+          <Converter rates={convertMap} defaultCurrency="USD" />
           {parallelMap.USD && (
             <div>
               <h2 className="text-h2 font-bold mb-3">
@@ -163,8 +183,11 @@ export default async function HubPage({
 
         <section className="mt-12">
           <h2 className="text-h2 font-bold mb-4">Drill into a specific currency</h2>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {(Object.keys(CURRENCY_META) as Currency[]).map((c) => (
+          <div className="mb-3 text-body-sm text-[var(--text-secondary)]">
+            Parallel-market currencies
+          </div>
+          <div className="grid gap-3 md:grid-cols-3 mb-6">
+            {PRIMARY_CURRENCIES.map((c) => (
               <Link
                 key={c}
                 href={`/${CURRENCY_META[c].slug}`}
@@ -173,6 +196,23 @@ export default async function HubPage({
                 <div className="text-h3 font-bold">{CURRENCY_META[c].name} → Naira</div>
                 <div className="text-body-sm text-[var(--text-secondary)] mt-1">
                   Rate, history, FAQ
+                </div>
+              </Link>
+            ))}
+          </div>
+          <div className="mb-3 text-body-sm text-[var(--text-secondary)]">
+            Official-rate currencies
+          </div>
+          <div className="grid gap-3 grid-cols-2 md:grid-cols-3">
+            {SECONDARY_CURRENCIES.map((c) => (
+              <Link
+                key={c}
+                href={`/${CURRENCY_META[c].slug}`}
+                className="rounded-[var(--radius-lg)] border border-[var(--border-color)] bg-[var(--bg-elevated)] p-4 hover:border-nigerian-green transition-colors"
+              >
+                <div className="text-body font-semibold">{CURRENCY_META[c].name}</div>
+                <div className="text-caption text-[var(--text-secondary)] mt-1">
+                  {c} → NGN official rate
                 </div>
               </Link>
             ))}

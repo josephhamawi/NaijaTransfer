@@ -1,5 +1,9 @@
 import Link from "next/link";
-import type { LatestRate, Currency } from "@/services/fx.service";
+import {
+  PRIMARY_CURRENCIES,
+  type LatestRate,
+  type Currency,
+} from "@/services/fx.service";
 import { CURRENCY_META, formatNgn, formatRelative, spreadPercent } from "./format";
 
 interface RateBoardProps {
@@ -10,7 +14,7 @@ interface RateBoardProps {
 
 // Solid, saturated backgrounds with white symbols — the previous
 // light-tint-on-tint scheme had poor contrast and the symbol blended in.
-const CURRENCY_TINT: Record<Currency, { bg: string; text: string; ring: string }> = {
+export const CURRENCY_TINT: Record<Currency, { bg: string; text: string; ring: string }> = {
   USD: {
     bg: "bg-blue-600 dark:bg-blue-500",
     text: "text-white",
@@ -26,17 +30,48 @@ const CURRENCY_TINT: Record<Currency, { bg: string; text: string; ring: string }
     text: "text-white",
     ring: "ring-violet-700/30 dark:ring-violet-400/30",
   },
+  CNY: {
+    bg: "bg-rose-600 dark:bg-rose-500",
+    text: "text-white",
+    ring: "ring-rose-700/30 dark:ring-rose-400/30",
+  },
+  JPY: {
+    bg: "bg-red-600 dark:bg-red-500",
+    text: "text-white",
+    ring: "ring-red-700/30 dark:ring-red-400/30",
+  },
+  AUD: {
+    bg: "bg-sky-600 dark:bg-sky-500",
+    text: "text-white",
+    ring: "ring-sky-700/30 dark:ring-sky-400/30",
+  },
+  CAD: {
+    bg: "bg-orange-600 dark:bg-orange-500",
+    text: "text-white",
+    ring: "ring-orange-700/30 dark:ring-orange-400/30",
+  },
+  INR: {
+    bg: "bg-emerald-600 dark:bg-emerald-500",
+    text: "text-white",
+    ring: "ring-emerald-700/30 dark:ring-emerald-400/30",
+  },
+  PKR: {
+    bg: "bg-teal-600 dark:bg-teal-500",
+    text: "text-white",
+    ring: "ring-teal-700/30 dark:ring-teal-400/30",
+  },
 };
 
 export default function RateBoard({ rates, focus }: RateBoardProps) {
-  const focused = focus ? rates.find((r) => r.currency === focus) : null;
-  const others = focus ? rates.filter((r) => r.currency !== focus) : rates;
+  const primary = rates.filter((r) => PRIMARY_CURRENCIES.includes(r.currency));
+  const focused = focus ? primary.find((r) => r.currency === focus) : null;
+  const others = focus ? primary.filter((r) => r.currency !== focus) : primary;
 
   return (
     <div className="space-y-6">
       {focused && <HeroCard rate={focused} />}
 
-      <div className={`grid gap-4 ${focus ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
+      <div className={`grid gap-4 ${focus ? "md:grid-cols-2" : "md:grid-cols-3"}`}>
         {others.map((r) => (
           <RateRow key={r.currency} rate={r} compact={!!focus} />
         ))}

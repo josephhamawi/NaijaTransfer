@@ -3,7 +3,7 @@ import PageLayout from "@/components/layout/PageLayout";
 import { Button } from "@/components/ui/Button";
 import { getLatestRates, type Currency } from "@/services/fx.service";
 import RateBoard from "./RateBoard";
-import Converter from "./Converter";
+import Converter, { type ConverterRate } from "./Converter";
 import Disclaimer from "./Disclaimer";
 import AmountTable from "./AmountTable";
 import RateHistory, { type HistorySearchParams } from "./RateHistory";
@@ -16,11 +16,13 @@ import {
 } from "./format";
 
 interface CurrencyPageProps {
-  currency: Currency;
+  currency: PrimaryCurrency;
   searchParams?: HistorySearchParams;
 }
 
-const FAQ: Record<Currency, { q: string; a: string }[]> = {
+type PrimaryCurrency = "USD" | "EUR" | "GBP";
+
+const FAQ: Record<PrimaryCurrency, { q: string; a: string }[]> = {
   USD: [
     {
       q: "What is the dollar to naira black market rate today?",
@@ -81,9 +83,21 @@ export default async function CurrencyPage({ currency, searchParams }: CurrencyP
   const rates = await getLatestRates();
   const meta = CURRENCY_META[currency];
   const own = rates.find((r) => r.currency === currency);
-  const parallelMap: Partial<Record<Currency, { buy: number; sell: number }>> = {};
+  const convertMap: Partial<Record<Currency, ConverterRate>> = {};
   for (const r of rates) {
-    if (r.parallel) parallelMap[r.currency] = { buy: r.parallel.buy, sell: r.parallel.sell };
+    if (r.parallel) {
+      convertMap[r.currency] = {
+        buy: r.parallel.buy,
+        sell: r.parallel.sell,
+        market: "parallel",
+      };
+    } else if (r.official) {
+      convertMap[r.currency] = {
+        buy: r.official.rate,
+        sell: r.official.rate,
+        market: "official",
+      };
+    }
   }
 
   const faq = FAQ[currency];
@@ -199,7 +213,7 @@ export default async function CurrencyPage({ currency, searchParams }: CurrencyP
 
         <div className="space-y-6">
           <RateBoard rates={rates} focus={currency} />
-          <Converter rates={parallelMap} defaultCurrency={currency} />
+          <Converter rates={convertMap} defaultCurrency={currency} />
           {parallelPair && (
             <div>
               <h2 className="text-h2 font-bold mb-3">
