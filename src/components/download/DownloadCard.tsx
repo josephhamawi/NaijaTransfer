@@ -149,8 +149,11 @@ export default function DownloadCard({
 
               {/* File info */}
               <div className="flex-1 min-w-0">
-                <p className="text-body-sm text-[var(--text-primary)] truncate">
-                  {truncateFilename(file.originalName, 40)}
+                <p
+                  className="text-body-sm text-[var(--text-primary)] truncate"
+                  title={file.originalName}
+                >
+                  {truncateFilename(file.originalName, 45)}
                 </p>
                 <p className="text-caption-style text-[var(--text-muted)]">
                   {formatFileSize(file.size)}

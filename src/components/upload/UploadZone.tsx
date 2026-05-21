@@ -14,16 +14,31 @@ export interface SelectedFile {
   id: string;
   file: File;
   name: string;
+  /**
+   * Path relative to the dropped/selected folder root (e.g.
+   * "MyFolder/sub/file.txt"). Equals `name` for plain files.
+   * The server uses this verbatim as the file's display name and as
+   * the entry name inside the bulk ZIP, which is how folder structure
+   * survives a round-trip.
+   */
+  relativePath: string;
   size: number;
   mimeType: string;
   previewUrl?: string;
 }
 
+/**
+ * A file paired with the path that should be preserved through the
+ * upload (always at least the basename; longer for files inside a
+ * dropped/selected folder).
+ */
+export type FileWithPath = { file: File; relativePath: string };
+
 export interface UploadZoneProps {
   /** Currently selected files */
   files: SelectedFile[];
-  /** Called when files are added */
-  onFilesAdded: (files: File[]) => void;
+  /** Called when files (plain or expanded from a folder) are added */
+  onFilesAdded: (files: FileWithPath[]) => void;
   /** Called when a file is removed */
   onFileRemoved: (fileId: string) => void;
   /** Maximum file size in bytes (tier-dependent) */
@@ -32,6 +47,87 @@ export interface UploadZoneProps {
   uploading?: boolean;
   /** Additional CSS classes */
   className?: string;
+}
+
+/**
+ * Recursively expand a dropped FileSystemEntry tree (folder drag-and-drop)
+ * into a flat list with relative paths preserved.
+ *
+ * `createReader().readEntries()` can return a partial batch (~100 entries
+ * in Chrome), so we have to call it in a loop until it returns empty.
+ */
+async function readEntries(
+  entry: FileSystemEntry,
+  pathPrefix = ""
+): Promise<FileWithPath[]> {
+  if (entry.isFile) {
+    return new Promise<FileWithPath[]>((resolve) => {
+      (entry as FileSystemFileEntry).file(
+        (file) => {
+          const relativePath = pathPrefix
+            ? `${pathPrefix}/${file.name}`
+            : file.name;
+          resolve([{ file, relativePath }]);
+        },
+        () => resolve([])
+      );
+    });
+  }
+
+  if (entry.isDirectory) {
+    const dirEntry = entry as FileSystemDirectoryEntry;
+    const reader = dirEntry.createReader();
+    const children: FileSystemEntry[] = [];
+
+    const readBatch = () =>
+      new Promise<FileSystemEntry[]>((resolve) => {
+        reader.readEntries(
+          (batch) => resolve(batch),
+          () => resolve([])
+        );
+      });
+
+    while (true) {
+      const batch = await readBatch();
+      if (batch.length === 0) break;
+      children.push(...batch);
+    }
+
+    const nextPrefix = pathPrefix
+      ? `${pathPrefix}/${entry.name}`
+      : entry.name;
+    const nested = await Promise.all(
+      children.map((c) => readEntries(c, nextPrefix))
+    );
+    return nested.flat();
+  }
+
+  return [];
+}
+
+async function collectFromDataTransfer(
+  items: DataTransferItemList,
+  fallbackFiles: FileList
+): Promise<FileWithPath[]> {
+  const entries: FileSystemEntry[] = [];
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.kind !== "file") continue;
+    const entry = item.webkitGetAsEntry?.();
+    if (entry) entries.push(entry);
+  }
+
+  // Browsers without webkitGetAsEntry (rare on desktop) — fall back to
+  // the flat FileList, which can't represent folder structure anyway.
+  if (entries.length === 0) {
+    return Array.from(fallbackFiles).map((file) => ({
+      file,
+      relativePath: file.name,
+    }));
+  }
+
+  const expanded = await Promise.all(entries.map((e) => readEntries(e)));
+  return expanded.flat();
 }
 
 /**
@@ -56,6 +152,7 @@ export default function UploadZone({
 }: UploadZoneProps) {
   const isLightweight = useIsLightweight();
   const inputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
   const totalSize = files.reduce((sum, f) => sum + f.size, 0);
@@ -78,8 +175,11 @@ export default function UploadZone({
       e.stopPropagation();
       setIsDragOver(false);
       if (uploading) return;
-      const droppedFiles = Array.from(e.dataTransfer.files);
-      onFilesAdded(droppedFiles);
+      void collectFromDataTransfer(e.dataTransfer.items, e.dataTransfer.files).then(
+        (collected) => {
+          if (collected.length > 0) onFilesAdded(collected);
+        }
+      );
     },
     [onFilesAdded, uploading]
   );
@@ -90,14 +190,29 @@ export default function UploadZone({
     }
   }, [uploading]);
 
+  const handleFolderClick = useCallback(() => {
+    if (!uploading) {
+      folderInputRef.current?.click();
+    }
+  }, [uploading]);
+
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const selected = e.target.files;
       if (selected && selected.length > 0) {
-        onFilesAdded(Array.from(selected));
+        // `webkitRelativePath` is populated when the input has
+        // `webkitdirectory`; empty otherwise. Either way we end up with
+        // a usable relativePath.
+        const collected: FileWithPath[] = Array.from(selected).map((file) => ({
+          file,
+          relativePath:
+            (file as File & { webkitRelativePath?: string })
+              .webkitRelativePath || file.name,
+        }));
+        onFilesAdded(collected);
       }
-      // Reset so the same file can be re-added
-      if (inputRef.current) inputRef.current.value = "";
+      // Reset so the same file/folder can be re-added
+      e.target.value = "";
     },
     [onFilesAdded]
   );
@@ -125,6 +240,18 @@ export default function UploadZone({
         onChange={handleInputChange}
         aria-hidden="true"
         tabIndex={-1}
+      />
+      {/* Hidden folder input. `webkitdirectory` is non-standard JSX so we
+          mark it as a non-empty string attribute via the DOM cast. */}
+      <input
+        ref={folderInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={handleInputChange}
+        aria-hidden="true"
+        tabIndex={-1}
+        {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
       />
 
       {/* Drop zone / click to select -- shown when no files selected */}
@@ -178,13 +305,27 @@ export default function UploadZone({
           <div className="text-center">
             <p className="text-body font-medium text-[var(--text-primary)]">
               <span className="hidden md:inline">
-                Drag files here or click to select
+                Drag files or a folder here, or click to select
               </span>
               <span className="md:hidden">Tap to select files</span>
             </p>
             <p className="text-body-sm text-[var(--text-muted)] mt-1">
               Up to {formatFileSize(maxFileSize)} per file
             </p>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleFolderClick();
+              }}
+              className={cn(
+                "text-body-sm font-medium text-nigerian-green",
+                "hover:underline mt-2 inline-flex items-center",
+                "min-h-[44px]"
+              )}
+            >
+              or select a folder
+            </button>
           </div>
         </div>
       )}
@@ -232,8 +373,11 @@ export default function UploadZone({
 
                 {/* File info */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-body-sm font-medium text-[var(--text-primary)] truncate">
-                    {truncateFilename(file.name, 35)}
+                  <p
+                    className="text-body-sm font-medium text-[var(--text-primary)] truncate"
+                    title={file.relativePath}
+                  >
+                    {truncateFilename(file.relativePath, 45)}
                   </p>
                   <p className="text-caption-style text-[var(--text-muted)]">
                     {formatFileSize(file.size)}
@@ -281,22 +425,34 @@ export default function UploadZone({
           })}
 
           {/* Summary row */}
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center justify-between pt-2 gap-3 flex-wrap">
             <p className="text-body-sm text-[var(--text-secondary)]">
               {files.length} {files.length === 1 ? "file" : "files"} &mdash;{" "}
               {formatFileSize(totalSize)} total
             </p>
             {!uploading && (
-              <button
-                onClick={handleClick}
-                className={cn(
-                  "text-body-sm font-medium text-nigerian-green",
-                  "hover:underline",
-                  "min-h-[44px] inline-flex items-center"
-                )}
-              >
-                + Add more files
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleClick}
+                  className={cn(
+                    "text-body-sm font-medium text-nigerian-green",
+                    "hover:underline",
+                    "min-h-[44px] inline-flex items-center"
+                  )}
+                >
+                  + Add files
+                </button>
+                <button
+                  onClick={handleFolderClick}
+                  className={cn(
+                    "text-body-sm font-medium text-nigerian-green",
+                    "hover:underline",
+                    "min-h-[44px] inline-flex items-center"
+                  )}
+                >
+                  + Add folder
+                </button>
+              </div>
             )}
           </div>
         </div>

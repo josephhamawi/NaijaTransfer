@@ -3,6 +3,22 @@ import { deleteFile, getDownloadUrl, getFileStream } from "@/lib/storage";
 import archiver from "archiver";
 import type { FileDoc } from "./transfer.service";
 
+/**
+ * Strip path-traversal segments and absolute-path prefixes from an
+ * uploader-controlled relative path. The result is safe to use as an
+ * archive entry name (which some unzippers will treat as a filesystem
+ * path on extract) while preserving folder structure for legitimate
+ * uploads like "MyFolder/sub/file.txt".
+ */
+function safeRelativePath(input: string): string {
+  const cleaned = input
+    .replace(/\\/g, "/")
+    .split("/")
+    .filter((seg) => seg && seg !== "." && seg !== "..")
+    .join("/");
+  return cleaned || "file";
+}
+
 export async function createFile(
   transferId: string,
   data: {
@@ -18,7 +34,7 @@ export async function createFile(
   const file: Omit<FileDoc, "id"> = {
     transferId,
     filename: data.filename,
-    originalName: data.originalName,
+    originalName: safeRelativePath(data.originalName),
     sizeBytes: data.sizeBytes,
     mimeType: data.mimeType,
     storageKey: data.storageKey,

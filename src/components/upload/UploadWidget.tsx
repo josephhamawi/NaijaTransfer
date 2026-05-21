@@ -7,7 +7,10 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Tabs, TabList, Tab, TabPanel } from "@/components/ui/Tabs";
 import { Input } from "@/components/ui/Input";
-import UploadZone, { type SelectedFile } from "@/components/upload/UploadZone";
+import UploadZone, {
+  type SelectedFile,
+  type FileWithPath,
+} from "@/components/upload/UploadZone";
 import TransferSettings, {
   type TransferSettingsValues,
 } from "@/components/upload/TransferSettings";
@@ -84,7 +87,7 @@ export default function UploadWidget() {
     }
 
     const fileKey = (f: SelectedFile) =>
-      `${f.file.name}:${f.file.size}:${f.file.lastModified}`;
+      `${f.relativePath}:${f.file.size}:${f.file.lastModified}`;
 
     const waitForOnline = (maxWaitMs = 60_000) =>
       new Promise<void>((resolve) => {
@@ -246,7 +249,11 @@ export default function UploadWidget() {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                fileName: selectedFile.file.name,
+                // Send the relative path (e.g. "MyFolder/sub/file.txt") as
+                // fileName. The server preserves this verbatim as the file's
+                // originalName, which is what the ZIP download uses for entry
+                // paths — that's how folder structure survives the round-trip.
+                fileName: selectedFile.relativePath,
                 fileSize: selectedFile.file.size,
                 contentType:
                   selectedFile.file.type || "application/octet-stream",
@@ -495,7 +502,7 @@ export default function UploadWidget() {
   }, []);
 
   const handleFilesAdded = useCallback(
-    (newFiles: File[]) => {
+    (newFiles: FileWithPath[]) => {
       const limits = TIER_LIMITS.FREE;
 
       setFiles((prev) => {
@@ -510,7 +517,12 @@ export default function UploadWidget() {
         let runningCount = currentCount;
         let runningSize = currentSize;
 
-        for (const file of newFiles) {
+        // De-dup by relativePath against what's already selected — re-dropping
+        // the same folder shouldn't queue duplicate uploads.
+        const existingPaths = new Set(prev.map((f) => f.relativePath));
+
+        for (const { file, relativePath } of newFiles) {
+          if (existingPaths.has(relativePath)) continue;
           if (file.size > limits.maxFileSizeBytes) {
             rejectedPerFile++;
             continue;
@@ -533,10 +545,12 @@ export default function UploadWidget() {
             id,
             file,
             name: file.name,
+            relativePath,
             size: file.size,
             mimeType: file.type || "application/octet-stream",
             previewUrl,
           });
+          existingPaths.add(relativePath);
           runningCount++;
           runningSize += file.size;
         }
