@@ -179,25 +179,68 @@ export default function DownloadPage() {
               </div>
             )}
 
-            {/* File list */}
+            {/* File list — grouped by top-level folder so a folder
+                upload (e.g. "sc pluck") collapses into one row instead
+                of dozens of "sc pluck/…" entries. */}
             <div className="divide-y divide-[var(--border-color)]">
-              {transfer.files.map((file) => (
-                <div key={file.id} className="flex items-center justify-between py-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <FileIcon mimeType={file.mimeType} />
-                    <div className="min-w-0">
-                      <p className="text-body-sm font-medium truncate">{file.name}</p>
-                      <p className="text-caption-style text-[var(--text-muted)]">{formatBytes(file.sizeBytes)}</p>
+              {groupTransferFiles(transfer.files).map((group) => {
+                if (group.kind === "folder") {
+                  const folderHref = `/api/transfer/${
+                    params.code
+                  }/download-all?prefix=${encodeURIComponent(group.name)}`;
+                  return (
+                    <div
+                      key={`folder-${group.name}`}
+                      className="flex items-center justify-between py-3"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <FolderIcon />
+                        <div className="min-w-0">
+                          <p className="text-body-sm font-medium truncate">
+                            {group.name}
+                          </p>
+                          <p className="text-caption-style text-[var(--text-muted)]">
+                            {group.files.length} file
+                            {group.files.length !== 1 ? "s" : ""} &middot;{" "}
+                            {formatBytes(group.totalSize)}
+                          </p>
+                        </div>
+                      </div>
+                      <a href={folderHref} className="shrink-0">
+                        <Button variant="outline" size="sm">
+                          Download
+                        </Button>
+                      </a>
                     </div>
-                  </div>
-                  <a
-                    href={`/api/transfer/${params.code}/download/${file.id}`}
-                    className="shrink-0"
+                  );
+                }
+
+                const file = group.file;
+                return (
+                  <div
+                    key={file.id}
+                    className="flex items-center justify-between py-3"
                   >
-                    <Button variant="outline" size="sm">Download</Button>
-                  </a>
-                </div>
-              ))}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <FileIcon mimeType={file.mimeType} />
+                      <div className="min-w-0">
+                        <p className="text-body-sm font-medium truncate">
+                          {file.name}
+                        </p>
+                        <p className="text-caption-style text-[var(--text-muted)]">
+                          {formatBytes(file.sizeBytes)}
+                        </p>
+                      </div>
+                    </div>
+                    <a
+                      href={`/api/transfer/${params.code}/download/${file.id}`}
+                      className="shrink-0"
+                    >
+                      <Button variant="outline" size="sm">Download</Button>
+                    </a>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Download All */}
@@ -247,4 +290,58 @@ function FileIcon({ mimeType }: { mimeType: string }) {
       </svg>
     </div>
   );
+}
+
+function FolderIcon() {
+  return (
+    <div className="w-10 h-10 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center shrink-0 text-nigerian-green">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+      </svg>
+    </div>
+  );
+}
+
+/**
+ * Group a flat file list by top-level folder so a folder upload
+ * collapses into a single row. Insertion order is preserved so the
+ * folder appears at the position of its first file.
+ */
+type TransferGroup =
+  | { kind: "file"; file: TransferFile }
+  | {
+      kind: "folder";
+      name: string;
+      files: TransferFile[];
+      totalSize: number;
+    };
+
+function groupTransferFiles(files: TransferFile[]): TransferGroup[] {
+  const groups: TransferGroup[] = [];
+  const folderIndex = new Map<string, number>();
+
+  for (const file of files) {
+    const slash = file.name.indexOf("/");
+    if (slash === -1) {
+      groups.push({ kind: "file", file });
+      continue;
+    }
+    const folderName = file.name.slice(0, slash);
+    const existing = folderIndex.get(folderName);
+    if (existing !== undefined) {
+      const g = groups[existing] as Extract<TransferGroup, { kind: "folder" }>;
+      g.files.push(file);
+      g.totalSize += file.sizeBytes;
+    } else {
+      folderIndex.set(folderName, groups.length);
+      groups.push({
+        kind: "folder",
+        name: folderName,
+        files: [file],
+        totalSize: file.sizeBytes,
+      });
+    }
+  }
+
+  return groups;
 }

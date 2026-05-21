@@ -77,10 +77,20 @@ export async function getFileDownloadUrl(
   return getDownloadUrl(storageKey, expiresInMs, originalName);
 }
 
+/**
+ * Stream a ZIP of files in a transfer. When `pathPrefix` is provided,
+ * only files whose originalName starts with `${pathPrefix}/` are
+ * included (used to download a single uploaded folder). The ZIP entries
+ * are then re-rooted at the prefix so the user unzips into one folder.
+ */
 export async function streamZipDownload(
-  transferId: string
+  transferId: string,
+  pathPrefix?: string
 ): Promise<{ stream: archiver.Archiver; totalSize: number } | null> {
-  const files = await getTransferFiles(transferId);
+  const allFiles = await getTransferFiles(transferId);
+  const files = pathPrefix
+    ? allFiles.filter((f) => f.originalName.startsWith(`${pathPrefix}/`))
+    : allFiles;
   if (files.length === 0) return null;
 
   const archive = archiver("zip", { zlib: { level: 1 } });

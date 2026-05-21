@@ -17,7 +17,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: { code: access.error, message: "Access denied" } }, { status: access.error === "PASSWORD_REQUIRED" ? 401 : 404 });
     }
 
-    const result = await streamZipDownload(access.transfer.id);
+    // `?prefix=<folderName>` filters the ZIP to a single uploaded
+    // top-level folder. Strip any slashes the caller might pass so we
+    // can't be tricked into matching deeper paths or escaping prefix
+    // semantics.
+    const rawPrefix = request.nextUrl.searchParams.get("prefix") ?? undefined;
+    const prefix = rawPrefix
+      ? rawPrefix.split("/").filter((s) => s && s !== "." && s !== "..")[0]
+      : undefined;
+
+    const result = await streamZipDownload(access.transfer.id, prefix);
     if (!result) {
       return NextResponse.json({ error: { code: "NO_FILES", message: "No files in transfer" } }, { status: 404 });
     }
@@ -34,10 +43,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
     });
 
+    const filenameBase = prefix
+      ? prefix.replace(/[^a-zA-Z0-9._-]/g, "_")
+      : `NaijaTransfer-${code}`;
+
     return new NextResponse(readable, {
       headers: {
         "Content-Type": "application/zip",
-        "Content-Disposition": `attachment; filename="NaijaTransfer-${code}.zip"`,
+        "Content-Disposition": `attachment; filename="${filenameBase}.zip"`,
       },
     });
   } catch (error) {
