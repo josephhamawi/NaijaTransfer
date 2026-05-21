@@ -1,7 +1,9 @@
 "use client";
 
 import {
+  forwardRef,
   useCallback,
+  useEffect,
   useRef,
   useState,
   type DragEvent,
@@ -181,6 +183,97 @@ async function collectFromDataTransfer(
 }
 
 /**
+ * Small popover that lets the user pick between adding files or a
+ * folder. Rendered absolutely; the caller controls anchoring via
+ * `className` and dismissal via a doc-level pointerdown listener.
+ *
+ * Click handlers stopPropagation so clicks inside the menu don't
+ * bubble to the surrounding dropzone (which would otherwise re-open
+ * the menu on its own click handler).
+ */
+const PickerMenu = forwardRef<
+  HTMLDivElement,
+  {
+    onPickFiles: () => void;
+    onPickFolder: () => void;
+    className?: string;
+  }
+>(function PickerMenu({ onPickFiles, onPickFolder, className }, ref) {
+  return (
+    <div
+      ref={ref}
+      role="menu"
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      className={cn(
+        "absolute z-10 min-w-[180px]",
+        "rounded-[var(--radius-md)]",
+        "bg-[var(--bg-elevated,var(--bg-primary))]",
+        "border border-[var(--border-color)]",
+        "shadow-lg p-1",
+        className
+      )}
+    >
+      <button
+        type="button"
+        role="menuitem"
+        onClick={onPickFiles}
+        className={cn(
+          "w-full flex items-center gap-2 px-3 py-2",
+          "rounded-[var(--radius-sm)]",
+          "text-body-sm text-left text-[var(--text-primary)]",
+          "hover:bg-[var(--bg-secondary)]",
+          "min-h-[40px]"
+        )}
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+          <path d="M14 3v5h5" />
+        </svg>
+        Choose files
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        onClick={onPickFolder}
+        className={cn(
+          "w-full flex items-center gap-2 px-3 py-2",
+          "rounded-[var(--radius-sm)]",
+          "text-body-sm text-left text-[var(--text-primary)]",
+          "hover:bg-[var(--bg-secondary)]",
+          "min-h-[40px]"
+        )}
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+        </svg>
+        Choose folder
+      </button>
+    </div>
+  );
+});
+
+/**
  * UploadZone: drag-and-drop + click file selection area.
  *
  * Idle state: dashed border zone with + icon and prompt text.
@@ -204,6 +297,27 @@ export default function UploadZone({
   const inputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [pickerMenuOpen, setPickerMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close the picker menu on outside click or Escape.
+  useEffect(() => {
+    if (!pickerMenuOpen) return;
+    function onPointerDown(e: PointerEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setPickerMenuOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setPickerMenuOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [pickerMenuOpen]);
 
   const totalSize = files.reduce((sum, f) => sum + f.size, 0);
 
@@ -234,17 +348,19 @@ export default function UploadZone({
     [onFilesAdded, uploading]
   );
 
-  const handleClick = useCallback(() => {
-    if (!uploading) {
-      inputRef.current?.click();
-    }
+  const openPickerMenu = useCallback(() => {
+    if (!uploading) setPickerMenuOpen(true);
   }, [uploading]);
 
-  const handleFolderClick = useCallback(() => {
-    if (!uploading) {
-      folderInputRef.current?.click();
-    }
-  }, [uploading]);
+  const pickFiles = useCallback(() => {
+    setPickerMenuOpen(false);
+    inputRef.current?.click();
+  }, []);
+
+  const pickFolder = useCallback(() => {
+    setPickerMenuOpen(false);
+    folderInputRef.current?.click();
+  }, []);
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -271,10 +387,10 @@ export default function UploadZone({
     (e: React.KeyboardEvent) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        handleClick();
+        openPickerMenu();
       }
     },
-    [handleClick]
+    [openPickerMenu]
   );
 
   const hasFiles = files.length > 0;
@@ -309,12 +425,16 @@ export default function UploadZone({
         <div
           role="button"
           tabIndex={0}
-          onClick={handleClick}
+          // When the menu is open, the doc-level pointerdown listener
+          // closes it; we suppress onClick here so the trigger doesn't
+          // immediately reopen on the same gesture.
+          onClick={pickerMenuOpen ? undefined : openPickerMenu}
           onKeyDown={handleKeyDown}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={cn(
+            "relative",
             "flex flex-col items-center justify-center gap-3",
             "min-h-[160px] p-6",
             "rounded-[var(--radius-xl)]",
@@ -326,7 +446,7 @@ export default function UploadZone({
               : "border-[var(--upload-zone-border)] hover:border-nigerian-green/50",
             uploading && "opacity-50 pointer-events-none"
           )}
-          aria-label="Drop files here or click to select files for upload"
+          aria-label="Drop files or a folder here, or click to choose"
         >
           {/* Plus icon */}
           <div
@@ -355,28 +475,23 @@ export default function UploadZone({
           <div className="text-center">
             <p className="text-body font-medium text-[var(--text-primary)]">
               <span className="hidden md:inline">
-                Drag files or a folder here, or click to select
+                Drag files or a folder here, or click to choose
               </span>
-              <span className="md:hidden">Tap to select files</span>
+              <span className="md:hidden">Tap to add files or a folder</span>
             </p>
             <p className="text-body-sm text-[var(--text-muted)] mt-1">
               Up to {formatFileSize(maxFileSize)} per file
             </p>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleFolderClick();
-              }}
-              className={cn(
-                "text-body-sm font-medium text-nigerian-green",
-                "hover:underline mt-2 inline-flex items-center",
-                "min-h-[44px]"
-              )}
-            >
-              or select a folder
-            </button>
           </div>
+
+          {pickerMenuOpen && (
+            <PickerMenu
+              ref={menuRef}
+              onPickFiles={pickFiles}
+              onPickFolder={pickFolder}
+              className="top-[calc(50%+0.5rem)] left-1/2 -translate-x-1/2"
+            />
+          )}
         </div>
       )}
 
@@ -558,27 +673,27 @@ export default function UploadZone({
               {formatFileSize(totalSize)} total
             </p>
             {!uploading && (
-              <div className="flex items-center gap-3">
+              <div className="relative">
                 <button
-                  onClick={handleClick}
+                  onClick={pickerMenuOpen ? undefined : openPickerMenu}
+                  aria-haspopup="menu"
+                  aria-expanded={pickerMenuOpen}
                   className={cn(
                     "text-body-sm font-medium text-nigerian-green",
                     "hover:underline",
                     "min-h-[44px] inline-flex items-center"
                   )}
                 >
-                  + Add files
+                  + Add more
                 </button>
-                <button
-                  onClick={handleFolderClick}
-                  className={cn(
-                    "text-body-sm font-medium text-nigerian-green",
-                    "hover:underline",
-                    "min-h-[44px] inline-flex items-center"
-                  )}
-                >
-                  + Add folder
-                </button>
+                {pickerMenuOpen && (
+                  <PickerMenu
+                    ref={menuRef}
+                    onPickFiles={pickFiles}
+                    onPickFolder={pickFolder}
+                    className="right-0 top-full mt-1"
+                  />
+                )}
               </div>
             )}
           </div>
