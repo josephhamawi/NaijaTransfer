@@ -105,6 +105,56 @@ async function readEntries(
   return [];
 }
 
+/**
+ * Group selected files by their top-level folder for display. Files
+ * whose relativePath has no slash render as individual rows; files
+ * inside a folder collapse into one folder row that summarizes the
+ * contents (count + total size). Insertion order is preserved so a
+ * folder appears where its first file landed, intermixed with any
+ * standalone files.
+ */
+type FileGroup =
+  | { kind: "file"; file: SelectedFile }
+  | {
+      kind: "folder";
+      name: string;
+      files: SelectedFile[];
+      totalSize: number;
+      hasOverSize: boolean;
+    };
+
+function groupFiles(files: SelectedFile[], maxFileSize: number): FileGroup[] {
+  const groups: FileGroup[] = [];
+  const folderIndex = new Map<string, number>();
+
+  for (const file of files) {
+    const slash = file.relativePath.indexOf("/");
+    if (slash === -1) {
+      groups.push({ kind: "file", file });
+      continue;
+    }
+    const folderName = file.relativePath.slice(0, slash);
+    const existing = folderIndex.get(folderName);
+    if (existing !== undefined) {
+      const g = groups[existing] as Extract<FileGroup, { kind: "folder" }>;
+      g.files.push(file);
+      g.totalSize += file.size;
+      if (file.size > maxFileSize) g.hasOverSize = true;
+    } else {
+      folderIndex.set(folderName, groups.length);
+      groups.push({
+        kind: "folder",
+        name: folderName,
+        files: [file],
+        totalSize: file.size,
+        hasOverSize: file.size > maxFileSize,
+      });
+    }
+  }
+
+  return groups;
+}
+
 async function collectFromDataTransfer(
   items: DataTransferItemList,
   fallbackFiles: FileList
@@ -338,7 +388,84 @@ export default function UploadZone({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
-          {files.map((file) => {
+          {groupFiles(files, maxFileSize).map((group) => {
+            if (group.kind === "folder") {
+              const fileWord = group.files.length === 1 ? "file" : "files";
+              return (
+                <div
+                  key={`folder-${group.name}`}
+                  className={cn(
+                    "flex items-center gap-3 p-3",
+                    "rounded-[var(--radius-md)]",
+                    "bg-[var(--bg-secondary)]",
+                    group.hasOverSize &&
+                      "border border-error-red/30 bg-[var(--error-bg)]"
+                  )}
+                >
+                  {/* Folder icon */}
+                  <div className="w-10 h-10 shrink-0 rounded-[var(--radius-sm)] flex items-center justify-center bg-green-50 dark:bg-green-900/20 text-nigerian-green">
+                    <svg
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+                    </svg>
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className="text-body-sm font-medium text-[var(--text-primary)] truncate"
+                      title={group.name}
+                    >
+                      {truncateFilename(group.name, 45)}
+                    </p>
+                    <p className="text-caption-style text-[var(--text-muted)]">
+                      {group.files.length} {fileWord} &middot;{" "}
+                      {formatFileSize(group.totalSize)}
+                    </p>
+                  </div>
+
+                  {!uploading && (
+                    <button
+                      onClick={() => {
+                        for (const f of group.files) onFileRemoved(f.id);
+                      }}
+                      className={cn(
+                        "flex items-center justify-center shrink-0",
+                        "w-9 h-9 min-w-[44px] min-h-[44px]",
+                        "rounded-[var(--radius-sm)]",
+                        "text-[var(--text-muted)] hover:text-error-red",
+                        "hover:bg-red-50 dark:hover:bg-red-700/10",
+                        "transition-colors"
+                      )}
+                      aria-label={`Remove folder ${group.name}`}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M4 4l8 8M12 4l-8 8" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              );
+            }
+
+            const file = group.file;
             const category = getFileCategory(file.mimeType);
             const isOverSize = file.size > maxFileSize;
 
@@ -375,9 +502,9 @@ export default function UploadZone({
                 <div className="flex-1 min-w-0">
                   <p
                     className="text-body-sm font-medium text-[var(--text-primary)] truncate"
-                    title={file.relativePath}
+                    title={file.name}
                   >
-                    {truncateFilename(file.relativePath, 45)}
+                    {truncateFilename(file.name, 45)}
                   </p>
                   <p className="text-caption-style text-[var(--text-muted)]">
                     {formatFileSize(file.size)}
