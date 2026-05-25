@@ -3,6 +3,7 @@ import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/db";
+import { crmIdentify, crmTrack } from "@/lib/crm";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(db),
@@ -32,6 +33,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           user = await db.user.create({
             data: { email, name: email.split("@")[0] },
           });
+          // New email-OTP signup — mirror to CRM (no-op if CRM unset).
+          crmIdentify(user.id, { email: user.email, displayName: user.name, phone: user.phone });
+          crmTrack(user.id, "signup", { method: "email-otp" });
         }
         return { id: user.id, email: user.email, name: user.name, image: user.image };
       },
@@ -55,6 +59,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as unknown as Record<string, unknown>).tier = token.tier || "FREE";
       }
       return session;
+    },
+  },
+  events: {
+    // Fires when the Prisma adapter creates a user (e.g. Google sign-in).
+    // The email-OTP path creates users directly, so it's tracked there instead.
+    async createUser({ user }) {
+      crmIdentify(user.id, { email: user.email, displayName: user.name });
+      crmTrack(user.id, "signup", { method: "oauth" });
     },
   },
 });

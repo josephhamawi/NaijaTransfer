@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyPaystackWebhook } from "@/lib/paystack";
 import { db } from "@/lib/db";
+import { crmIdentify, crmTrack } from "@/lib/crm";
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,6 +44,15 @@ export async function POST(request: NextRequest) {
             where: { paystackRef: data.reference },
             data: { status: "SUCCESS" },
           });
+
+          // Mirror the paid conversion to the CRM (no-op if CRM unset).
+          crmIdentify(metadata.userId, { email: data.customer?.email });
+          crmTrack(metadata.userId, "payment_completed", {
+            amount: typeof data.amount === "number" ? data.amount / 100 : data.amount,
+            currency: data.currency ?? "NGN",
+            tier: metadata.tier,
+            reference: data.reference,
+          });
         }
         break;
       }
@@ -62,6 +72,12 @@ export async function POST(request: NextRequest) {
       case "subscription.disable": {
         const sub = data.subscription_code ?? data.code;
         if (sub) {
+          // Capture affected users before clearing the sub code (for CRM churn tracking).
+          const churned = await db.user.findMany({
+            where: { paystackSubCode: sub },
+            select: { id: true },
+          });
+
           await db.user.updateMany({
             where: { paystackSubCode: sub },
             data: {
@@ -70,6 +86,10 @@ export async function POST(request: NextRequest) {
               planEndDate: new Date(),
             },
           });
+
+          for (const u of churned) {
+            crmTrack(u.id, "subscription_cancelled", { subscriptionCode: sub, reason: eventType });
+          }
         }
         break;
       }

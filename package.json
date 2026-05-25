@@ -16,6 +16,7 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "crm:backfill-users": "tsx scripts/crm-backfill-users.ts",
     "test": "vitest",
     "test:run": "vitest run"
   },
