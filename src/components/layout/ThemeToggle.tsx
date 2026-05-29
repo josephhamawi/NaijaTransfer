@@ -76,8 +76,9 @@ export function ThemeToggle({ className }: { className?: string }) {
         "flex items-center justify-center",
         "w-11 h-11 min-w-[44px] min-h-[44px]",
         "rounded-[var(--radius-md)]",
-        "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
-        "hover:bg-charcoal-50 dark:hover:bg-charcoal-600/50",
+        // Lives inside the always-dark header bar, so use light colors in both
+        // themes — theme tokens would render dark-on-dark (invisible) in light mode.
+        "text-white/60 hover:text-white hover:bg-white/10",
         "transition-colors duration-150",
         className
       )}
