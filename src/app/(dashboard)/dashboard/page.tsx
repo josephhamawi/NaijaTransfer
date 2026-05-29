@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { useToast } from "@/contexts/ToastContext";
 import { Badge } from "@/components/ui/Badge";
 import { formatBytes } from "@/lib/utils";
+import { authFetch } from "@/lib/api-client";
+import { onAuthChange } from "@/lib/firebase";
 
 interface Transfer {
   id: string;
@@ -25,8 +27,15 @@ export default function DashboardPage() {
   const [storage, setStorage] = useState<{ usedFormatted: string; maxFormatted: string; percentage: number; tier: string } | null>(null);
 
   useEffect(() => {
-    fetch("/api/user/transfers").then(r => r.json()).then(d => setTransfers(d.data?.transfers ?? [])).catch(() => {});
-    fetch("/api/user/storage").then(r => r.json()).then(d => setStorage(d.data ?? null)).catch(() => {});
+    // Wait for Firebase to restore the signed-in user before calling the
+    // authed API — otherwise getIdToken() returns null on first paint and the
+    // requests 401. onAuthChange fires once auth state is known.
+    const unsub = onAuthChange((user) => {
+      if (!user) return;
+      authFetch("/api/user/transfers").then(r => r.json()).then(d => setTransfers(d.data?.transfers ?? [])).catch(() => {});
+      authFetch("/api/user/storage").then(r => r.json()).then(d => setStorage(d.data ?? null)).catch(() => {});
+    });
+    return () => unsub();
   }, []);
 
   return (

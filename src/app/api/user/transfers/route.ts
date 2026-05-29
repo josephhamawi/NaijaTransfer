@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserTransfers } from "@/services/transfer.service";
+import { getAuthUser } from "@/lib/auth-api";
 
 export async function GET(request: NextRequest) {
   try {
-    // TODO: Wire up auth - const session = await getServerSession(authOptions);
-    const userId = request.headers.get("x-user-id");
+    const authUser = await getAuthUser(request);
+    const userId = authUser?.id;
     if (!userId) {
       return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
     }

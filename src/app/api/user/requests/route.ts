@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { getAuthUser } from "@/lib/auth-api";
 import { generateShortCode } from "@/lib/nanoid";
 
 const createSchema = z.object({
@@ -10,7 +11,8 @@ const createSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-user-id");
+    const authUser = await getAuthUser(request);
+    const userId = authUser?.id;
     if (!userId) {
       return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
     }
@@ -40,7 +42,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-user-id");
+    const authUser = await getAuthUser(request);
+    const userId = authUser?.id;
     if (!userId) {
       return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
     }
