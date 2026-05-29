@@ -62,6 +62,9 @@ export async function POST(request: NextRequest) {
       path: "/transaction/initialize",
       body: {
         email: user.email,
+        // Paystack's /transaction/initialize requires `amount` (in kobo) even
+        // when a `plan` is attached — omitting it returns "Invalid Amount Sent".
+        amount: parsed.data.plan === "PRO" ? PRICING.PRO.amountKobo : PRICING.BUSINESS.amountKobo,
         plan: planCode,
         callback_url: callbackUrl,
         metadata: { userId: user.id, tier: parsed.data.plan },
