@@ -75,12 +75,37 @@ function SubscriptionPageInner() {
       const data = await res.json();
       if (!res.ok) {
         toast.error("Upgrade failed", data.error?.message || "Please try again.");
+        setUpgrading(null);
         return;
       }
-      window.location.href = data.data.checkoutUrl;
+
+      const { accessCode, checkoutUrl } = data.data || {};
+
+      if (accessCode) {
+        // Open Paystack's inline popup overlay on our own page (branded),
+        // instead of redirecting away to the hosted checkout.
+        const { default: PaystackPop } = await import("@paystack/inline-js");
+        const popup = new PaystackPop();
+        popup.resumeTransaction(accessCode, {
+          onSuccess: () => {
+            // Activation happens via the Paystack webhook; just surface success.
+            window.location.href = "/dashboard/subscription?subscribed=true";
+          },
+          onCancel: () => setUpgrading(null),
+          onError: (e) => {
+            toast.error("Payment error", e?.message || "Please try again.");
+            setUpgrading(null);
+          },
+        });
+      } else if (checkoutUrl) {
+        // Fallback to the hosted page if no access code came back.
+        window.location.href = checkoutUrl;
+      } else {
+        toast.error("Error", "Could not start checkout.");
+        setUpgrading(null);
+      }
     } catch {
       toast.error("Error", "Failed to start checkout.");
-    } finally {
       setUpgrading(null);
     }
   }

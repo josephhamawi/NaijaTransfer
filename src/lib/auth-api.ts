@@ -36,3 +36,24 @@ export async function getAuthUser(request: NextRequest): Promise<User | null> {
     return null;
   }
 }
+
+/**
+ * Verify the Firebase ID token and return the Firebase uid only.
+ *
+ * Use this for routes backed by Firestore (e.g. transfers), where records are
+ * keyed by the Firebase uid set at upload time — NOT the Prisma cuid that
+ * getAuthUser() returns. Mixing the two yields empty results.
+ */
+export async function getAuthUid(request: NextRequest): Promise<string | null> {
+  try {
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) return null;
+
+    ensureInitialized();
+    const decoded = await getAuth().verifyIdToken(authHeader.slice(7));
+    return decoded.uid;
+  } catch (error) {
+    console.error("Auth verification error:", error);
+    return null;
+  }
+}

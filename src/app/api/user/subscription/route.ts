@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     const callbackUrl = parsed.data.callbackUrl ?? `${process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL}/dashboard/subscription?subscribed=true`;
 
     const result = await paystackRequest<{
-      data: { authorization_url: string; reference: string };
+      data: { authorization_url: string; access_code: string; reference: string };
     }>({
       method: "POST",
       path: "/transaction/initialize",
@@ -82,7 +82,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ data: { checkoutUrl: result.data.authorization_url, reference: result.data.reference } });
+    return NextResponse.json({
+      data: {
+        checkoutUrl: result.data.authorization_url,
+        accessCode: result.data.access_code,
+        reference: result.data.reference,
+      },
+    });
   } catch (error) {
     console.error("Subscription create error:", error);
     return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "Failed to create subscription" } }, { status: 500 });

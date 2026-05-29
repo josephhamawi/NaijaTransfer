@@ -17,6 +17,10 @@ model User {
   phone              String?   @unique
   phoneVerified      DateTime?
   name               String?
+  firstName          String?
+  lastName           String?
+  username           String?   @unique
+  hearAboutUs        String?
   image              String?
   tier               String    @default("FREE") // FREE | PRO | BUSINESS
   planStartDate      DateTime?

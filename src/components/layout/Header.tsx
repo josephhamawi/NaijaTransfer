@@ -64,11 +64,12 @@ export default function Header({ className }: HeaderProps) {
             {isAuthenticated ? (
               <div className="flex items-center gap-1">
                 <Link
-                  href="/dashboard"
+                  href="/dashboard/profile"
+                  aria-label="Your profile"
                   className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-white/80 hover:text-white transition-colors"
                 >
                   <span className="w-7 h-7 rounded-full bg-nigerian-green text-white flex items-center justify-center text-xs font-bold">
-                    {userName?.[0]?.toUpperCase() || "U"}
+                    {userName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U"}
                   </span>
                 </Link>
                 <button
@@ -136,7 +137,10 @@ export default function Header({ className }: HeaderProps) {
           <MobileNavLink href="/about" onClick={() => setMobileMenuOpen(false)}>About</MobileNavLink>
           <MobileNavLink href="/docs/api" onClick={() => setMobileMenuOpen(false)}>API Docs</MobileNavLink>
           {isAuthenticated ? (
-            <MobileNavLink href="/dashboard" onClick={() => setMobileMenuOpen(false)}>Dashboard</MobileNavLink>
+            <>
+              <MobileNavLink href="/dashboard" onClick={() => setMobileMenuOpen(false)}>Dashboard</MobileNavLink>
+              <MobileNavLink href="/dashboard/profile" onClick={() => setMobileMenuOpen(false)}>Profile</MobileNavLink>
+            </>
           ) : (
             <MobileNavLink href="/login" onClick={() => setMobileMenuOpen(false)} highlight>Sign In</MobileNavLink>
           )}

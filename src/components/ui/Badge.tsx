@@ -12,7 +12,7 @@ export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 
 const variantClasses: Record<BadgeVariant, string> = {
   free: "bg-charcoal-50 text-charcoal-400 dark:bg-charcoal-600 dark:text-charcoal-100",
-  pro: "bg-green-50 text-nigerian-green border border-nigerian-green dark:bg-green-900/30 dark:text-green-100 dark:border-green-700",
+  pro: "bg-green-100 text-green-800 border border-nigerian-green dark:bg-green-900/40 dark:text-green-100 dark:border-green-600",
   business:
     "bg-gold-100 text-gold-600 border border-gold dark:bg-[var(--gold-bg)] dark:text-gold dark:border-gold-600",
   default:

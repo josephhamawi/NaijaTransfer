@@ -24,6 +24,7 @@
     "@auth/prisma-adapter": "^2.11.1",
     "@aws-sdk/client-s3": "^3.540.0",
     "@aws-sdk/s3-request-presigner": "^3.540.0",
+    "@paystack/inline-js": "^2.22.2",
     "@prisma/client": "^5.12.0",
     "@tus/server": "^1.4.0",
     "archiver": "^7.0.0",
