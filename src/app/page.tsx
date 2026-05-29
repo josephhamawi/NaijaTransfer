@@ -74,10 +74,10 @@ export default function HomePage() {
       </div>
 
       {/* Below-fold marketing — fully SSR */}
-      <div className="relative z-10 bg-charcoal-800 text-white border-t border-white/10">
+      <div className="relative z-10 bg-[var(--bg-primary)] text-[var(--text-primary)] border-t border-[var(--border-color)]">
         {/* How it works */}
         <section className="max-w-4xl mx-auto px-4 py-16">
-          <h2 className="text-h2 sm:text-h1 text-center mb-10 text-white">How it works</h2>
+          <h2 className="text-h2 sm:text-h1 text-center mb-10 text-[var(--text-primary)]">How it works</h2>
           <div className="grid gap-8 sm:grid-cols-3">
             <HowItWorksStep
               icon={
@@ -115,9 +115,9 @@ export default function HomePage() {
         </section>
 
         {/* Why NaijaTransfer */}
-        <section className="bg-charcoal-600/50 py-16">
+        <section className="bg-[var(--bg-secondary)] py-16">
           <div className="max-w-4xl mx-auto px-4">
-            <h2 className="text-h2 sm:text-h1 text-center mb-10 text-white">
+            <h2 className="text-h2 sm:text-h1 text-center mb-10 text-[var(--text-primary)]">
               Why NaijaTransfer?
             </h2>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -151,15 +151,15 @@ export default function HomePage() {
 
         {/* Pro waitlist — captures intent from visitors not ready to upload */}
         <section className="max-w-3xl mx-auto px-4 py-16">
-          <div className="rounded-[var(--radius-lg)] border border-white/10 bg-white/5 backdrop-blur-sm p-6 md:p-10 shadow-lg">
+          <div className="rounded-[var(--radius-lg)] border border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 md:p-10 shadow-lg">
             <div className="text-center mb-6">
               <p className="text-caption-style uppercase tracking-wide text-nigerian-green mb-3">
                 Coming soon
               </p>
-              <h2 className="text-h2 mb-2 text-white">
+              <h2 className="text-h2 mb-2 text-[var(--text-primary)]">
                 Pro is shipping in Naira.
               </h2>
-              <p className="text-body text-white/70">
+              <p className="text-body text-[var(--text-secondary)]">
                 Bigger transfers. Longer expiry. Custom branding. Cheaper
                 annual plans. Drop your email and we&apos;ll tell you when
                 it goes live.
@@ -173,9 +173,9 @@ export default function HomePage() {
 
         {/* For Business CTA */}
         <section className="max-w-4xl mx-auto px-4 pb-16 text-center">
-          <div className="max-w-lg mx-auto p-6 md:p-8 rounded-[var(--radius-lg)] border border-white/10 bg-white/5 backdrop-blur-sm shadow-lg">
-            <h2 className="text-h2 mb-2 text-white">For Businesses</h2>
-            <p className="text-body-sm text-white/60 mb-6">
+          <div className="max-w-lg mx-auto p-6 md:p-8 rounded-[var(--radius-lg)] border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-lg">
+            <h2 className="text-h2 mb-2 text-[var(--text-primary)]">For Businesses</h2>
+            <p className="text-body-sm text-[var(--text-secondary)] mb-6">
               50 GB per transfer. Custom branding on every download
               page. API access. Priority support. From NGN 10,000 a month.
             </p>
@@ -228,8 +228,8 @@ function HowItWorksStep({
       <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-nigerian-green/15 mb-4">
         {icon}
       </div>
-      <h3 className="text-h3 mb-2 text-white">{title}</h3>
-      <p className="text-body-sm text-white/60">{description}</p>
+      <h3 className="text-h3 mb-2 text-[var(--text-primary)]">{title}</h3>
+      <p className="text-body-sm text-[var(--text-secondary)]">{description}</p>
     </div>
   );
 }
@@ -263,10 +263,10 @@ function TrustSignal({
         </svg>
       </div>
       <div>
-        <h3 className="text-body font-semibold text-white">
+        <h3 className="text-body font-semibold text-[var(--text-primary)]">
           {title}
         </h3>
-        <p className="text-body-sm text-white/60">
+        <p className="text-body-sm text-[var(--text-secondary)]">
           {description}
         </p>
       </div>
