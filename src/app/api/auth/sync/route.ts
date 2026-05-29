@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { collection } from "@/lib/firebase-admin";
+import { crmIdentify, crmTrack } from "@/lib/crm";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,6 +13,7 @@ export async function POST(request: NextRequest) {
 
     const userRef = collection("users").doc(uid);
     const userDoc = await userRef.get();
+    const isNewUser = !userDoc.exists;
 
     if (userDoc.exists) {
       // Update existing user
@@ -31,6 +33,11 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date(),
       });
     }
+
+    // CRM tracking — fire-and-forget; silent no-op if CRM env is unset.
+    // Identify on every sync (keeps traits fresh); "signup" only for a new user.
+    crmIdentify(uid, { email, displayName: name });
+    if (isNewUser) crmTrack(uid, "signup", { method: "firebase" });
 
     const user = (await userRef.get()).data();
 
