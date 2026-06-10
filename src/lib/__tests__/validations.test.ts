@@ -26,8 +26,8 @@ describe("createTransferSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects more than 100 files", () => {
-    const files = Array.from({ length: 101 }, (_, i) => ({
+  it("rejects more than 1000 files", () => {
+    const files = Array.from({ length: 1001 }, (_, i) => ({
       name: `file${i}.txt`,
       size: 100,
       type: "text/plain",

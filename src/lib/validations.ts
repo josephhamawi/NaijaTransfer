@@ -35,7 +35,7 @@ export const transferSettingsSchema = z.object({
  * Create transfer request.
  */
 export const createTransferSchema = z.object({
-  files: z.array(fileMetadataSchema).min(1).max(100),
+  files: z.array(fileMetadataSchema).min(1).max(1000),
   settings: transferSettingsSchema.optional(),
 });
 

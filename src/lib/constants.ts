@@ -34,7 +34,7 @@ export const TRANSFER = {
   MAX_TITLE_LENGTH: 200,
 
   /** Maximum number of files per transfer */
-  MAX_FILES_PER_TRANSFER: 100,
+  MAX_FILES_PER_TRANSFER: 500,
 
   /** tus chunk size in bytes (5MB) */
   CHUNK_SIZE_BYTES: 5 * 1024 * 1024,

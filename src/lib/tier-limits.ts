@@ -25,7 +25,7 @@ export const TIER_LIMITS: Record<UserTier, TierLimits> = {
   FREE: {
     maxFileSizeBytes: 4 * 1024 * 1024 * 1024, // 4 GB per file
     maxTransferSizeBytes: 4 * 1024 * 1024 * 1024, // 4 GB total per transfer
-    maxFilesPerTransfer: 100,
+    maxFilesPerTransfer: 500,
     maxTotalStorageBytes: null,
     defaultExpiryDays: 7,
     maxExpiryDays: 7,
