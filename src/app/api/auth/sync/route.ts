@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { collection } from "@/lib/firebase-admin";
 import { crmIdentify, crmTrack } from "@/lib/crm";
+import { isOwnerEmail } from "@/lib/tier-limits";
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,11 +16,15 @@ export async function POST(request: NextRequest) {
     const userDoc = await userRef.get();
     const isNewUser = !userDoc.exists;
 
+    const owner = isOwnerEmail(email);
+
     if (userDoc.exists) {
       // Update existing user
       await userRef.update({
         ...(name && { name }),
         ...(image && { image }),
+        // Owner is always pinned to the OWNER tier.
+        ...(owner && { tier: "OWNER" }),
         updatedAt: new Date(),
       });
     } else {
@@ -28,7 +33,7 @@ export async function POST(request: NextRequest) {
         email,
         name: name || email.split("@")[0],
         image: image || null,
-        tier: "FREE",
+        tier: owner ? "OWNER" : "FREE",
         createdAt: new Date(),
         updatedAt: new Date(),
       });

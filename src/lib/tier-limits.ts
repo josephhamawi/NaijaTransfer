@@ -25,7 +25,7 @@ export const TIER_LIMITS: Record<UserTier, TierLimits> = {
   FREE: {
     maxFileSizeBytes: 4 * 1024 * 1024 * 1024, // 4 GB per file
     maxTransferSizeBytes: 4 * 1024 * 1024 * 1024, // 4 GB total per transfer
-    maxFilesPerTransfer: 500,
+    maxFilesPerTransfer: 100,
     maxTotalStorageBytes: null,
     defaultExpiryDays: 7,
     maxExpiryDays: 7,
@@ -61,7 +61,29 @@ export const TIER_LIMITS: Record<UserTier, TierLimits> = {
     showAds: false,
     uploadRatePerHour: 50,
   },
+  // Owner-only tier: no practical limits. Reserved for the app owner.
+  OWNER: {
+    maxFileSizeBytes: Number.MAX_SAFE_INTEGER,
+    maxTransferSizeBytes: Number.MAX_SAFE_INTEGER,
+    maxFilesPerTransfer: Number.MAX_SAFE_INTEGER,
+    maxTotalStorageBytes: null,
+    defaultExpiryDays: 30,
+    maxExpiryDays: Number.MAX_SAFE_INTEGER,
+    maxDownloadLimit: null,
+    defaultDownloadLimit: 10000,
+    dailyTransferLimit: Number.MAX_SAFE_INTEGER,
+    showAds: false,
+    uploadRatePerHour: Number.MAX_SAFE_INTEGER,
+  },
 };
+
+/** App owner email — always resolves to the OWNER tier, bypassing all limits. */
+export const OWNER_EMAIL = "joseph.hamawi.ng@gmail.com";
+
+/** True if the given email is the app owner. */
+export function isOwnerEmail(email: string | null | undefined): boolean {
+  return !!email && email.toLowerCase() === OWNER_EMAIL.toLowerCase();
+}
 
 /**
  * Get tier limits for a given user tier.
