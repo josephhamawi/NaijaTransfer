@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { cn, formatBytes, formatDuration, formatSpeed } from "@/lib/utils";
-import { TIER_LIMITS } from "@/lib/tier-limits";
+import { getTierLimits } from "@/lib/tier-limits";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Tabs, TabList, Tab, TabPanel } from "@/components/ui/Tabs";
@@ -29,7 +29,7 @@ type UploadState = "idle" | "uploading" | "success" | "error";
  */
 export default function UploadWidget() {
   const toast = useToast();
-  const { user } = useAuth();
+  const { user, tier } = useAuth();
   const [files, setFiles] = useState<SelectedFile[]>([]);
   const [settings, setSettings] = useState<TransferSettingsValues>({
     expiryDays: 7,
@@ -503,7 +503,8 @@ export default function UploadWidget() {
 
   const handleFilesAdded = useCallback(
     (newFiles: FileWithPath[]) => {
-      const limits = TIER_LIMITS.FREE;
+      const limits = getTierLimits(tier);
+      const planLabel = tier === "FREE" ? "the free plan" : `the ${tier} plan`;
 
       setFiles((prev) => {
         const currentCount = prev.length;
@@ -565,21 +566,21 @@ export default function UploadWidget() {
         if (rejectedTooMany > 0) {
           toast.warning(
             "Too many files",
-            `Transfers are capped at ${limits.maxFilesPerTransfer} files on the free plan. ${rejectedTooMany} not added.`
+            `Transfers are capped at ${limits.maxFilesPerTransfer} files on ${planLabel}. ${rejectedTooMany} not added.`
           );
         }
         if (rejectedTooLarge > 0) {
           const maxGB = (limits.maxTransferSizeBytes / 1024 ** 3).toFixed(0);
           toast.warning(
             "Transfer too big",
-            `Free-tier transfers are capped at ${maxGB}GB total. ${rejectedTooLarge} file(s) not added.`
+            `Transfers on ${planLabel} are capped at ${maxGB}GB total. ${rejectedTooLarge} file(s) not added.`
           );
         }
 
         return [...prev, ...accepted];
       });
     },
-    [toast]
+    [toast, tier]
   );
 
   const handleFileRemoved = useCallback((fileId: string) => {
@@ -715,9 +716,9 @@ export default function UploadWidget() {
         <TransferSettings
           values={settings}
           onChange={setSettings}
-          maxExpiryDays={7}
-          maxDownloadLimit={50}
-          tier="free"
+          maxExpiryDays={Math.min(getTierLimits(tier).maxExpiryDays, 60)}
+          maxDownloadLimit={getTierLimits(tier).maxDownloadLimit}
+          tier={tier === "FREE" ? "free" : tier === "PRO" ? "pro" : "business"}
         />
       </div>
 
