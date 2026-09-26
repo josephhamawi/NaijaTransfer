@@ -83,6 +83,16 @@ if [[ -d "$PREV_STATIC" ]]; then
   cp -rn "$PREV_STATIC/." "$APP_DIR/.next/static/" || true
 fi
 
+# ── Bucket CORS for direct browser uploads ───────────────────────────
+# /api/upload/file/batch-init hands the browser signed PUT URLs so bytes
+# go straight into the bucket instead of through this box. That only
+# works if the bucket advertises our origin, and the policy lives on the
+# bucket rather than in the repo — so push it every deploy (idempotent).
+# If it fails, batch-init detects the missing policy and uploads fall
+# back to the proxy path, so this must never break a deploy.
+echo "==> Applying storage CORS policy"
+npm run storage:cors || echo "!! storage CORS not applied — uploads will use the proxy path"
+
 # Update Caddy if the committed Caddyfile changed on disk. Validate the
 # candidate config BEFORE copying so we never leave /etc/caddy/Caddyfile
 # in a state Caddy refuses to load (e.g. a directive whose plugin isn't

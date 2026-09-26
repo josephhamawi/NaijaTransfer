@@ -17,6 +17,7 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "crm:backfill-users": "tsx scripts/crm-backfill-users.ts",
+    "storage:cors": "tsx scripts/set-storage-cors.ts",
     "test": "vitest",
     "test:run": "vitest run"
   },

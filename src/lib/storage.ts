@@ -106,3 +106,149 @@ export function getFileStream(key: string) {
 export async function checkStorageHealth(): Promise<boolean> {
   try { await bucket().getMetadata(); return true; } catch { return false; }
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Direct-to-storage (browser → GCS) upload support.
+//
+// The old path pushed every byte through the Next.js box: browser →
+// Caddy (Hetzner) → Node → GCS resumable session. That is two WAN legs
+// for the same bytes, a single-threaded Node process in the middle, and
+// a GCS *resumable* session (extra round trips) even for a 40 KB file.
+//
+// These helpers let the API hand the browser a short-lived signed PUT
+// URL so the bytes take one hop straight into the bucket — the same
+// shape WeTransfer/Dropbox use (presigned direct-to-object-storage).
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * V4-signed PUT URL for `key`. The client MUST send exactly
+ * `Content-Type: <contentType>` or GCS rejects the signature.
+ *
+ * Returns null when the runtime has no signing key (e.g. ADC-only
+ * local dev) so callers can fall back to the proxy upload path
+ * instead of failing the upload.
+ */
+export async function getSignedUploadUrl(
+  key: string,
+  contentType: string,
+  expiresInMs: number = 12 * 60 * 60 * 1000
+): Promise<string | null> {
+  try {
+    const [url] = await bucket().file(key).getSignedUrl({
+      version: "v4",
+      action: "write",
+      expires: Date.now() + expiresInMs,
+      contentType,
+    });
+    return url;
+  } catch (err) {
+    console.error("getSignedUploadUrl failed:", err);
+    return null;
+  }
+}
+
+/** Size in bytes of an object, or null when it doesn't exist. */
+export async function getObjectSize(key: string): Promise<number | null> {
+  try {
+    const [meta] = await bucket().file(key).getMetadata();
+    return Number(meta.size ?? 0);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Part numbers already present under a multipart upload's part prefix.
+ * One list call replaces the per-chunk Firestore `arrayUnion` write the
+ * proxy path used to do, so resume costs a single round trip.
+ */
+export async function listUploadedParts(partPrefix: string): Promise<number[]> {
+  try {
+    const [files] = await bucket().getFiles({ prefix: partPrefix });
+    return files
+      .map((f) => Number(f.name.slice(partPrefix.length)))
+      .filter((n) => Number.isInteger(n) && n >= 1)
+      .sort((a, b) => a - b);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Compose any number of part objects into one destination.
+ *
+ * GCS `compose` accepts at most 32 sources per call, so wide uploads
+ * are composed in tiers: groups of 32 into scratch objects, then the
+ * scratch objects into the destination. Compose is a metadata-level
+ * operation server-side — no bytes move across the network.
+ */
+export async function composeMany(
+  destinationKey: string,
+  sourceKeys: string[],
+  contentType: string
+): Promise<string> {
+  const MAX_SOURCES = 32;
+  if (sourceKeys.length <= MAX_SOURCES) {
+    return composeFiles(destinationKey, sourceKeys, contentType);
+  }
+
+  const b = bucket();
+  const scratch: string[] = [];
+  for (let i = 0; i < sourceKeys.length; i += MAX_SOURCES) {
+    const group = sourceKeys.slice(i, i + MAX_SOURCES);
+    const scratchKey = `${destinationKey}.compose-${String(
+      i / MAX_SOURCES
+    ).padStart(4, "0")}`;
+    await b.combine(
+      group.map((k) => b.file(k)),
+      b.file(scratchKey)
+    );
+    scratch.push(scratchKey);
+  }
+
+  try {
+    await composeMany(destinationKey, scratch, contentType);
+  } finally {
+    await Promise.allSettled(scratch.map((k) => deleteFile(k)));
+  }
+  return destinationKey;
+}
+
+/**
+ * Whether the bucket's CORS policy actually permits a browser PUT from
+ * `origin`. Gating the direct path on the live bucket config means a
+ * bucket that hasn't had `npm run storage:cors` applied degrades to the
+ * proxy upload instead of throwing CORS errors at every user.
+ *
+ * Cached for 5 minutes — this sits on the hot path of every upload.
+ */
+let corsCache: { at: number; origins: Record<string, boolean> } | null = null;
+
+export async function isDirectUploadAllowed(origin: string): Promise<boolean> {
+  const now = Date.now();
+  if (corsCache && now - corsCache.at < 5 * 60 * 1000) {
+    if (origin in corsCache.origins) return corsCache.origins[origin];
+  } else {
+    corsCache = { at: now, origins: {} };
+  }
+
+  let ok = false;
+  try {
+    const [meta] = await bucket().getMetadata();
+    const rules = (meta.cors ?? []) as Array<{
+      origin?: string[];
+      method?: string[];
+    }>;
+    ok = rules.some(
+      (r) =>
+        (r.origin ?? []).some((o) => o === "*" || o === origin) &&
+        (r.method ?? []).some((m) => m === "*" || m.toUpperCase() === "PUT")
+    );
+  } catch (err) {
+    console.error("CORS probe failed:", err);
+    ok = false;
+  }
+
+  corsCache.origins[origin] = ok;
+  return ok;
+}

@@ -10,7 +10,7 @@ import type { FileDoc } from "./transfer.service";
  * path on extract) while preserving folder structure for legitimate
  * uploads like "MyFolder/sub/file.txt".
  */
-function safeRelativePath(input: string): string {
+export function safeRelativePath(input: string): string {
   const cleaned = input
     .replace(/\\/g, "/")
     .split("/")
@@ -42,18 +42,18 @@ export async function createFile(
     createdAt: new Date(),
   };
 
-  await ref.set(file);
-
-  // Mirror the authoritative uploadedSizeBytes counter into
-  // totalSizeBytes for backward-compat with read paths that still use it.
-  // The actual source of truth is the transfer doc counters maintained
-  // transactionally by /api/upload/file.
-  const transferSnap = await collection("transfers").doc(transferId).get();
-  const uploadedBytes =
-    (transferSnap.data()?.uploadedSizeBytes as number | undefined) ?? 0;
-  await collection("transfers").doc(transferId).update({
-    totalSizeBytes: uploadedBytes,
-  });
+  // totalSizeBytes tracks bytes that actually landed in storage, so it
+  // grows by this file's size. (It used to be *set* to the transfer's
+  // reserved uploadedSizeBytes, which required an extra read of the
+  // transfer doc on every single file and counted bytes that were still
+  // in flight.) Both writes go out together — one round trip, not three.
+  const { FieldValue } = await import("firebase-admin/firestore");
+  await Promise.all([
+    ref.set(file),
+    collection("transfers").doc(transferId).update({
+      totalSizeBytes: FieldValue.increment(data.sizeBytes),
+    }),
+  ]);
 
   return { ...file, id: ref.id };
 }

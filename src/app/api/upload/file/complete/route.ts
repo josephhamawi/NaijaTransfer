@@ -45,7 +45,12 @@ export async function POST(request: NextRequest) {
   const upload = uploadSnap.data()!;
 
   const sanitizedName = String(upload.fileName).replace(/[^a-zA-Z0-9._-]/g, "_");
-  const finalKey = `transfers/${upload.transferId}/${upload.fileId}/${sanitizedName}`;
+  // Sessions minted by /batch-init carry the destination they were
+  // planned against. Prefer it so a session that falls back from the
+  // direct path to this proxy path still lands on the same object.
+  const finalKey =
+    (upload.finalKey as string | undefined) ??
+    `transfers/${upload.transferId}/${upload.fileId}/${sanitizedName}`;
 
   const partKeys: string[] = [];
   for (let i = 1; i <= upload.partCount; i++) {

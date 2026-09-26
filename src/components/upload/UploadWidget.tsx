@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn, formatBytes, formatDuration, formatSpeed } from "@/lib/utils";
 import { getTierLimits } from "@/lib/tier-limits";
 import { Card } from "@/components/ui/Card";
@@ -17,6 +17,7 @@ import TransferSettings, {
 import BandwidthEstimator from "@/components/upload/BandwidthEstimator";
 import { useToast } from "@/contexts/ToastContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { runUpload, type StoredSession } from "@/lib/upload-client";
 
 let fileIdCounter = 0;
 
@@ -52,18 +53,59 @@ export default function UploadWidget() {
   const uploadAbortController = useRef<AbortController | null>(null);
   const cancelRequested = useRef(false);
   const transferStartTime = useRef<number | null>(null);
-  const resumeSessions = useRef<
-    Map<
-      string,
-      {
-        transferId: string;
-        shortCode: string;
-        uploadId: string;
-        partCount: number;
-        partSize: number;
-      }
-    >
-  >(new Map());
+  /** Survives a failed attempt so "Try again" resumes instead of restarting. */
+  const resumeSessions = useRef<Map<string, StoredSession>>(new Map());
+  const activeTransfer = useRef<{
+    transferId: string;
+    shortCode: string;
+  } | null>(null);
+
+  // Progress lands in refs on every XHR event and is flushed to React
+  // state on a timer. With eight parts in flight the browser emits
+  // progress events far faster than the UI can usefully repaint, and a
+  // setState per event was re-rendering the whole card dozens of times
+  // a second — work that competes with the upload itself.
+  const progressRef = useRef({ bytes: 0, total: 0 });
+  const speedRef = useRef({ time: 0, bytes: 0, smoothed: 0 });
+  const flushTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopProgressFlush = useCallback(() => {
+    if (flushTimer.current) {
+      clearInterval(flushTimer.current);
+      flushTimer.current = null;
+    }
+  }, []);
+
+  const startProgressFlush = useCallback(
+    (totalBytes: number) => {
+      progressRef.current = { bytes: 0, total: totalBytes };
+      speedRef.current = { time: Date.now(), bytes: 0, smoothed: 0 };
+      stopProgressFlush();
+      flushTimer.current = setInterval(() => {
+        const { bytes, total } = progressRef.current;
+        setBytesUploaded(bytes);
+        setUploadProgress(total > 0 ? Math.min(100, (bytes / total) * 100) : 0);
+
+        const now = Date.now();
+        const dt = (now - speedRef.current.time) / 1000;
+        if (dt >= 0.5) {
+          const instant = (bytes - speedRef.current.bytes) / dt;
+          const smoothed =
+            speedRef.current.smoothed === 0
+              ? instant
+              : speedRef.current.smoothed * 0.7 + instant * 0.3;
+          speedRef.current = { time: now, bytes, smoothed };
+          setUploadSpeed(smoothed);
+          setEtaSeconds(
+            smoothed > 0 ? Math.max(0, (total - bytes) / smoothed) : null
+          );
+        }
+      }, 250);
+    },
+    [stopProgressFlush]
+  );
+
+  useEffect(() => stopProgressFlush, [stopProgressFlush]);
 
   const totalSize = files.reduce((sum, f) => sum + f.size, 0);
 
@@ -86,101 +128,26 @@ export default function UploadWidget() {
       transferStartTime.current = Date.now();
     }
 
-    const fileKey = (f: SelectedFile) =>
-      `${f.relativePath}:${f.file.size}:${f.file.lastModified}`;
-
-    const waitForOnline = (maxWaitMs = 60_000) =>
-      new Promise<void>((resolve) => {
-        if (
-          typeof navigator === "undefined" ||
-          navigator.onLine !== false
-        ) {
-          resolve();
-          return;
-        }
-        const cleanup = () => {
-          clearTimeout(timer);
-          window.removeEventListener("online", onOnline);
-          abortSignal.removeEventListener("abort", onAbort);
-        };
-        const onOnline = () => {
-          cleanup();
-          resolve();
-        };
-        const onAbort = () => {
-          cleanup();
-          resolve();
-        };
-        const timer = setTimeout(() => {
-          cleanup();
-          resolve();
-        }, maxWaitMs);
-        window.addEventListener("online", onOnline);
-        abortSignal.addEventListener("abort", onAbort, { once: true });
-      });
-
     const totalBytes = files.reduce((s, f) => s + f.size, 0);
+    startProgressFlush(totalBytes);
 
-    let lastSampleTime = Date.now();
-    let lastSampleBytes = 0;
-    let smoothedSpeed = 0;
-
-    const reportProgress = (absBytes: number) => {
-      setBytesUploaded(absBytes);
-      setUploadProgress(
-        totalBytes > 0 ? Math.min(100, (absBytes / totalBytes) * 100) : 0
-      );
-
-      const now = Date.now();
-      const dt = (now - lastSampleTime) / 1000;
-      if (dt >= 0.25) {
-        const instant = (absBytes - lastSampleBytes) / dt;
-        smoothedSpeed =
-          smoothedSpeed === 0 ? instant : smoothedSpeed * 0.7 + instant * 0.3;
-        setUploadSpeed(smoothedSpeed);
-        setEtaSeconds(
-          smoothedSpeed > 0
-            ? Math.max(0, (totalBytes - absBytes) / smoothedSpeed)
-            : null
-        );
-        lastSampleTime = now;
-        lastSampleBytes = absBytes;
-      }
-    };
+    // Large bodies bypass Cloudflare's 100 MB request cap via the
+    // DNS-only upload subdomain. Only the proxy fallback needs it —
+    // direct uploads go to the bucket, not to us.
+    const uploadHost = window.location.hostname.endsWith("naijatransfer.com")
+      ? "https://upload.naijatransfer.com"
+      : "";
 
     try {
-      const recipientEmails = emailTo ? emailTo.split(",").map(e => e.trim()).filter(Boolean) : undefined;
+      const recipientEmails = emailTo
+        ? emailTo.split(",").map((e) => e.trim()).filter(Boolean)
+        : undefined;
 
-      let data: { transferId: string; shortCode: string } | null = null;
-
-      const uploadHost =
-        window.location.hostname.endsWith("naijatransfer.com")
-          ? "https://upload.naijatransfer.com"
-          : "";
-
-      if (files.length > 0) {
-        const firstSaved = resumeSessions.current.get(fileKey(files[0]));
-        if (firstSaved) {
-          try {
-            const probe = await fetch(
-              `${uploadHost}/api/upload/file/status?uploadId=${encodeURIComponent(firstSaved.uploadId)}`,
-              { signal: abortSignal }
-            );
-            if (probe.ok) {
-              data = {
-                transferId: firstSaved.transferId,
-                shortCode: firstSaved.shortCode,
-              };
-            } else {
-              resumeSessions.current.clear();
-            }
-          } catch {
-            // Ignore; fall through to fresh create
-          }
-        }
-      }
-
-      if (!data) {
+      // Reuse the transfer only when there are live sessions to resume
+      // against it; re-initialising files on a transfer that already
+      // reserved quota for them would double-count against the cap.
+      let transfer = activeTransfer.current;
+      if (!transfer || resumeSessions.current.size === 0) {
         resumeSessions.current.clear();
         const res = await fetch("/api/upload/create", {
           method: "POST",
@@ -202,241 +169,66 @@ export default function UploadWidget() {
           throw new Error(err.error?.message || "Failed to create transfer");
         }
 
-        data = (await res.json()).data;
+        const { data } = await res.json();
+        transfer = {
+          transferId: data.transferId as string,
+          shortCode: data.shortCode as string,
+        };
+        activeTransfer.current = transfer;
       }
 
-      if (!data) {
-        throw new Error("Failed to initialise transfer");
-      }
-      const transfer = data;
+      await runUpload({
+        transferId: transfer.transferId,
+        uploadHost,
+        targets: files.map((f) => ({
+          key: `${f.relativePath}:${f.file.size}:${f.file.lastModified}`,
+          file: f.file,
+          relativePath: f.relativePath,
+        })),
+        signal: abortSignal,
+        isCancelled: () => cancelRequested.current,
+        trackXhr: (xhr) => activeXhrs.current.add(xhr),
+        untrackXhr: (xhr) => activeXhrs.current.delete(xhr),
+        onProgress: (bytes) => {
+          progressRef.current.bytes = bytes;
+        },
+        onFinalizing: setIsFinalizing,
+        sessions: resumeSessions.current,
+      });
 
-      let priorFilesBytes = 0;
-      for (const selectedFile of files) {
-        const key = fileKey(selectedFile);
-        const saved = resumeSessions.current.get(key);
+      stopProgressFlush();
+      setBytesUploaded(totalBytes);
+      setUploadProgress(100);
 
-        let uploadId: string | undefined;
-        let partCount = 0;
-        let partSize = 0;
-        let completedChunks: number[] = [];
-
-        if (saved && saved.transferId === transfer.transferId) {
-          try {
-            const statusRes = await fetch(
-              `${uploadHost}/api/upload/file/status?uploadId=${encodeURIComponent(saved.uploadId)}`,
-              { signal: abortSignal }
-            );
-            if (statusRes.ok) {
-              const { data: status } = await statusRes.json();
-              uploadId = saved.uploadId;
-              partCount = saved.partCount;
-              partSize = saved.partSize;
-              completedChunks = Array.isArray(status.completedChunks)
-                ? (status.completedChunks as number[])
-                : [];
-            } else {
-              resumeSessions.current.delete(key);
-            }
-          } catch {
-            resumeSessions.current.delete(key);
-          }
-        }
-
-        if (!uploadId) {
-          const initRes = await fetch(
-            `${uploadHost}/api/upload/file/init?transferId=${encodeURIComponent(transfer.transferId)}`,
+      if (recipientEmails && recipientEmails.length > 0) {
+        try {
+          const notifyRes = await fetch(
+            `/api/transfer/${transfer.shortCode}/notify`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                // Send the relative path (e.g. "MyFolder/sub/file.txt") as
-                // fileName. The server preserves this verbatim as the file's
-                // originalName, which is what the ZIP download uses for entry
-                // paths — that's how folder structure survives the round-trip.
-                fileName: selectedFile.relativePath,
-                fileSize: selectedFile.file.size,
-                contentType:
-                  selectedFile.file.type || "application/octet-stream",
+                recipientEmails,
+                senderName: emailFrom || undefined,
               }),
-              signal: abortSignal,
             }
           );
-          if (!initRes.ok) {
-            const err = await initRes.json().catch(() => ({}));
-            throw new Error(
-              err.error?.message || `Failed to start ${selectedFile.name}`
-            );
-          }
-          const { data: initData } = await initRes.json();
-          uploadId = initData.uploadId as string;
-          partCount = initData.partCount as number;
-          partSize = initData.partSize as number;
-
-          resumeSessions.current.set(key, {
-            transferId: transfer.transferId,
-            shortCode: transfer.shortCode,
-            uploadId,
-            partCount,
-            partSize,
-          });
-        }
-
-        const fileStartBytes = priorFilesBytes;
-        const partLoaded = new Array(partCount).fill(0);
-        for (const n of completedChunks) {
-          if (n >= 1 && n <= partCount) {
-            const start = (n - 1) * partSize;
-            const end = Math.min(start + partSize, selectedFile.file.size);
-            partLoaded[n - 1] = end - start;
-          }
-        }
-        const sumLoaded = () =>
-          partLoaded.reduce((a: number, b: number) => a + b, 0);
-        reportProgress(fileStartBytes + sumLoaded());
-
-        const currentUploadId = uploadId;
-
-        const uploadPart = (partNumber: number) =>
-          new Promise<void>((resolve, reject) => {
-            const start = (partNumber - 1) * partSize;
-            const end = Math.min(
-              start + partSize,
-              selectedFile.file.size
-            );
-            const blob = selectedFile.file.slice(start, end);
-
-            const xhr = new XMLHttpRequest();
-            activeXhrs.current.add(xhr);
-            const cleanup = () => activeXhrs.current.delete(xhr);
-            xhr.open(
-              "POST",
-              `${uploadHost}/api/upload/file/chunk?uploadId=${encodeURIComponent(
-                currentUploadId
-              )}&chunkNumber=${partNumber}`
-            );
-            xhr.setRequestHeader(
-              "Content-Type",
-              selectedFile.file.type || "application/octet-stream"
-            );
-
-            xhr.upload.onprogress = (e) => {
-              if (!e.lengthComputable) return;
-              partLoaded[partNumber - 1] = e.loaded;
-              reportProgress(fileStartBytes + sumLoaded());
-            };
-            xhr.onload = () => {
-              cleanup();
-              if (xhr.status >= 200 && xhr.status < 300) {
-                partLoaded[partNumber - 1] = end - start;
-                reportProgress(fileStartBytes + sumLoaded());
-                resolve();
-                return;
-              }
-              if (xhr.status >= 500 || xhr.status === 0) {
-                reject(new Error(`network: HTTP ${xhr.status}`));
-                return;
-              }
-              let message = `Failed to upload part ${partNumber}`;
-              try {
-                const body = JSON.parse(xhr.responseText || "{}");
-                if (body?.error?.message) message = body.error.message;
-              } catch {}
-              reject(new Error(message));
-            };
-            xhr.onerror = () => {
-              cleanup();
-              reject(new Error("network error"));
-            };
-            xhr.onabort = () => {
-              cleanup();
-              reject(new Error("Upload cancelled"));
-            };
-            xhr.send(blob);
-          });
-
-        const uploadPartWithRetry = async (partNumber: number) => {
-          const MAX_ATTEMPTS = 6;
-          let lastError: unknown;
-          for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-            if (cancelRequested.current) {
-              throw new Error("Upload cancelled");
-            }
-            try {
-              await uploadPart(partNumber);
-              return;
-            } catch (err) {
-              lastError = err;
-              const msg = err instanceof Error ? err.message : "";
-              if (
-                cancelRequested.current ||
-                msg.includes("cancelled") ||
-                msg.includes("FILE_TOO_LARGE") ||
-                msg.includes("TRANSFER_TOO_LARGE") ||
-                msg.includes("TOO_MANY_FILES") ||
-                msg.includes("UPLOAD_NOT_FOUND")
-              ) {
-                throw err;
-              }
-              if (attempt === MAX_ATTEMPTS) throw err;
-              partLoaded[partNumber - 1] = 0;
-              reportProgress(fileStartBytes + sumLoaded());
-              await waitForOnline(60_000);
-              if (cancelRequested.current) {
-                throw new Error("Upload cancelled");
-              }
-              await new Promise((r) =>
-                setTimeout(
-                  r,
-                  1000 * Math.min(16, Math.pow(2, attempt - 1))
-                )
-              );
-            }
-          }
-          throw lastError;
-        };
-
-        const chunksToUpload: number[] = [];
-        for (let i = 1; i <= partCount; i++) {
-          if (!completedChunks.includes(i)) chunksToUpload.push(i);
-        }
-        await Promise.all(chunksToUpload.map(uploadPartWithRetry));
-
-        setIsFinalizing(true);
-        const completeRes = await fetch(
-          `${uploadHost}/api/upload/file/complete?uploadId=${encodeURIComponent(currentUploadId)}`,
-          { method: "POST", signal: abortSignal }
-        );
-        setIsFinalizing(false);
-        if (!completeRes.ok) {
-          const err = await completeRes.json().catch(() => ({}));
-          throw new Error(
-            err.error?.message || `Failed to finalize ${selectedFile.name}`
-          );
-        }
-
-        resumeSessions.current.delete(key);
-
-        priorFilesBytes += selectedFile.size;
-        reportProgress(priorFilesBytes);
-      }
-
-      if (recipientEmails && recipientEmails.length > 0) {
-        try {
-          const notifyRes = await fetch(`/api/transfer/${transfer.shortCode}/notify`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              recipientEmails,
-              senderName: emailFrom || undefined,
-            }),
-          });
           if (notifyRes.ok) {
-            toast.success("Email sent!", `Download link sent to ${recipientEmails.join(", ")}`);
+            toast.success(
+              "Email sent!",
+              `Download link sent to ${recipientEmails.join(", ")}`
+            );
           } else {
-            toast.warning("Transfer ready", "Files uploaded but email delivery failed. Share the link manually.");
+            toast.warning(
+              "Transfer ready",
+              "Files uploaded but email delivery failed. Share the link manually."
+            );
           }
         } catch {
-          toast.warning("Transfer ready", "Files uploaded but email could not be sent. Share the link manually.");
+          toast.warning(
+            "Transfer ready",
+            "Files uploaded but email could not be sent. Share the link manually."
+          );
         }
       } else {
         toast.success("Transfer complete!", "Your files are ready to share.");
@@ -446,6 +238,7 @@ export default function UploadWidget() {
         ? (Date.now() - transferStartTime.current) / 1000
         : 0;
       transferStartTime.current = null;
+      activeTransfer.current = null;
       setTransferResult({
         shortCode: transfer.shortCode,
         downloadUrl: `${window.location.origin}/d/${transfer.shortCode}`,
@@ -453,6 +246,7 @@ export default function UploadWidget() {
       });
       setUploadState("success");
     } catch (err) {
+      stopProgressFlush();
       if (cancelRequested.current) {
         return;
       }
@@ -462,20 +256,33 @@ export default function UploadWidget() {
       const resumeHint = hasResume
         ? " Click Try again to resume from where you left off."
         : "";
-      let friendly =
-        "Something went wrong. Please try again." + resumeHint;
-      if (raw.includes("DAILY_LIMIT")) friendly = "You've reached your daily transfer limit. Try again tomorrow or upgrade to Pro.";
-      else if (raw.includes("too large") || raw.includes("size")) friendly = "File is too large for your plan. Upgrade for bigger transfers.";
-      else if (raw.includes("network") || raw.includes("fetch")) friendly = "Connection lost. Check your internet and try again." + resumeHint;
+      let friendly = "Something went wrong. Please try again." + resumeHint;
+      if (raw.includes("DAILY_LIMIT"))
+        friendly =
+          "You've reached your daily transfer limit. Try again tomorrow or upgrade to Pro.";
+      else if (raw.includes("too large") || raw.includes("size"))
+        friendly = "File is too large for your plan. Upgrade for bigger transfers.";
+      else if (raw.includes("network") || raw.includes("fetch"))
+        friendly = "Connection lost. Check your internet and try again." + resumeHint;
 
       toast.error("Upload failed", friendly);
       setErrorMsg(friendly);
       setUploadState("error");
     }
-  }, [files, emailTo, emailFrom, settings, toast, user]);
+  }, [
+    files,
+    emailTo,
+    emailFrom,
+    settings,
+    toast,
+    user,
+    startProgressFlush,
+    stopProgressFlush,
+  ]);
 
   const handleCancel = useCallback(() => {
     cancelRequested.current = true;
+    stopProgressFlush();
 
     for (const xhr of activeXhrs.current) {
       try {
@@ -490,6 +297,7 @@ export default function UploadWidget() {
     uploadAbortController.current = null;
 
     resumeSessions.current.clear();
+    activeTransfer.current = null;
     transferStartTime.current = null;
 
     setUploadState("idle");
@@ -499,7 +307,7 @@ export default function UploadWidget() {
     setEtaSeconds(null);
     setIsFinalizing(false);
     setErrorMsg("");
-  }, []);
+  }, [stopProgressFlush]);
 
   const handleFilesAdded = useCallback(
     (newFiles: FileWithPath[]) => {
