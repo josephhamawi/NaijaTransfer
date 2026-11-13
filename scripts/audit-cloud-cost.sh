@@ -34,9 +34,24 @@ echo "── Cloud cost audit: $PROJECT ─────────────�
 # ── Cloud Run services (App Hosting backends show up here too) ──────
 echo
 echo "Cloud Run services:"
-services=$("${GC[@]}" run services list --format="value(metadata.name,metadata.labels.cloud\.googleapis\.com/location)" 2>/dev/null)
+# Bracket syntax for the label key. The dotted form
+# (metadata.labels.cloud\.googleapis\.com/location) is a projection
+# error, and with stderr discarded it produced an empty list — so the
+# audit reported "no services" and exited clean while an App Hosting
+# backend was running. Errors are captured and shown now rather than
+# silently becoming an all-clear.
+services=$("${GC[@]}" run services list \
+  --format="value(metadata.name,metadata.labels['cloud.googleapis.com/location'])" 2>&1)
+
+if echo "$services" | grep -q '^ERROR:'; then
+  echo "  ✗ could not list Cloud Run services — the audit is BLIND, not clean:"
+  echo "$services" | head -2 | sed 's/^/      /'
+  FINDINGS=$((FINDINGS + 1))
+  services=""
+fi
+
 if [ -z "$services" ]; then
-  echo "  (none, or the Cloud Run API is not enabled / not accessible)"
+  echo "  (none found — verify by hand if you expect a backend here)"
 else
   while read -r name region; do
     [ -z "$name" ] && continue
@@ -62,7 +77,13 @@ fi
 # ── Cloud Functions (gen2 are Cloud Run under the hood) ─────────────
 echo
 echo "Cloud Functions (gen2):"
-fns=$("${GC[@]}" functions list --format="value(name,serviceConfig.minInstanceCount)" 2>/dev/null)
+fns=$("${GC[@]}" functions list --format="value(name,serviceConfig.minInstanceCount)" 2>&1)
+if echo "$fns" | grep -q '^ERROR:'; then
+  echo "  ✗ could not list functions — blind, not clean:"
+  echo "$fns" | head -2 | sed 's/^/      /'
+  FINDINGS=$((FINDINGS + 1))
+  fns=""
+fi
 if [ -z "$fns" ]; then
   echo "  (none, or the API is not enabled / not accessible)"
 else
