@@ -14,6 +14,19 @@
 #   firebase apphosting:secrets:grantaccess paystack-secret --backend <id>
 # ─────────────────────────────────────────────────────────
 
+# Region note: App Hosting supports only asia-east1, asia-southeast1,
+# europe-west4, us-central1, us-east4 and us-east5 — europe-west3 is NOT
+# available, so the backend cannot sit in the same region as the storage
+# bucket. europe-west4 is the closest option and is inside the `eur3`
+# multi-region that Firestore uses, so Firestore traffic stays local.
+#
+# The cost of the mismatch is narrow: signed-URL downloads go straight
+# from the bucket to the user and never touch the backend. Only the
+# download-all zip path streams bytes through Cloud Run, and that pays
+# intra-continent inter-region egress (~$0.02/GB) on top. Moving the
+# bucket to europe-west4 would remove even that — it is empty today, so
+# it is as cheap to do as it will ever be.
+
 runConfig:
   minInstances: 0
   maxInstances: 2

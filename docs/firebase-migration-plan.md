@@ -88,7 +88,9 @@ Dropped entirely: PM2, Caddy, Postgres, Prisma, NextAuth, `server.js`, docker-co
 3. Enable APIs: `run`, `cloudbuild`, `firestore`, `secretmanager`, `cloudscheduler`, `firebasestorage`, `apphosting`.
 4. **Create a billing budget** with alerts at $5 / $20 / $50. Alerts notify only — they do not stop spend. The hard caps are `maxInstances` and tier download limits. (Not yet done: listing budgets needs the Cloud Billing Budget API enabled, which is a change to make deliberately rather than as a side effect of a check.)
 
-5. **Pin the App Hosting backend to europe-west3.** The bucket is in Frankfurt. GCS → Cloud Run traffic in the *same* region is free; across regions it is billed on top of the internet egress the user already pays for. The `download-all` zip path streams every byte through Cloud Run, so a backend in `us-central1` would pay twice for the same download.
+5. **App Hosting region: `europe-west4`.** An earlier note here said europe-west3, to match the bucket. That is not possible — App Hosting supports only `asia-east1`, `asia-southeast1`, `europe-west4`, `us-central1`, `us-east4`, `us-east5`. europe-west4 is the closest, and sits inside the `eur3` multi-region Firestore uses, so Firestore traffic stays local.
+
+   The bucket/backend mismatch costs little: signed-URL downloads go straight from the bucket to the user and never touch the backend. Only `download-all` streams through Cloud Run, paying intra-continent inter-region egress (~$0.02/GB) on top. The bucket is empty today, so relocating it to europe-west4 is as cheap as it will ever be if that path matters later.
 
 ### Phase 1 — Hosting on App Hosting (dual-run with Hetzner) — ✅ DONE (commit `afefbde`)
 
