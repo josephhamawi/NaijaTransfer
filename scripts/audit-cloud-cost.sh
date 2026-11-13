@@ -11,6 +11,13 @@
 # Usage:
 #   bash scripts/audit-cloud-cost.sh [project] [account]
 #
+# The account matters: project `naijatransfer` belongs to
+# kodefoundryatelier@gmail.com, not the gcloud default. Without it every
+# check returns "not accessible" and the audit looks clean when it is
+# simply blind.
+#
+#   bash scripts/audit-cloud-cost.sh naijatransfer kodefoundryatelier@gmail.com
+#
 # Exits non-zero if anything is billing while idle.
 # ─────────────────────────────────────────────────────────
 set -uo pipefail

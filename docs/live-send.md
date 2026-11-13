@@ -179,8 +179,7 @@ npm run test:rules
 
 ### Manual verification still needed
 
-1. **Cross-network transfer** — two devices on different ISPs (e.g. home fibre and MTN mobile data). This is the one thing no local test can establish, and it is the feature's main failure mode.
-2. **Enable Anonymous authentication** in the Firebase console (Authentication → Sign-in method). Without it, every claim fails and Live Send cannot work at all.
+1. **Cross-network transfer** — two devices on different ISPs (e.g. home fibre and MTN mobile data). This is the one thing no local test can establish, and it is the feature's main failure mode. **This is now the only hard blocker left before announcing the feature.**
 3. **Firestore rules in production** — the emulator suite passes locally; confirm the deployed rules match after `firebase deploy --only firestore:rules`.
 4. **Mobile behaviour** — backgrounding, screen lock, and the Blob fallback on iOS Safari.
 5. **Paid paths still work** — one Paystack checkout, one stored upload, one stored download.
@@ -196,7 +195,7 @@ npm run test:rules
 firebase deploy --only firestore:rules,storage --project naijatransfer
 ```
 
-2. **Enable Anonymous sign-in**: Firebase console → Authentication → Sign-in method → Anonymous → Enable. Live Send does not work without this.
+2. ✅ **Anonymous sign-in is enabled.** Verified against the live project on 2026-11-13 by calling `accounts:signUp` with the public web API key — the same call the recipient's browser makes — which returned a valid token. The throwaway account was deleted immediately afterwards with its own token.
 
 3. **Indexes**: none to add. The sweep queries one field (`joinExpiresAt`, and `updatedAt` on rate buckets), which Firestore indexes automatically. `firestore.indexes.json` is unchanged.
 

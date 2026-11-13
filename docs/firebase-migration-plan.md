@@ -71,12 +71,24 @@ Dropped entirely: PM2, Caddy, Postgres, Prisma, NextAuth, `server.js`, docker-co
 
 ## 2. Phases
 
-### Phase 0 — Access + safety net (blocking)
+### Phase 0 — Access + safety net
 
-1. `gcloud` here authenticates as `joseph.hamawi.ng@gmail.com`, which has **no permission on project `naijatransfer`** — `gcloud billing projects describe` and `gcloud services list` both return `PERMISSION_DENIED`, and the Cloud Run API is not enabled. Resolve the owning account or grant Owner before any deploy.
+1. ✅ **Resolved — it was the wrong account, not a missing permission.** The project belongs to **`kodefoundryatelier@gmail.com`**; `joseph.hamawi.ng@gmail.com` (the gcloud and firebase CLI default here, and the app's OWNER_EMAIL, which is a separate thing) cannot see it at all — it is absent from that account's project list, which reads as `PERMISSION_DENIED`.
+
+   Every CLI call against this project needs the account named explicitly:
+
+   ```bash
+   firebase <cmd> --account kodefoundryatelier@gmail.com --project naijatransfer
+   gcloud  <cmd> --account kodefoundryatelier@gmail.com --project naijatransfer
+   bash scripts/audit-cloud-cost.sh naijatransfer kodefoundryatelier@gmail.com
+   ```
+
+   Confirmed with that account: billing is enabled (`01201F-9286F4-69EE88`), and the storage bucket is in **europe-west3** (Frankfurt).
 2. `pg_dump` the live Postgres off the VM → local `.sql` + per-table JSON. Keep two copies off the box. This is the only source of users/payments/apiKeys/fileRequests.
 3. Enable APIs: `run`, `cloudbuild`, `firestore`, `secretmanager`, `cloudscheduler`, `firebasestorage`, `apphosting`.
-4. **Create a billing budget** with alerts at $5 / $20 / $50. Alerts notify only — they do not stop spend. The hard caps are `maxInstances` and tier download limits.
+4. **Create a billing budget** with alerts at $5 / $20 / $50. Alerts notify only — they do not stop spend. The hard caps are `maxInstances` and tier download limits. (Not yet done: listing budgets needs the Cloud Billing Budget API enabled, which is a change to make deliberately rather than as a side effect of a check.)
+
+5. **Pin the App Hosting backend to europe-west3.** The bucket is in Frankfurt. GCS → Cloud Run traffic in the *same* region is free; across regions it is billed on top of the internet egress the user already pays for. The `download-all` zip path streams every byte through Cloud Run, so a backend in `us-central1` would pay twice for the same download.
 
 ### Phase 1 — Hosting on App Hosting (dual-run with Hetzner) — ✅ DONE (commit `afefbde`)
 
