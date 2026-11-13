@@ -130,6 +130,7 @@ Collection layout (uid-keyed throughout):
 | `download_logs` | `transfers/{id}/downloads/{id}` + `downloadCount` increment on the transfer doc |
 | `fx_rates` | `fxRates/{pair}` — **one doc holding the points array**, not one doc per point |
 | `transfers`, `files` | already in Firestore; nothing to move |
+| — | `liveRooms/{id}` + `senderCandidates`/`recipientCandidates`, and `liveRateLimits/{bucket}` are new and already Firestore-native (Live Send). Nothing to migrate; they are listed so the rules and sweep are not forgotten |
 
 Code changes, file by file:
 
@@ -143,6 +144,12 @@ Code changes, file by file:
 - `src/services/storage-monitor.service.ts` (123 L) — aggregate from `users/{uid}.storageUsedBytes` counters.
 - `src/lib/username.ts` (30 L) — uniqueness via a `usernames/{lowercased}` reservation doc in a transaction (Firestore has no unique index).
 - Routes: `api/user/profile`, `api/user/storage`, `api/user/subscription`, `api/user/subscription/cancel`, `api/user/requests`, `api/user/requests/[id]`, `api/request/[code]`, `api/v1/transfers/[id]`, `api/webhooks/paystack` — swap `db.*` for Firestore. ~600 L total, all mechanical.
+- **New since Live Send** — three places now read `user.tier` from Postgres to decide whether storage is allowed. They are the entitlement gate, so they must move with the rest and must not be left reading a stale store:
+  - `api/v1/transfers/route.ts` — key owner's tier
+  - `api/user/requests/route.ts` — requester's tier
+  - `api/request/[code]/route.ts` — request **owner's** tier, checked at submit time
+
+  Note `/api/upload/create` already reads tier from Firestore `users/{uid}`, so the two stores currently disagree about who is paid. Phase 2's user remap is what resolves that; until then, treat Firestore as authoritative for uploads and Postgres for the three routes above.
 - `api/webhooks/paystack/route.ts` — keep signature verification unchanged; writes go to `users/{uid}` + payments subcollection. **Needs the email→uid lookup**, so it depends on the user remap landing first.
 
 Migration script `scripts/migrate-pg-to-firestore.ts`:
@@ -192,7 +199,9 @@ Delete the four API routes and `CRON_SECRET` once the functions are live.
 
 ## 2b. Unit economics — the constraint that changes the plan
 
-Requirement: *no cost until a paying user's payment covers it.* Measured against GCS pricing, current plan pricing does not satisfy that.
+> **Updated 2026-11-13, after Live Send shipped (commit `f3e2787`).** The free tier no longer creates stored transfers at all, so the half of this problem that had no revenue behind it is gone. The paid half is unchanged. See `docs/live-send.md`.
+
+Requirement: *no cost until a paying user's payment covers it.* Measured against GCS pricing, current plan pricing still does not satisfy that **for the paid plans**.
 
 Net revenue per subscriber (Paystack local cards: 1.5%, the ₦100 fee waived under ₦2,500; ≈ ₦1,550/USD):
 
@@ -220,7 +229,28 @@ Three ways to satisfy the requirement:
 | **B. Reprice** | PRO ₦2,000 → ~₦12,000–15,000, BUSINESS ₦10,000 → ~₦45,000 to cover 200 GB. | ~60% | Yes |
 | **C. Cut quotas** | PRO storage 50 GB → 8 GB, BUSINESS 200 GB → 40 GB, tighter download caps. | ~60% | Yes |
 
-Until one of these is chosen, `src/lib/egress.ts` is what prevents an open-ended bill: unpaid traffic shares a 50 GB/month pool (≈$6, under the €7.50 VM it replaces) and paid tiers carry per-user allowances. Those allowances are set above break-even deliberately — a 10 GB cap on a plan advertising 50 GB transfers is not sellable — so a heavy PRO user is still a small loss, bounded at about $12/month each.
+Until one of these is chosen, `src/lib/egress.ts` is what prevents an open-ended bill: paid tiers carry per-user allowances set deliberately above break-even — a 10 GB cap on a plan advertising 50 GB transfers is not sellable — so a heavy PRO user is still a bounded loss of about $12/month each.
+
+### What Live Send changed
+
+The free tier was the larger and more dangerous half of this problem, and it is now closed:
+
+| | Before Live Send | Now |
+|---|---|---|
+| Free transfer storage | GCS, $0.02/GB-month | none — nothing is stored |
+| Free transfer downloads | GCS egress, $0.12/GB | none — bytes go peer to peer |
+| Worst-case free abuse | 4 GB × 10 transfers/day × 50 downloads = **2 TB/day ≈ $240/day** per user | zero file egress; abuse is now bounded by Firestore signalling writes |
+| Free tier revenue covering it | none | none needed |
+
+The unpaid egress pool in `egress.ts` (`EGRESS_BUDGET_GB_MONTH`, default 50 GB) now serves exactly one thing: downloads of **free transfers created before the gate shipped**. Free transfers expire in at most 7 days, so that usage decays to structurally zero about a week after deploy. Nothing creates a new FREE-tier transfer document any more — `/api/upload/create`, `/api/upload/file/batch-init`, `/api/v1/transfers` and the file-request endpoints all refuse.
+
+Leave the pool in place as a safety net; it costs nothing when unused. Revisit the number only if a future feature reintroduces unpaid stored downloads.
+
+Anonymous recipients downloading a **paid** user's transfer are billed to that owner's per-user allowance, not the free pool — `checkEgressAllowed` reads tier and owner from the transfer document, so a PRO transfer stays on PRO's budget no matter who downloads it.
+
+### What is still open
+
+Only the paid plans. Options A, B and C above all still apply, and the decision is now narrower: it is a pricing question about Pro and Business, not a survival question about the free tier. Option A (R2 for file bytes) is still the only one that fixes margin without touching the price list or the advertised quotas.
 
 Note also what is **not** metered: preview thumbnails (`/api/transfer/[code]/preview/[fileId]`). Kilobytes per request, ignored on purpose.
 
@@ -235,19 +265,21 @@ Steady state at current traffic:
 | Firestore | ~$0 — 50 k reads / 20 k writes / 1 GiB free per day |
 | Secret Manager | ~$0.06/version/mo |
 | Scheduled functions | ~$0 — well inside the free tier |
-| Storage at rest | $0.020–0.026 per GB-month |
-| **Egress (downloads)** | **$0.12 per GB** |
+| Live Send signalling | ~$0 — a few hundred Firestore ops per session; scales with sessions, not bytes |
+| Storage at rest | $0.020–0.026 per GB-month, **paid plans only** |
+| **Egress (downloads)** | **$0.12 per GB, paid plans only** |
 
-| Monthly downloads | Egress bill |
+| Monthly downloads (paid transfers) | Egress bill |
 |---|---|
 | 50 GB | $6 |
 | 250 GB | $30 |
 | 1 TB | $120 |
 
-Hetzner included 20 TB of bandwidth; GCS includes none. Bytes already live on GCS today, so this is not a regression — but it is the one line item that grows with success instead of with revenue, and it is the reason the free tier needs hard download limits.
+Hetzner included 20 TB of bandwidth; GCS includes none. This is still the line item that grows fastest — but since Live Send it grows only with **paying** customers' downloads, which is the shape the business needs. Free usage no longer appears in this table at all.
 
 Controls, in order of effectiveness:
-1. Per-tier download caps + link expiry — already enforced in `tier-limits.ts`. Keep FREE tight.
+0. **Live Send** — free transfers generate no storage and no egress at all. Shipped.
+1. Per-tier download caps + link expiry — enforced in `tier-limits.ts` and `egress.ts`.
 2. `maxInstances: 2` — caps Cloud Run spend absolutely.
 3. GCS lifecycle deletion — caps storage-at-rest.
 4. Budget alerts at $5/$20/$50 — notification only.
@@ -259,7 +291,8 @@ Controls, in order of effectiveness:
 
 | Risk | Mitigation |
 |---|---|
-| Plans lose money per paying user (see §2b) | Pick option A, B or C; `egress.ts` bounds the loss until then |
+| Paid plans lose money per paying user (see §2b) | Pick option A, B or C; `egress.ts` bounds the loss until then. The free-tier half of this risk is closed by Live Send |
+| Two stores disagree on who is paid (Firestore vs Postgres `tier`) | Phase 2 user remap; until then Firestore governs uploads, Postgres the three gating routes listed in Phase 2 |
 | Account can't access the GCP project | Phase 0 blocker — resolve before anything else |
 | App Hosting runtime cannot sign V4 URLs → all uploads 503 | Grant the Cloud Run service account `roles/iam.serviceAccountTokenCreator` **on itself**; `batch-init` fails loudly with this exact cause in the log |
 | cuid → uid remap drops a paying subscriber | Dry-run diff; verify every user with a `paystackSubCode` by hand |
