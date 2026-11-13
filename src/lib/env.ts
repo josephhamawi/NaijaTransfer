@@ -24,13 +24,8 @@ const serverEnvSchema = z.object({
   PAYSTACK_PRO_PLAN_CODE: z.string().min(1),
   PAYSTACK_BUSINESS_PLAN_CODE: z.string().min(1),
 
-  // Cloudflare R2
-  R2_ACCOUNT_ID: z.string().min(1),
-  R2_ACCESS_KEY_ID: z.string().min(1),
-  R2_SECRET_ACCESS_KEY: z.string().min(1),
-  R2_BUCKET_NAME: z.string().min(1),
-  R2_BACKUP_BUCKET_NAME: z.string().min(1),
-  R2_PUBLIC_URL: z.string().min(1),
+  // Firebase Storage (files live in GCS; see src/lib/storage.ts)
+  FIREBASE_STORAGE_BUCKET: z.string().min(1),
 
   // Brevo (Email)
   BREVO_API_KEY: z.string().min(1),
@@ -45,8 +40,11 @@ const serverEnvSchema = z.object({
   CRON_SECRET: z.string().min(8),
   STORAGE_THRESHOLD_PERCENT: z.coerce.number().int().min(50).max(100).default(85),
   MAX_CONCURRENT_UPLOADS: z.coerce.number().int().min(1).max(100).default(10),
-  TUS_UPLOAD_DIR: z.string().min(1),
   APP_URL: z.string().url(),
+
+  // Cost guardrail: monthly ceiling, in GB, on egress served to unpaid
+  // traffic. See src/lib/egress.ts.
+  EGRESS_BUDGET_GB_MONTH: z.coerce.number().int().min(1).default(50),
 
   // Analytics (optional)
   UMAMI_URL: z.string().optional().default(""),

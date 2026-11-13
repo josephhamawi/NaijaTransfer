@@ -19,6 +19,25 @@ export interface TierLimits {
   dailyTransferLimit: number;
   showAds: boolean;
   uploadRatePerHour: number;
+  /**
+   * Monthly download (egress) allowance in GB, per user. null = unlimited.
+   *
+   * This is a COST limit, not a product limit. Google Cloud Storage bills
+   * ~$0.12 per GB downloaded, so this number times $0.12 is the most one
+   * account can cost per month. Free and anonymous traffic ignores this
+   * and shares one platform-wide pool instead (see src/lib/egress.ts).
+   *
+   * Break-even, for reference — net of Paystack fees (1.5%, ₦100 waived
+   * under ₦2,500) at roughly ₦1,550/USD:
+   *   PRO      ₦2,000/mo  → net ₦1,970  ≈ $1.27  → 10.5 GB at cost
+   *   BUSINESS ₦10,000/mo → net ₦9,750  ≈ $6.29  → 52 GB at cost
+   *
+   * The values below are deliberately ABOVE break-even because the
+   * alternative — a 10 GB monthly cap on a plan that advertises 50 GB
+   * transfers — is not a sellable product. That gap is a pricing
+   * problem, not a code problem. See docs/firebase-migration-plan.md.
+   */
+  monthlyEgressGb: number | null;
 }
 
 export const TIER_LIMITS: Record<UserTier, TierLimits> = {
@@ -34,6 +53,9 @@ export const TIER_LIMITS: Record<UserTier, TierLimits> = {
     dailyTransferLimit: 10,
     showAds: true,
     uploadRatePerHour: 10,
+    // Free users do not have a personal allowance — all unpaid traffic
+    // draws on the shared pool capped by EGRESS_BUDGET_GB_MONTH.
+    monthlyEgressGb: null,
   },
   PRO: {
     maxFileSizeBytes: 10 * 1024 * 1024 * 1024, // 10 GB per file
@@ -47,6 +69,9 @@ export const TIER_LIMITS: Record<UserTier, TierLimits> = {
     dailyTransferLimit: 100,
     showAds: false,
     uploadRatePerHour: 50,
+    // 100 GB ≈ $12/month of egress against ≈ $1.27 of net revenue.
+    // Underwater by design until pricing or storage vendor changes.
+    monthlyEgressGb: 100,
   },
   BUSINESS: {
     maxFileSizeBytes: 50 * 1024 * 1024 * 1024, // 50 GB per file
@@ -60,6 +85,8 @@ export const TIER_LIMITS: Record<UserTier, TierLimits> = {
     dailyTransferLimit: 500,
     showAds: false,
     uploadRatePerHour: 50,
+    // 500 GB ≈ $60/month of egress against ≈ $6.29 of net revenue.
+    monthlyEgressGb: 500,
   },
   // Owner-only tier: no practical limits. Reserved for the app owner.
   OWNER: {
@@ -74,6 +101,7 @@ export const TIER_LIMITS: Record<UserTier, TierLimits> = {
     dailyTransferLimit: Number.MAX_SAFE_INTEGER,
     showAds: false,
     uploadRatePerHour: Number.MAX_SAFE_INTEGER,
+    monthlyEgressGb: null,
   },
 };
 

@@ -6,18 +6,14 @@ const nextConfig = {
   // Skew protection: stamp every chunk request with the build's deployment ID
   // so clients loaded before a deploy hard-refresh instead of fetching dead
   // chunk hashes and hitting React hydration errors (#418/#423).
-  // BUILD_ID is injected by scripts/deploy.sh (git SHA); falls back to a
-  // timestamp in local dev so hot-reloads don't collide.
+  // BUILD_ID is injected by the build (App Hosting exposes the commit SHA);
+  // falls back to a timestamp in local dev so hot-reloads don't collide.
   generateBuildId: async () => process.env.BUILD_ID || `dev-${Date.now()}`,
   deploymentId: process.env.BUILD_ID || undefined,
 
   // Configure image optimization
   images: {
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "*.r2.cloudflarestorage.com",
-      },
       {
         protocol: "https",
         hostname: "*.googleusercontent.com",
@@ -62,12 +58,10 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
-  // Experimental features
-  experimental: {
-    serverActions: {
-      bodySizeLimit: "4gb",
-    },
-  },
+  // No large-body server actions: on Cloud Run (Firebase App Hosting) the
+  // request body cap is 32 MiB and not configurable. Bytes go browser →
+  // signed PUT → bucket and never pass through this process, so nothing
+  // needs a raised limit.
 };
 
 export default nextConfig;

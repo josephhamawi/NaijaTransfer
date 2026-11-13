@@ -131,13 +131,6 @@ export default function UploadWidget() {
     const totalBytes = files.reduce((s, f) => s + f.size, 0);
     startProgressFlush(totalBytes);
 
-    // Large bodies bypass Cloudflare's 100 MB request cap via the
-    // DNS-only upload subdomain. Only the proxy fallback needs it —
-    // direct uploads go to the bucket, not to us.
-    const uploadHost = window.location.hostname.endsWith("naijatransfer.com")
-      ? "https://upload.naijatransfer.com"
-      : "";
-
     try {
       const recipientEmails = emailTo
         ? emailTo.split(",").map((e) => e.trim()).filter(Boolean)
@@ -179,7 +172,6 @@ export default function UploadWidget() {
 
       await runUpload({
         transferId: transfer.transferId,
-        uploadHost,
         targets: files.map((f) => ({
           key: `${f.relativePath}:${f.file.size}:${f.file.lastModified}`,
           file: f.file,

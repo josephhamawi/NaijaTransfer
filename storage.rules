@@ -1,0 +1,22 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────
+// NigeriaTransfer — Cloud Storage security rules
+//
+// Uploads use V4-signed PUT URLs and downloads use V4-signed GET URLs,
+// both minted server-side by the Admin SDK. Signed URLs carry their own
+// authorization and are NOT evaluated against these rules, so denying
+// everything here costs the app nothing.
+//
+// What it buys: without this, a leaked storage key plus the public web
+// API key would let anyone enumerate or fetch other users' files
+// straight out of the bucket.
+// ─────────────────────────────────────────────────────────
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -17,10 +17,12 @@
  * small files almost all the wall time was round trips, which is why
  * "even small files" felt slow.
  *
- * If the bucket isn't configured for browser PUTs the server says so up
- * front (`direct: false`) and everything runs over the original proxy
- * endpoints instead. The engine also flips to the proxy on its own if
- * direct uploads fail and none has ever succeeded.
+ * Direct-to-bucket is the only path. The proxy upload endpoints were
+ * removed with the Hetzner VM: Cloud Run caps request bodies at 32 MiB,
+ * so a multi-GB file cannot stream through the app server on Firebase
+ * App Hosting. When the bucket refuses browser PUTs the upload fails
+ * with an explicit error instead of silently falling back to a route
+ * that no longer exists.
  */
 
 export interface UploadTarget {
@@ -41,8 +43,6 @@ export interface StoredSession {
 
 export interface RunUploadOptions {
   transferId: string;
-  /** Origin for proxy-path requests (the upload bypass subdomain in prod). */
-  uploadHost: string;
   targets: UploadTarget[];
   signal: AbortSignal;
   isCancelled: () => boolean;
@@ -57,17 +57,22 @@ export interface RunUploadOptions {
 
 /** Direct PUTs go to the bucket, a different origin from the app. */
 const DIRECT_CONCURRENCY = 8;
-/** Proxy PUTs land on our own box — keep well under the per-origin cap. */
-const PROXY_CONCURRENCY = 4;
 /** Files per batch-init call; matches MAX_FILES_PER_CALL on the server. */
 const INIT_BATCH = 64;
 /** Part URLs per just-in-time /sign call; matches MAX_URLS_PER_CALL. */
 const SIGN_BATCH = 128;
 const MAX_ATTEMPTS = 6;
 
-class ModeFlip extends Error {
+/**
+ * The bucket is rejecting cross-origin PUTs outright. Terminal: there is
+ * no proxy path to fall back to, so surface something the user can act
+ * on instead of retrying into the same wall.
+ */
+class DirectUploadUnavailableError extends Error {
   constructor() {
-    super("direct-upload-unavailable");
+    super(
+      "Uploads are blocked by the storage bucket's CORS policy. Please try again later."
+    );
   }
 }
 
@@ -90,8 +95,6 @@ interface FileState {
   done: Set<number>;
   /** True once every part has landed. */
   complete: boolean;
-  /** Which path actually carried this file's bytes. */
-  via: "direct" | "proxy";
   /** Session predates this attempt — ask the bucket what already landed. */
   resumed: boolean;
 }
@@ -104,7 +107,6 @@ interface Task {
 export async function runUpload(opts: RunUploadOptions): Promise<void> {
   const {
     transferId,
-    uploadHost,
     targets,
     signal,
     isCancelled,
@@ -140,7 +142,6 @@ export async function runUpload(opts: RunUploadOptions): Promise<void> {
   // ── Session setup: resume what we can, init the rest ──────────────
   const states: FileState[] = new Array(targets.length);
   const pending: Array<{ target: UploadTarget; slot: number }> = [];
-  let direct = true;
 
   targets.forEach((target, slot) => {
     const saved = sessions.get(target.key);
@@ -155,7 +156,6 @@ export async function runUpload(opts: RunUploadOptions): Promise<void> {
         loaded: new Array(saved.partCount).fill(0),
         done: new Set(),
         complete: false,
-        via: "direct",
         resumed: true,
       };
     } else {
@@ -190,7 +190,7 @@ export async function runUpload(opts: RunUploadOptions): Promise<void> {
         throw new Error(err.error?.message || "Failed to start upload");
       }
       const { data } = await res.json();
-      if (!data.direct) direct = false;
+      if (!data.direct) throw new DirectUploadUnavailableError();
 
       for (const u of data.uploads as Array<{
         index: number;
@@ -211,7 +211,6 @@ export async function runUpload(opts: RunUploadOptions): Promise<void> {
           loaded: new Array(u.partCount).fill(0),
           done: new Set(),
           complete: false,
-          via: "direct",
           resumed: false,
         };
         sessions.set(target.key, {
@@ -278,7 +277,6 @@ export async function runUpload(opts: RunUploadOptions): Promise<void> {
   }
 
   // ── Transfer the bytes ────────────────────────────────────────────
-  let mode: "direct" | "proxy" = direct ? "direct" : "proxy";
   let directSuccesses = 0;
   let directFailures = 0;
   const active = new Set<XMLHttpRequest>();
@@ -388,24 +386,10 @@ export async function runUpload(opts: RunUploadOptions): Promise<void> {
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       throwIfCancelled();
-      const via = mode;
       try {
-        if (via === "direct") {
-          const url = await ensureUrl(state, partNumber);
-          await send("PUT", url, blob, contentType, (loaded) => bump(state, partNumber, loaded));
-          directSuccesses++;
-        } else {
-          await send(
-            "POST",
-            `${uploadHost}/api/upload/file/chunk?uploadId=${encodeURIComponent(
-              state.uploadId
-            )}&chunkNumber=${partNumber}`,
-            blob,
-            contentType,
-            (loaded) => bump(state, partNumber, loaded)
-          );
-        }
-        state.via = via;
+        const url = await ensureUrl(state, partNumber);
+        await send("PUT", url, blob, contentType, (loaded) => bump(state, partNumber, loaded));
+        directSuccesses++;
         state.done.add(partNumber);
         bump(state, partNumber, end - start);
         return;
@@ -419,18 +403,17 @@ export async function runUpload(opts: RunUploadOptions): Promise<void> {
           throw new Error(parseError(body) || "Upload rejected");
         }
 
-        if (via === "direct") {
-          // A signature that expired mid-upload: mint a new one.
-          if (status === 400 || status === 403) {
-            state.urls.delete(partNumber);
-          }
-          directFailures++;
-          // Nothing has ever gone through directly and the browser sees
-          // no response at all — almost certainly the bucket rejecting
-          // the cross-origin PUT. Fall back for the whole transfer.
-          if (directSuccesses === 0 && directFailures >= 3 && (status === 0 || status === 403)) {
-            throw new ModeFlip();
-          }
+        // A signature that expired mid-upload: mint a new one.
+        if (status === 400 || status === 403) {
+          state.urls.delete(partNumber);
+        }
+        directFailures++;
+        // Nothing has ever gone through and the browser sees no response
+        // at all — the bucket is rejecting the cross-origin PUT. Retrying
+        // cannot fix a CORS policy, and there is no proxy path left, so
+        // stop and say why.
+        if (directSuccesses === 0 && directFailures >= 3 && (status === 0 || status === 403)) {
+          throw new DirectUploadUnavailableError();
         }
 
         bump(state, partNumber, 0);
@@ -453,20 +436,15 @@ export async function runUpload(opts: RunUploadOptions): Promise<void> {
     return tasks;
   };
 
-  // Retry loop exists only to service one mode flip (direct → proxy).
-  for (let round = 0; round < 2; round++) {
-    try {
-      await pool(buildTasks(), mode === "direct" ? DIRECT_CONCURRENCY : PROXY_CONCURRENCY, (task) =>
-        uploadPart(states[task.fileIndex], task.partNumber)
-      );
-      break;
-    } catch (err) {
-      if (!(err instanceof ModeFlip)) throw err;
-
-      // Abort everything still in flight against the bucket, then redo
-      // the unfinished files over the proxy. Parts already written
-      // directly can't be mixed with proxied scratch parts, so their
-      // progress is discarded.
+  try {
+    await pool(buildTasks(), DIRECT_CONCURRENCY, (task) =>
+      uploadPart(states[task.fileIndex], task.partNumber)
+    );
+  } catch (err) {
+    // Stop anything still pushing bytes at a bucket that won't take
+    // them, so the error surfaces now instead of after every in-flight
+    // part has burned its retry budget.
+    if (err instanceof DirectUploadUnavailableError) {
       for (const xhr of active) {
         try {
           xhr.abort();
@@ -475,13 +453,8 @@ export async function runUpload(opts: RunUploadOptions): Promise<void> {
         }
       }
       active.clear();
-      mode = "proxy";
-      for (const state of states) {
-        if (state.complete) continue;
-        state.done.clear();
-        for (let n = 1; n <= state.partCount; n++) bump(state, n, 0);
-      }
     }
+    throw err;
   }
 
   for (const state of states) {
@@ -491,12 +464,11 @@ export async function runUpload(opts: RunUploadOptions): Promise<void> {
   // ── Finalize ──────────────────────────────────────────────────────
   onFinalizing(true);
   try {
-    const directDone = states.filter((s) => s.complete && s.via === "direct");
-    const proxyDone = states.filter((s) => s.complete && s.via === "proxy");
+    const done = states.filter((s) => s.complete);
 
-    if (directDone.length > 0) {
-      for (let i = 0; i < directDone.length; i += INIT_BATCH) {
-        const slice = directDone.slice(i, i + INIT_BATCH);
+    if (done.length > 0) {
+      for (let i = 0; i < done.length; i += INIT_BATCH) {
+        const slice = done.slice(i, i + INIT_BATCH);
         const res = await fetch(
           `/api/upload/file/batch-complete?transferId=${encodeURIComponent(transferId)}`,
           {
@@ -513,20 +485,6 @@ export async function runUpload(opts: RunUploadOptions): Promise<void> {
         for (const s of slice) sessions.delete(s.target.key);
       }
     }
-
-    // Proxy sessions finish through the endpoint that composes their
-    // scratch parts. Run them concurrently rather than one by one.
-    await pool(proxyDone, PROXY_CONCURRENCY, async (state) => {
-      const res = await fetch(
-        `${uploadHost}/api/upload/file/complete?uploadId=${encodeURIComponent(state.uploadId)}`,
-        { method: "POST", signal }
-      );
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error?.message || `Failed to finalize ${state.target.relativePath}`);
-      }
-      sessions.delete(state.target.key);
-    });
   } finally {
     onFinalizing(false);
   }

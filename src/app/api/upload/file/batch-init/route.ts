@@ -36,10 +36,12 @@ const MAX_URLS_PER_CALL = 128;
  * Files that fit in a single part are signed against their *final*
  * object key, so finishing them needs no compose and no cleanup.
  *
- * When the bucket has no browser-PUT CORS rule (or the runtime can't
- * sign), the response carries `direct: false` and no URLs; the client
- * then uses the legacy proxy path against the very same upload
- * sessions, so nothing breaks.
+ * Direct-to-bucket is the ONLY path. The proxy upload route was removed
+ * with the Hetzner VM — Cloud Run caps request bodies at 32 MiB, so no
+ * amount of tuning lets a multi-GB file stream through the app server on
+ * App Hosting. If the bucket has no browser-PUT CORS rule, or the
+ * runtime cannot sign URLs, this endpoint returns 503 rather than
+ * degrading to a path that no longer exists.
  */
 export async function POST(request: NextRequest) {
   const transferId = request.nextUrl.searchParams.get("transferId");
@@ -199,13 +201,36 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Can the browser PUT straight into the bucket? ─────────────────
+  //
+  // There is no longer a fallback. The proxy upload path was deleted
+  // with the Hetzner VM: Cloud Run caps request bodies at 32 MiB, so
+  // streaming a 4 GB file through the app server is not possible on
+  // Firebase App Hosting at any price. Direct-to-bucket is the only
+  // path, which makes a missing CORS rule a hard failure rather than a
+  // silent slow mode.
   const origin =
     request.headers.get("origin") || process.env.APP_URL || "https://naijatransfer.com";
   const direct = await isDirectUploadAllowed(origin);
 
+  if (!direct) {
+    console.error(
+      `Direct upload unavailable for origin ${origin} — bucket CORS missing or no signing key.`
+    );
+    return NextResponse.json(
+      {
+        error: {
+          code: "DIRECT_UPLOAD_UNAVAILABLE",
+          message:
+            "Uploads are temporarily unavailable. Please try again in a few minutes.",
+        },
+      },
+      { status: 503, headers: { "Retry-After": "300" } }
+    );
+  }
+
   // ── Plan parts, mint URLs, and write every session doc at once ────
   const batch = db.batch();
-  let urlBudget = direct ? MAX_URLS_PER_CALL : 0;
+  let urlBudget = MAX_URLS_PER_CALL;
 
   const uploads = await Promise.all(
     files.map(async (f, index) => {
@@ -233,20 +258,18 @@ export async function POST(request: NextRequest) {
       batch.set(collection("uploads").doc(uploadId), session);
 
       const urls: Array<{ partNumber: number; url: string }> = [];
-      if (direct) {
-        const want = Math.min(plan.partCount, Math.max(0, urlBudget));
-        urlBudget -= want;
-        const signed = await Promise.all(
-          Array.from({ length: want }, (_, i) => {
-            const partNumber = i + 1;
-            const key = plan.single ? finalKey : partKey(transferId, uploadId, partNumber);
-            return getSignedUploadUrl(key, f.contentType).then((url) =>
-              url ? { partNumber, url } : null
-            );
-          })
-        );
-        for (const s of signed) if (s) urls.push(s);
-      }
+      const want = Math.min(plan.partCount, Math.max(0, urlBudget));
+      urlBudget -= want;
+      const signed = await Promise.all(
+        Array.from({ length: want }, (_, i) => {
+          const partNumber = i + 1;
+          const key = plan.single ? finalKey : partKey(transferId, uploadId, partNumber);
+          return getSignedUploadUrl(key, f.contentType).then((url) =>
+            url ? { partNumber, url } : null
+          );
+        })
+      );
+      for (const s of signed) if (s) urls.push(s);
 
       return {
         index,
@@ -262,16 +285,33 @@ export async function POST(request: NextRequest) {
     })
   );
 
-  await batch.commit();
-
-  // A signing failure on every file means the runtime has no usable key
-  // (ADC-only). Tell the client to use the proxy path rather than letting
-  // it discover this one failed PUT at a time.
+  // Signing failed for every file: the runtime has no usable signing
+  // key. On App Hosting that means the Cloud Run service account lacks
+  // `roles/iam.serviceAccountTokenCreator` on itself, which is what lets
+  // the GCS SDK sign V4 URLs through the IAM API instead of a local
+  // private key. Fail before committing sessions nothing can fill.
   const anyUrls = uploads.some((u) => u.urls.length > 0);
+  if (!anyUrls) {
+    console.error(
+      "No signed URLs minted — runtime has no signing key. Grant the App Hosting service account roles/iam.serviceAccountTokenCreator on itself."
+    );
+    return NextResponse.json(
+      {
+        error: {
+          code: "DIRECT_UPLOAD_UNAVAILABLE",
+          message:
+            "Uploads are temporarily unavailable. Please try again in a few minutes.",
+        },
+      },
+      { status: 503, headers: { "Retry-After": "300" } }
+    );
+  }
+
+  await batch.commit();
 
   return NextResponse.json({
     data: {
-      direct: direct && anyUrls,
+      direct: true,
       tier,
       uploads,
     },

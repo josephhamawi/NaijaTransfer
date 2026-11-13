@@ -1,0 +1,103 @@
+# ─────────────────────────────────────────────────────────
+# Firebase App Hosting — NigeriaTransfer
+#
+# Replaces the Hetzner VM (PM2 + Caddy + server.js). App Hosting builds
+# this Next.js app and runs it on Cloud Run behind Google's CDN.
+#
+# COST: minInstances MUST stay 0. One warm Cloud Run instance bills
+# ~$25–40/month doing nothing, which is more than the VM this migration
+# is meant to kill. maxInstances is the hard ceiling on compute spend —
+# requests past it queue instead of scaling the bill.
+#
+# Secrets live in Secret Manager, never in this file:
+#   firebase apphosting:secrets:set paystack-secret
+#   firebase apphosting:secrets:grantaccess paystack-secret --backend <id>
+# ─────────────────────────────────────────────────────────
+
+runConfig:
+  minInstances: 0
+  maxInstances: 2
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+  # Zip streaming in /api/transfer/[code]/download-all can run long.
+  # Cloud Run allows up to 3600s; 900s is enough for a large zip and
+  # bounds the damage of a stuck request.
+  timeoutSeconds: 900
+
+env:
+  # ─── Public Firebase config (needed at build AND runtime) ──────
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: naijatransfer
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: naijatransfer.firebaseapp.com
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: naijatransfer.firebasestorage.app
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    secret: firebase-web-api-key
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    secret: firebase-messaging-sender-id
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    secret: firebase-app-id
+    availability: [BUILD, RUNTIME]
+
+  # ─── Application ───────────────────────────────────────────────
+  - variable: NEXT_PUBLIC_APP_URL
+    value: https://nigeriatransfer.com
+    availability: [BUILD, RUNTIME]
+  - variable: APP_URL
+    value: https://nigeriatransfer.com
+    availability: [RUNTIME]
+  - variable: FIREBASE_STORAGE_BUCKET
+    value: naijatransfer.firebasestorage.app
+    availability: [RUNTIME]
+
+  # ─── Cost guardrails (see src/lib/egress.ts) ───────────────────
+  # Monthly platform-wide egress ceiling in GB. Past this the download
+  # routes serve 503 instead of minting signed URLs, so a traffic spike
+  # or an abuser cannot run the bill past what revenue covers.
+  - variable: EGRESS_BUDGET_GB_MONTH
+    value: "150"
+    availability: [RUNTIME]
+
+  # ─── Payments ──────────────────────────────────────────────────
+  - variable: PAYSTACK_SECRET_KEY
+    secret: paystack-secret-key
+  - variable: PAYSTACK_PUBLIC_KEY
+    secret: paystack-public-key
+    availability: [BUILD, RUNTIME]
+  - variable: PAYSTACK_WEBHOOK_SECRET
+    secret: paystack-webhook-secret
+  - variable: PAYSTACK_PRO_PLAN_CODE
+    secret: paystack-pro-plan-code
+  - variable: PAYSTACK_BUSINESS_PLAN_CODE
+    secret: paystack-business-plan-code
+
+  # ─── Email / SMS ───────────────────────────────────────────────
+  - variable: BREVO_API_KEY
+    secret: brevo-api-key
+  - variable: BREVO_SENDER_EMAIL
+    value: noreply@nigeriatransfer.com
+    availability: [RUNTIME]
+  - variable: BREVO_SENDER_NAME
+    value: NigeriaTransfer
+    availability: [RUNTIME]
+  - variable: TERMII_API_KEY
+    secret: termii-api-key
+  - variable: TERMII_SENDER_ID
+    value: NigeriaT
+    availability: [RUNTIME]
+
+  # ─── CRM (optional — app runs identically without it) ──────────
+  - variable: CRM_APP_ID
+    secret: crm-app-id
+  - variable: CRM_API_KEY
+    secret: crm-api-key
+  - variable: CRM_ENDPOINT
+    value: https://api-ei3nxpoa5q-uc.a.run.app
+    availability: [RUNTIME]

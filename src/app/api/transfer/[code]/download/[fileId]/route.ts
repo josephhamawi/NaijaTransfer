@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateDownloadAccess, incrementDownloadCount } from "@/services/transfer.service";
 import { getFileById, getFileDownloadUrl } from "@/services/file.service";
+import { checkEgressAllowed, recordEgress } from "@/lib/egress";
+import type { UserTier } from "@/types/enums";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ code: string; fileId: string }> }) {
   try {
@@ -18,7 +20,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: { code: "FILE_NOT_FOUND", message: "File not found" } }, { status: 404 });
     }
 
+    // Bandwidth is the product's largest variable cost once bytes leave
+    // GCS, so the budget is checked BEFORE a signed URL exists. After
+    // the URL is handed out the download is unstoppable and unmetered.
+    const tier = (access.transfer.tier ?? "FREE") as UserTier;
+    const budget = await checkEgressAllowed(tier, access.transfer.userId, file.sizeBytes);
+    if (!budget.allowed) {
+      return NextResponse.json(
+        { error: { code: budget.reason, message: budget.message } },
+        { status: 503, headers: { "Retry-After": "3600" } }
+      );
+    }
+
     const url = await getFileDownloadUrl(file.storageKey, file.originalName);
+    await recordEgress(tier, access.transfer.userId, file.sizeBytes);
 
     const ip = request.headers.get("x-forwarded-for") ?? "unknown";
     const ua = request.headers.get("user-agent") ?? "unknown";

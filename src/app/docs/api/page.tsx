@@ -25,7 +25,6 @@ const endpoints = [
   "data": {
     "id": "clx...",
     "shortCode": "zJdAPV4v6a",
-    "tusEndpoint": "/api/upload/tus",
     "downloadUrl": "${BASE}/d/zJdAPV4v6a",
     "expiresAt": "2026-04-06T10:00:00Z"
   }
@@ -33,17 +32,50 @@ const endpoints = [
   },
   {
     method: "POST",
-    path: "/api/upload/file",
-    description: "Upload a file to a transfer (multipart/form-data)",
-    body: `FormData:
-  transferId: "clx..."
-  file: (binary)`,
+    path: "/api/upload/file/batch-init",
+    description:
+      "Start an upload. Returns signed PUT URLs — your client sends the bytes straight to storage, never through this API.",
+    body: `{
+  "files": [
+    { "fileName": "document.pdf", "fileSize": 5242880, "contentType": "application/pdf" }
+  ]
+}`,
     response: `{
   "data": {
-    "fileId": "abc123",
-    "name": "document.pdf",
-    "size": 5242880,
-    "storageKey": "transfers/clx.../abc123/document.pdf"
+    "direct": true,
+    "tier": "FREE",
+    "uploads": [
+      {
+        "index": 0,
+        "uploadId": "V1StGXR8Z5jdHi6B",
+        "fileId": "abc123def456",
+        "partCount": 1,
+        "partSize": 5242880,
+        "single": true,
+        "urls": [{ "partNumber": 1, "url": "https://storage.googleapis.com/..." }]
+      }
+    ]
+  }
+}`,
+  },
+  {
+    method: "POST",
+    path: "/api/upload/file/batch-complete",
+    description: "Finalize uploads once every part has been PUT to storage.",
+    body: `{
+  "uploadIds": ["V1StGXR8Z5jdHi6B"]
+}`,
+    response: `{
+  "data": {
+    "files": [
+      {
+        "id": "abc123def456",
+        "originalName": "document.pdf",
+        "sizeBytes": 5242880,
+        "mimeType": "application/pdf"
+      }
+    ],
+    "failed": []
   }
 }`,
   },
