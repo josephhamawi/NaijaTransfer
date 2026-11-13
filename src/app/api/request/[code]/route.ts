@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { canCreateStoredTransfer } from "@/lib/tier-limits";
-import type { UserTier } from "@/types/enums";
+import { resolveEntitlementTier } from "@/lib/auth-api";
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   try {
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const fileRequest = await db.fileRequest.findUnique({
       where: { shortCode: code },
-      include: { user: { select: { tier: true } } },
+      include: { user: { select: { tier: true, email: true } } },
     });
     if (!fileRequest || fileRequest.status !== "OPEN") {
       return NextResponse.json({ error: { code: "NOT_FOUND", message: "File request not found or closed" } }, { status: 404 });
@@ -58,7 +58,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // submit time, not just at creation time: an owner whose
     // subscription lapsed must not keep collecting stored uploads
     // through a portal they created while paying.
-    const ownerTier = ((fileRequest.user?.tier as UserTier) || "FREE") satisfies UserTier;
+    const ownerTier = resolveEntitlementTier(
+      fileRequest.user?.email,
+      fileRequest.user?.tier
+    );
     if (!canCreateStoredTransfer(ownerTier)) {
       return NextResponse.json(
         {

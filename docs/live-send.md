@@ -133,7 +133,7 @@ The recipient signs in **anonymously** — no account needed to receive a file. 
 
 | Surface | Change |
 |---|---|
-| `POST /api/upload/create` | Paid plans only. **Identity now comes from a verified Firebase ID token**, not a `uid` in the request body — the old version would have let anyone claim an OWNER uid and upload on someone else's plan |
+| `POST /api/upload/create` | Paid plans only. **Identity now comes from a verified Firebase ID token**, not a `uid` in the request body — the old version would have let anyone claim an OWNER uid and upload on someone else's plan. Entitlement is resolved by `resolveEntitlementTier()` against Postgres, the store the Paystack webhook writes; Firestore's `users/{uid}.tier` only ever holds FREE or OWNER and would report a paying Pro customer as free |
 | `POST /api/upload/file/batch-init` | Second, independent gate: refuses when the transfer document's tier cannot store. Stops an old free transfer id being reused as free storage |
 | `POST /api/v1/transfers` | Reads the key owner's real tier instead of the hardcoded `tier: "PRO"`, then gates |
 | `POST /api/user/requests` | File requests need a paid plan — they are asynchronous storage by definition |

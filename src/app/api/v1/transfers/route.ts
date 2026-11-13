@@ -4,7 +4,7 @@ import { extractAndValidateApiKey, apiUnauthorized } from "@/lib/api-auth";
 import { createTransfer, getUserTransfers } from "@/services/transfer.service";
 import { db } from "@/lib/db";
 import { canCreateStoredTransfer, STORED_TRANSFER_UPGRADE_MESSAGE } from "@/lib/tier-limits";
-import type { UserTier } from "@/types/enums";
+import { resolveEntitlementTier } from "@/lib/auth-api";
 
 const createSchema = z.object({
   senderEmail: z.string().email().optional(),
@@ -33,9 +33,9 @@ export async function POST(request: NextRequest) {
     // way to create stored transfers on a free account.
     const owner = await db.user.findUnique({
       where: { id: auth.apiKey.userId },
-      select: { tier: true },
+      select: { tier: true, email: true },
     });
-    const tier = ((owner?.tier as UserTier) || "FREE") satisfies UserTier;
+    const tier = resolveEntitlementTier(owner?.email, owner?.tier);
 
     if (!canCreateStoredTransfer(tier)) {
       return NextResponse.json(

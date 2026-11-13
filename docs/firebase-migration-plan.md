@@ -149,7 +149,7 @@ Code changes, file by file:
   - `api/user/requests/route.ts` — requester's tier
   - `api/request/[code]/route.ts` — request **owner's** tier, checked at submit time
 
-  Note `/api/upload/create` already reads tier from Firestore `users/{uid}`, so the two stores currently disagree about who is paid. Phase 2's user remap is what resolves that; until then, treat Firestore as authoritative for uploads and Postgres for the three routes above.
+  **Postgres is authoritative for entitlement** and all four go through `resolveEntitlementTier()` in `src/lib/auth-api.ts` — the one place that knows which store the Paystack webhook writes. Firestore `users/{uid}.tier` only ever holds FREE or OWNER (written by `/api/auth/sync`), so it can never be used to answer "is this user paid". Phase 2 collapses the two stores; that helper is the seam to change when it does.
 - `api/webhooks/paystack/route.ts` — keep signature verification unchanged; writes go to `users/{uid}` + payments subcollection. **Needs the email→uid lookup**, so it depends on the user remap landing first.
 
 Migration script `scripts/migrate-pg-to-firestore.ts`:
@@ -292,7 +292,7 @@ Controls, in order of effectiveness:
 | Risk | Mitigation |
 |---|---|
 | Paid plans lose money per paying user (see §2b) | Pick option A, B or C; `egress.ts` bounds the loss until then. The free-tier half of this risk is closed by Live Send |
-| Two stores disagree on who is paid (Firestore vs Postgres `tier`) | Phase 2 user remap; until then Firestore governs uploads, Postgres the three gating routes listed in Phase 2 |
+| Two stores disagree on who is paid (Firestore vs Postgres `tier`) | Every gate resolves through `resolveEntitlementTier()`, which reads Postgres — the store the Paystack webhook writes. Phase 2's user remap removes the split |
 | Account can't access the GCP project | Phase 0 blocker — resolve before anything else |
 | App Hosting runtime cannot sign V4 URLs → all uploads 503 | Grant the Cloud Run service account `roles/iam.serviceAccountTokenCreator` **on itself**; `batch-init` fails loudly with this exact cause in the log |
 | cuid → uid remap drops a paying subscriber | Dry-run diff; verify every user with a `paystackSubCode` by hand |

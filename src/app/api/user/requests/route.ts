@@ -3,8 +3,8 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getAuthUser } from "@/lib/auth-api";
 import { generateShortCode } from "@/lib/nanoid";
-import { canCreateStoredTransfer, STORED_TRANSFER_UPGRADE_MESSAGE } from "@/lib/tier-limits";
-import type { UserTier } from "@/types/enums";
+import { canCreateStoredTransfer } from "@/lib/tier-limits";
+import { resolveEntitlementTier } from "@/lib/auth-api";
 
 const createSchema = z.object({
   title: z.string().min(1).max(200),
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     // uploads now, the owner collects later. There is no way to serve
     // that with a live peer-to-peer connection, so it belongs to the
     // paid plans rather than silently uploading on a free account.
-    const tier = ((authUser?.tier as UserTier) || "FREE") satisfies UserTier;
+    const tier = resolveEntitlementTier(authUser?.email, authUser?.tier);
     if (!canCreateStoredTransfer(tier)) {
       return NextResponse.json(
         {

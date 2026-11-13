@@ -27,8 +27,7 @@ import {
   getTierLimits,
   STORED_TRANSFER_UPGRADE_MESSAGE,
 } from "@/lib/tier-limits";
-import { getAuthUid } from "@/lib/auth-api";
-import type { UserTier } from "@/types/enums";
+import { getAuthContext } from "@/lib/auth-api";
 
 const schema = z.object({
   senderEmail: z.string().email().optional(),
@@ -50,10 +49,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Identity from the token only. A request without one cannot own a
-    // stored transfer, and cannot borrow anyone else's plan.
-    const uid = await getAuthUid(request);
-    if (!uid) {
+    // Identity and plan from the verified token. A request without one
+    // cannot own a stored transfer, and cannot borrow anyone else's
+    // plan.
+    //
+    // The plan deliberately does NOT come from Firestore `users/{uid}`:
+    // the Paystack webhook writes subscriptions to Postgres, and
+    // /api/auth/sync only ever writes FREE or OWNER to Firestore, so
+    // reading Firestore here would tell a paying Pro customer they need
+    // to upgrade. getAuthContext owns that distinction.
+    const auth = await getAuthContext(request);
+    if (!auth) {
       return NextResponse.json(
         {
           error: {
@@ -65,21 +71,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { collection } = await import("@/lib/firebase-admin");
-    const userDoc = await collection("users").doc(uid).get();
-    if (!userDoc.exists) {
-      return NextResponse.json(
-        {
-          error: {
-            code: "STORED_TRANSFER_REQUIRES_PLAN",
-            message: STORED_TRANSFER_UPGRADE_MESSAGE,
-          },
-        },
-        { status: 403 }
-      );
-    }
-
-    const tier = ((userDoc.data()?.tier as UserTier) || "FREE") satisfies UserTier;
+    const { uid, tier } = auth;
 
     if (!canCreateStoredTransfer(tier)) {
       return NextResponse.json(
