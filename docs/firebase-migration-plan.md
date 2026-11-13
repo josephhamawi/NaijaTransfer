@@ -78,7 +78,7 @@ Dropped entirely: PM2, Caddy, Postgres, Prisma, NextAuth, `server.js`, docker-co
 3. Enable APIs: `run`, `cloudbuild`, `firestore`, `secretmanager`, `cloudscheduler`, `firebasestorage`, `apphosting`.
 4. **Create a billing budget** with alerts at $5 / $20 / $50. Alerts notify only — they do not stop spend. The hard caps are `maxInstances` and tier download limits.
 
-### Phase 1 — Hosting on App Hosting (dual-run with Hetzner)
+### Phase 1 — Hosting on App Hosting (dual-run with Hetzner) — ✅ DONE (commit `afefbde`)
 
 Ship this with Postgres still in play, pointed at the live DB only if reachable; otherwise land Phase 2 first for the DB-touching routes. Order chosen so the risky data move happens with a working rollback (the VM) still up.
 
@@ -190,6 +190,40 @@ Delete the four API routes and `CRON_SECRET` once the functions are live.
 
 ---
 
+## 2b. Unit economics — the constraint that changes the plan
+
+Requirement: *no cost until a paying user's payment covers it.* Measured against GCS pricing, current plan pricing does not satisfy that.
+
+Net revenue per subscriber (Paystack local cards: 1.5%, the ₦100 fee waived under ₦2,500; ≈ ₦1,550/USD):
+
+| Plan | Price | Net | Net USD | Egress it buys at $0.12/GB |
+|---|---|---|---|---|
+| PRO | ₦2,000/mo | ₦1,970 | $1.27 | **10.5 GB** |
+| BUSINESS | ₦10,000/mo | ₦9,750 | $6.29 | **52 GB** |
+
+What the plans actually promise:
+
+| Plan | Storage quota | Download limit | Cost if one quota-filling transfer is downloaded once |
+|---|---|---|---|
+| PRO | 50 GB | 250 downloads | 50 GB egress = **$6.00** + ~$0.50 storage, against $1.27 revenue |
+| BUSINESS | 200 GB | unlimited | 200 GB egress = **$24.00**, against $6.29 revenue |
+
+A single PRO subscriber who uses their quota once costs about 5× what they pay. At the advertised 250-download limit the ceiling is 12.5 TB, or $1,500. The plans are structurally loss-making on Firebase Storage — not at scale, on the first customer.
+
+For comparison, the same product on Cloudflare R2 (storage $0.015/GB-month, **egress $0**): a full 50 GB PRO transfer held 14 days costs about **$0.35** against $1.27 of revenue — roughly 72% gross margin, and download volume stops mattering entirely.
+
+Three ways to satisfy the requirement:
+
+| Option | Change | PRO margin | Keeps "Firebase only" |
+|---|---|---|---|
+| **A. R2 for file bytes** (recommended) | Restore `r2.ts` for objects only; Auth, Firestore, Hosting, Functions all stay on Firebase. ~1 day. | ~72% | No — one service moves |
+| **B. Reprice** | PRO ₦2,000 → ~₦12,000–15,000, BUSINESS ₦10,000 → ~₦45,000 to cover 200 GB. | ~60% | Yes |
+| **C. Cut quotas** | PRO storage 50 GB → 8 GB, BUSINESS 200 GB → 40 GB, tighter download caps. | ~60% | Yes |
+
+Until one of these is chosen, `src/lib/egress.ts` is what prevents an open-ended bill: unpaid traffic shares a 50 GB/month pool (≈$6, under the €7.50 VM it replaces) and paid tiers carry per-user allowances. Those allowances are set above break-even deliberately — a 10 GB cap on a plan advertising 50 GB transfers is not sellable — so a heavy PRO user is still a small loss, bounded at about $12/month each.
+
+Note also what is **not** metered: preview thumbnails (`/api/transfer/[code]/preview/[fileId]`). Kilobytes per request, ignored on purpose.
+
 ## 3. Cost model
 
 Steady state at current traffic:
@@ -225,7 +259,9 @@ Controls, in order of effectiveness:
 
 | Risk | Mitigation |
 |---|---|
+| Plans lose money per paying user (see §2b) | Pick option A, B or C; `egress.ts` bounds the loss until then |
 | Account can't access the GCP project | Phase 0 blocker — resolve before anything else |
+| App Hosting runtime cannot sign V4 URLs → all uploads 503 | Grant the Cloud Run service account `roles/iam.serviceAccountTokenCreator` **on itself**; `batch-init` fails loudly with this exact cause in the log |
 | cuid → uid remap drops a paying subscriber | Dry-run diff; verify every user with a `paystackSubCode` by hand |
 | Cold start on `/d/[code]` download pages | Public pages are static/ISR behind the CDN; only the API path cold-starts |
 | 32 MiB Cloud Run body cap | Phase 1 deletes every proxy-upload path; direct PUT verified before cutover |
@@ -238,7 +274,7 @@ Controls, in order of effectiveness:
 | Phase | Work |
 |---|---|
 | 0 — access + dump | 0.5 day (gated on account access) |
-| 1 — App Hosting + rules | 1–2 days |
+| 1 — App Hosting + rules | ✅ done |
 | 2 — Postgres → Firestore | 3–4 days (fx.service is the long pole) |
 | 3 — auth consolidation | 1 day |
 | 4 — crons | 0.5 day |
