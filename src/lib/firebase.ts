@@ -12,6 +12,18 @@ import {
 } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 
+/**
+ * Web config. Every value here is public: it is compiled into the
+ * client bundle and readable by anyone. Firestore/Storage rules and App
+ * Check are what control access, not the secrecy of these strings.
+ *
+ * `measurementId` is carried so the config matches the console, but
+ * Firebase Analytics is deliberately NOT initialised — `getAnalytics()`
+ * is never called. It sets cookies and ships data to Google Analytics,
+ * which would contradict the privacy page's claim that the site uses
+ * "Umami, a privacy-friendly analytics tool that does not use cookies".
+ * Turning it on is a policy decision, not a config one.
+ */
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -19,6 +31,7 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 // Initialize Firebase (singleton)

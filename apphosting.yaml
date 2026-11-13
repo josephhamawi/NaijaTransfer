@@ -36,14 +36,30 @@ env:
   - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
     value: naijatransfer.firebasestorage.app
     availability: [BUILD, RUNTIME]
+  # Plain values, not Secret Manager entries.
+  #
+  # The Firebase web config is public by design: every one of these
+  # values is compiled into the client bundle and visible to anyone who
+  # opens devtools. Google documents them as not secret. Routing them
+  # through Secret Manager would mean provisioning three secrets, and
+  # granting the backend access to them, to protect nothing — while the
+  # things that ARE secret (Paystack, Brevo, Termii, CRM) sit below.
+  #
+  # What actually guards the data: firestore.rules, storage.rules and
+  # App Check.
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    secret: firebase-web-api-key
+    value: AIzaSyBN40HthOqrmDJkAv23oo7DIfiBFsCIZmY
     availability: [BUILD, RUNTIME]
   - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-    secret: firebase-messaging-sender-id
+    value: "534351539159"
     availability: [BUILD, RUNTIME]
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-    secret: firebase-app-id
+    value: "1:534351539159:web:b23dd541f71d95ea42f992"
+    availability: [BUILD, RUNTIME]
+  # Analytics property id. Carried for completeness — nothing calls
+  # getAnalytics(), see src/lib/firebase.ts.
+  - variable: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+    value: G-MMMKMSG8FB
     availability: [BUILD, RUNTIME]
 
   # ─── Application ───────────────────────────────────────────────

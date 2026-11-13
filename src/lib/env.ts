@@ -56,6 +56,7 @@ const clientEnvSchema = z.object({
   NEXT_PUBLIC_UMAMI_WEBSITE_ID: z.string().optional(),
   NEXT_PUBLIC_LIVE_STUN_URLS: z.string().optional(),
   NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY: z.string().optional(),
+  NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: z.string().optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
