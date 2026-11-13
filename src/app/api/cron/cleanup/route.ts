@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
         expiredTransfers: result.expiredTransfers,
         bytesReclaimed: result.bytesReclaimed,
         oldLogsDeleted: result.orphanedChunks,
+        liveRoomsDeleted: result.liveRoomsDeleted,
         errors: result.errors,
       },
     });

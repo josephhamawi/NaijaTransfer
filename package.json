@@ -19,7 +19,10 @@
     "crm:backfill-users": "tsx scripts/crm-backfill-users.ts",
     "storage:cors": "tsx scripts/set-storage-cors.ts",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "e2e:build": "node e2e/harness/build.mjs",
+    "e2e": "npm run e2e:build && playwright test",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-livesend \"vitest run --config rules-tests/vitest.config.ts\""
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
@@ -43,6 +46,8 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/archiver": "^6.0.2",
     "@types/bcryptjs": "^2.4.6",

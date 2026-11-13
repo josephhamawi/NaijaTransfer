@@ -3,21 +3,162 @@ rules_version = '2';
 // ─────────────────────────────────────────────────────────
 // NigeriaTransfer — Firestore security rules
 //
-// Every read and write in this app goes through the Firebase Admin SDK
-// inside Next.js route handlers, which bypasses these rules entirely.
-// No browser code touches Firestore directly.
+// Default is deny-all. Every collection the app uses — transfers,
+// files, users, payments, uploads, counters — is read and written by
+// the Firebase Admin SDK inside Next.js route handlers, which bypasses
+// these rules entirely. A permissive rule for any of them would expose
+// transfer documents (which carry passwordHash, recipient emails and
+// storage keys) to anyone holding the project's public web API key.
 //
-// So the correct policy is deny-all. This is not a placeholder: a
-// permissive rule here would expose transfer docs (which carry
-// passwordHash, recipient emails and storage keys) to anyone with the
-// project's public web API key.
+// The ONE exception is Live Send signalling. Two browsers have to
+// exchange an SDP offer, an SDP answer and ICE candidates directly, and
+// proxying that through our API would add a round trip to every
+// candidate for no benefit. So `liveRooms` is readable and writable
+// from the client — but only by the two participants the server
+// recorded, and only for those specific fields.
 //
-// If a client-direct read is ever genuinely needed, add a narrow rule
-// for that one collection — never widen this default.
+// What a room may contain is deliberately tiny: no file names, no
+// manifest, no progress, no bytes. Those travel over the DataChannel.
 // ─────────────────────────────────────────────────────────
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ── Live Send signalling ──────────────────────────────────────
+    match /liveRooms/{roomId} {
+
+      function room() {
+        return resource.data;
+      }
+      function isSender() {
+        return request.auth != null && request.auth.uid == room().senderUid;
+      }
+      function isRecipient() {
+        return request.auth != null
+          && room().recipientUid != null
+          && request.auth.uid == room().recipientUid;
+      }
+      function isParticipant() {
+        return isSender() || isRecipient();
+      }
+      function changed() {
+        return request.resource.data.diff(resource.data).affectedKeys();
+      }
+
+      // Identity, invitation hash and the join window are set by the
+      // server and are never client-writable. Listing them here means
+      // a participant cannot hand the room to someone else, extend the
+      // join window, reset the attempt counter, or read-modify-write
+      // the invitation hash.
+      function immutableUntouched() {
+        return !changed().hasAny([
+          'senderUid', 'recipientUid', 'inviteHash',
+          'createdAt', 'joinExpiresAt', 'claimAttempts', 'claimedAt'
+        ]);
+      }
+
+      function validSdp(field) {
+        return request.resource.data[field] is string
+          && request.resource.data[field].size() > 0
+          && request.resource.data[field].size() < 16384;
+      }
+
+      // claimed -> connected -> closed, plus a direct claimed -> closed
+      // for an abandoned session. No path back to 'waiting', so a
+      // participant cannot reopen a finished room for a third party.
+      function validStateChange() {
+        return !changed().hasAny(['state'])
+          || (room().state == 'claimed' && request.resource.data.state in ['connected', 'closed'])
+          || (room().state == 'connected' && request.resource.data.state == 'closed')
+          || (room().state == 'waiting' && request.resource.data.state == 'closed' && isSender());
+      }
+
+      // Only participants ever see a room — and only after the server
+      // has recorded them, so an unclaimed room is invisible to
+      // everyone but its sender. Knowing the roomId grants nothing.
+      allow get, list: if isParticipant();
+
+      // Rooms are created and deleted by the server only: creation
+      // enforces the per-hour quota and stores the invitation hash,
+      // and deletion has to remove the candidate subcollections too,
+      // which a client delete would silently leave behind.
+      allow create, delete: if false;
+
+      // The sender publishes the offer; the recipient publishes the
+      // answer. Neither may write the other's field, so a participant
+      // cannot replace their peer's connection details.
+      allow update: if isSender()
+                      && immutableUntouched()
+                      && validStateChange()
+                      && changed().hasOnly(['offer', 'state', 'closedAt'])
+                      && (!changed().hasAny(['offer']) || validSdp('offer'));
+
+      allow update: if isRecipient()
+                      && immutableUntouched()
+                      && validStateChange()
+                      && changed().hasOnly(['answer', 'state', 'closedAt'])
+                      && (!changed().hasAny(['answer']) || validSdp('answer'));
+
+      // ── ICE candidates ─────────────────────────────────────────
+      //
+      // Create-only with deterministic, zero-padded numeric ids. That
+      // combination is what caps each side at 60 candidates: rules
+      // cannot count documents in a subcollection, but they can pin
+      // the id format and range, and refuse updates. Fixed ids also
+      // stop one participant overwriting the other's candidates.
+      function validCandidateId(cid) {
+        return cid.matches('^[0-9]{3}$') && int(cid) < 60;
+      }
+
+      function validCandidateDoc() {
+        return request.resource.data.keys().hasOnly(
+                 ['candidate', 'sdpMid', 'sdpMLineIndex', 'createdAt'])
+          && request.resource.data.candidate is string
+          && request.resource.data.candidate.size() > 0
+          && request.resource.data.candidate.size() < 1024
+          && (request.resource.data.sdpMid == null
+              || (request.resource.data.sdpMid is string
+                  && request.resource.data.sdpMid.size() < 64))
+          && (request.resource.data.sdpMLineIndex == null
+              || request.resource.data.sdpMLineIndex is int)
+          && request.resource.data.createdAt is timestamp;
+      }
+
+      function parentRoom() {
+        return get(/databases/$(database)/documents/liveRooms/$(roomId)).data;
+      }
+      function parentSender() {
+        return request.auth != null && request.auth.uid == parentRoom().senderUid;
+      }
+      function parentRecipient() {
+        return request.auth != null
+          && parentRoom().recipientUid != null
+          && request.auth.uid == parentRoom().recipientUid;
+      }
+      function roomLive() {
+        return parentRoom().state in ['waiting', 'claimed', 'connected'];
+      }
+
+      match /senderCandidates/{cid} {
+        allow get, list: if parentSender() || parentRecipient();
+        allow create: if parentSender()
+                        && roomLive()
+                        && validCandidateId(cid)
+                        && validCandidateDoc();
+        allow update, delete: if false;
+      }
+
+      match /recipientCandidates/{cid} {
+        allow get, list: if parentSender() || parentRecipient();
+        allow create: if parentRecipient()
+                        && roomLive()
+                        && validCandidateId(cid)
+                        && validCandidateDoc();
+        allow update, delete: if false;
+      }
+    }
+
+    // ── Everything else: server-side only ─────────────────────────
     match /{document=**} {
       allow read, write: if false;
     }

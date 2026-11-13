@@ -46,6 +46,9 @@ const serverEnvSchema = z.object({
   // traffic. See src/lib/egress.ts.
   EGRESS_BUDGET_GB_MONTH: z.coerce.number().int().min(1).default(50),
 
+  // Live Send. App Check is optional and soft-failed when unset.
+  FIREBASE_APPCHECK_ENFORCE: z.enum(["true", "false"]).optional().default("false"),
+
   // Analytics (optional)
   UMAMI_URL: z.string().optional().default(""),
   UMAMI_WEBSITE_ID: z.string().optional().default(""),
@@ -62,6 +65,8 @@ const clientEnvSchema = z.object({
   NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY: z.string().optional(),
   NEXT_PUBLIC_UMAMI_URL: z.string().optional(),
   NEXT_PUBLIC_UMAMI_WEBSITE_ID: z.string().optional(),
+  NEXT_PUBLIC_LIVE_STUN_URLS: z.string().optional(),
+  NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY: z.string().optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;

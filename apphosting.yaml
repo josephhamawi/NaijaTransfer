@@ -65,6 +65,24 @@ env:
     value: "150"
     availability: [RUNTIME]
 
+  # ─── Live Send (free tier) ─────────────────────────────────────
+  # STUN only. Firebase provides no managed STUN/TURN service, so this
+  # names the external dependency explicitly: Google's public STUN
+  # servers, free and without an SLA. No TURN relay is deployed — a
+  # relay would carry every byte and reintroduce the bandwidth cost
+  # this feature exists to remove. See src/lib/live/ice.ts.
+  - variable: NEXT_PUBLIC_LIVE_STUN_URLS
+    value: "stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302"
+    availability: [BUILD, RUNTIME]
+
+  # App Check: abuse control on room creation. Leave the site key unset
+  # until reCAPTCHA v3 is registered in the Firebase console; the server
+  # treats a missing token as soft-failure. Flip ENFORCE to "true" only
+  # after real traffic shows valid tokens arriving.
+  - variable: FIREBASE_APPCHECK_ENFORCE
+    value: "false"
+    availability: [RUNTIME]
+
   # ─── Payments ──────────────────────────────────────────────────
   - variable: PAYSTACK_SECRET_KEY
     secret: paystack-secret-key

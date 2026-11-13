@@ -5,12 +5,32 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 
 export const metadata: Metadata = {
   title: "Pricing | NaijaTransfer",
-  description: "Naira pricing. 4 GB free. Pro from NGN 2,000 a month. Business from NGN 10,000 a month.",
+  description:
+    "Naira pricing. Live Send is free and sends files browser to browser. Stored transfers from NGN 2,000 a month.",
   alternates: { canonical: "https://naijatransfer.com/pricing" },
 };
 
 const faqs = [
-  { id: "free", q: "Is the free tier free for good?", a: "Yes. 4 GB per transfer, no account, no card. Pro subscriptions pay for the free tier." },
+  {
+    id: "free",
+    q: "Is the free tier free for good?",
+    a: "Yes. The free tier is Live Send: your files travel straight from your browser to the recipient's, so there is nothing for us to store or serve. No account, no card.",
+  },
+  {
+    id: "live-vs-stored",
+    q: "What is the difference between Live Send and a Stored Transfer?",
+    a: "Live Send is a direct connection between two browsers. It starts instantly and costs nothing, but you both have to stay on the page until it finishes. A Stored Transfer uploads once to our storage, so the recipient can download whenever they like — that needs Pro or Business.",
+  },
+  {
+    id: "live-requirements",
+    q: "What does Live Send need to work?",
+    a: "Both people on the page at the same time, and a network path between you. Chrome or Edge on desktop is best: those browsers save files to disk as they arrive, so size is limited only by patience. Firefox and Safari hold each file in the tab until it finishes, which caps a transfer at 1 GB. Some mobile and office networks block direct connections entirely — if that happens we say so rather than silently uploading.",
+  },
+  {
+    id: "live-offline",
+    q: "Can I use Live Send if the recipient is offline?",
+    a: "No. That is what a Stored Transfer is for. If you need to send files and walk away, you need Pro or Business.",
+  },
   { id: "pay", q: "How do I pay?", a: "Through Paystack: card, bank transfer, or USSD. Pricing is in Naira, so there is no FX." },
   { id: "cancel", q: "Can I cancel any time?", a: "Yes. Cancel from your dashboard. You keep access until the end of the billing period." },
   { id: "methods", q: "What payment methods do you accept?", a: "Visa, Mastercard, bank transfer, and USSD through Paystack." },
@@ -26,7 +46,9 @@ export default function PricingPage() {
         <div className="text-center mb-12">
           <h1 className="text-h1 sm:text-display font-bold mb-3">Pricing in Naira.</h1>
           <p className="text-body text-[var(--text-secondary)] max-w-xl mx-auto">
-            Start on the free tier. Upgrade the day you need a bigger transfer. Every plan is priced in Nigerian Naira.
+            Live Send is free: files go straight from your browser to theirs. Upgrade when you
+            need to upload once and let someone download later. Every plan is priced in
+            Nigerian Naira.
           </p>
         </div>
 

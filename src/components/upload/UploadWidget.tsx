@@ -2,7 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn, formatBytes, formatDuration, formatSpeed } from "@/lib/utils";
-import { getTierLimits } from "@/lib/tier-limits";
+import {
+  canCreateStoredTransfer,
+  getTierLimits,
+  STORED_TRANSFER_UPGRADE_MESSAGE,
+} from "@/lib/tier-limits";
+import {
+  MAX_FILES_PER_SESSION,
+  senderSideCapability,
+  FALLBACK_MAX_TOTAL_BYTES,
+} from "@/lib/live/limits";
+import LiveSendPanel from "@/components/live/LiveSendPanel";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Tabs, TabList, Tab, TabPanel } from "@/components/ui/Tabs";
@@ -18,10 +28,19 @@ import BandwidthEstimator from "@/components/upload/BandwidthEstimator";
 import { useToast } from "@/contexts/ToastContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { runUpload, type StoredSession } from "@/lib/upload-client";
+import { authFetch } from "@/lib/api-client";
 
 let fileIdCounter = 0;
 
 type UploadState = "idle" | "uploading" | "success" | "error";
+
+/**
+ * Which kind of transfer the user is making.
+ *
+ * "live"   — WebRTC browser-to-browser. Free, nothing stored.
+ * "stored" — upload to Firebase Storage, download later. Paid plans.
+ */
+type TransferMode = "live" | "stored";
 
 /**
  * Interactive upload widget — the only client-rendered piece of the
@@ -40,6 +59,8 @@ export default function UploadWidget() {
   });
   const [emailTo, setEmailTo] = useState("");
   const [emailFrom, setEmailFrom] = useState("");
+  const [mode, setMode] = useState<TransferMode>("live");
+  const [liveActive, setLiveActive] = useState(false);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [bytesUploaded, setBytesUploaded] = useState(0);
@@ -142,11 +163,13 @@ export default function UploadWidget() {
       let transfer = activeTransfer.current;
       if (!transfer || resumeSessions.current.size === 0) {
         resumeSessions.current.clear();
-        const res = await fetch("/api/upload/create", {
+        // authFetch attaches the Firebase ID token. The server reads
+        // identity and plan from that token only — it used to trust a
+        // `uid` in this body, which would now be a way to borrow
+        // someone else's storage entitlement.
+        const res = await authFetch("/api/upload/create", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            uid: user?.uid || undefined,
             senderEmail: emailFrom || undefined,
             recipientEmails,
             message: settings.message || undefined,
@@ -303,8 +326,20 @@ export default function UploadWidget() {
 
   const handleFilesAdded = useCallback(
     (newFiles: FileWithPath[]) => {
-      const limits = getTierLimits(tier);
-      const planLabel = tier === "FREE" ? "the free plan" : `the ${tier} plan`;
+      // Live Send and stored transfers have different ceilings. Live is
+      // bounded by what a browser can stream, stored by the paid plan.
+      const tierLimits = getTierLimits(tier);
+      const liveCap = senderSideCapability();
+      const limits =
+        mode === "live"
+          ? {
+              maxFileSizeBytes: liveCap.maxFileBytes,
+              maxTransferSizeBytes: liveCap.maxTotalBytes,
+              maxFilesPerTransfer: MAX_FILES_PER_SESSION,
+            }
+          : tierLimits;
+      const planLabel =
+        mode === "live" ? "Live Send" : tier === "FREE" ? "the free plan" : `the ${tier} plan`;
 
       setFiles((prev) => {
         const currentCount = prev.length;
@@ -380,7 +415,7 @@ export default function UploadWidget() {
         return [...prev, ...accepted];
       });
     },
-    [toast, tier]
+    [toast, tier, mode]
   );
 
   const handleFileRemoved = useCallback((fileId: string) => {
@@ -390,6 +425,24 @@ export default function UploadWidget() {
       return prev.filter((f) => f.id !== fileId);
     });
   }, []);
+
+  const storedAllowed = canCreateStoredTransfer(tier);
+
+  // Live Send owns the whole card once a session starts: its stages
+  // (invitation, connecting, sending) replace the upload chrome.
+  if (liveActive) {
+    return (
+      <Card frosted elevation="xl" padding="lg" className="w-full max-w-full sm:max-w-[480px]">
+        <LiveSendPanel
+          files={files.map((f) => ({ id: f.id, file: f.file, name: f.relativePath }))}
+          onExit={() => {
+            setLiveActive(false);
+            setFiles([]);
+          }}
+        />
+      </Card>
+    );
+  }
 
   if (uploadState === "success" && transferResult) {
     return (
@@ -470,13 +523,92 @@ export default function UploadWidget() {
         </span>
       </div>
 
+      <div
+        className="grid grid-cols-2 gap-2 mb-4"
+        role="radiogroup"
+        aria-label="How to send your files"
+      >
+        <button
+          type="button"
+          role="radio"
+          aria-checked={mode === "live"}
+          onClick={() => setMode("live")}
+          className={cn(
+            "text-left p-3 rounded-lg border transition-colors",
+            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nigerian-green",
+            mode === "live"
+              ? "border-nigerian-green bg-nigerian-green/10"
+              : "border-[var(--border)] hover:border-nigerian-green/50"
+          )}
+        >
+          <span className="block text-body-sm font-semibold">Live Send</span>
+          <span className="block text-body-sm text-[var(--text-secondary)]">
+            Free. Send directly while you&apos;re both online.
+          </span>
+        </button>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={mode === "stored"}
+          onClick={() => setMode("stored")}
+          className={cn(
+            "text-left p-3 rounded-lg border transition-colors",
+            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nigerian-green",
+            mode === "stored"
+              ? "border-nigerian-green bg-nigerian-green/10"
+              : "border-[var(--border)] hover:border-nigerian-green/50"
+          )}
+        >
+          <span className="block text-body-sm font-semibold">
+            Stored Transfer
+            <span className="ml-1 text-body-sm font-normal text-[var(--text-muted)]">
+              {storedAllowed ? "" : "· Pro"}
+            </span>
+          </span>
+          <span className="block text-body-sm text-[var(--text-secondary)]">
+            Upload now. Let them download later.
+          </span>
+        </button>
+      </div>
+
       <UploadZone
         files={files}
         onFilesAdded={handleFilesAdded}
         onFileRemoved={handleFileRemoved}
-        maxFileSize={4 * 1024 * 1024 * 1024}
+        maxFileSize={
+          mode === "live"
+            ? senderSideCapability().maxFileBytes
+            : getTierLimits(tier).maxFileSizeBytes
+        }
       />
 
+      {mode === "live" && (
+        <div className="mt-4 p-3 rounded-lg bg-[var(--bg-secondary)] space-y-1">
+          <p className="text-body-sm">
+            Both of you stay on the page until it finishes. Nothing is uploaded, so there is no
+            link to expire and no storage used.
+          </p>
+          <p className="text-body-sm text-[var(--text-muted)]">
+            Works best in Chrome or Edge on desktop. If the recipient&apos;s browser cannot save
+            files as they arrive, the transfer is capped at{" "}
+            {formatBytes(FALLBACK_MAX_TOTAL_BYTES)}. Some mobile and office networks block
+            direct connections entirely.
+          </p>
+        </div>
+      )}
+
+      {mode === "stored" && !storedAllowed && (
+        <div className="mt-4 p-3 rounded-lg bg-[var(--bg-secondary)] space-y-2">
+          <p className="text-body-sm">{STORED_TRANSFER_UPGRADE_MESSAGE}</p>
+          <a href="/pricing" className="contents">
+            <Button variant="primary" size="sm" fullWidth>
+              See Pro and Business
+            </Button>
+          </a>
+        </div>
+      )}
+
+      {mode === "stored" && storedAllowed && (
       <div className="mt-4">
         <Tabs defaultTab="link">
           <TabList>
@@ -511,16 +643,19 @@ export default function UploadWidget() {
           </TabPanel>
         </Tabs>
       </div>
+      )}
 
-      <div className="mt-4">
-        <TransferSettings
-          values={settings}
-          onChange={setSettings}
-          maxExpiryDays={Math.min(getTierLimits(tier).maxExpiryDays, 60)}
-          maxDownloadLimit={getTierLimits(tier).maxDownloadLimit}
-          tier={tier === "FREE" ? "free" : tier === "PRO" ? "pro" : "business"}
-        />
-      </div>
+      {mode === "stored" && storedAllowed && (
+        <div className="mt-4">
+          <TransferSettings
+            values={settings}
+            onChange={setSettings}
+            maxExpiryDays={Math.min(getTierLimits(tier).maxExpiryDays, 60)}
+            maxDownloadLimit={getTierLimits(tier).maxDownloadLimit}
+            tier={tier === "FREE" ? "free" : tier === "PRO" ? "pro" : "business"}
+          />
+        </div>
+      )}
 
       {uploadState === "uploading" && (
         <div className="mt-6">
@@ -572,16 +707,31 @@ export default function UploadWidget() {
 
       {uploadState === "idle" && (
         <div className="mt-6">
-          <Button
-            variant="primary"
-            size="lg"
-            fullWidth
-            disabled={files.length === 0}
-            onClick={handleTransfer}
-            loading={false}
-          >
-            Transfer{files.length > 0 ? ` · ${formatBytes(totalSize)}` : ""}
-          </Button>
+          {mode === "live" ? (
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              disabled={files.length === 0}
+              onClick={() => setLiveActive(true)}
+            >
+              Create Live Send link
+              {files.length > 0 ? ` · ${formatBytes(totalSize)}` : ""}
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              disabled={files.length === 0 || !storedAllowed}
+              onClick={handleTransfer}
+              loading={false}
+            >
+              {storedAllowed
+                ? `Transfer${files.length > 0 ? ` · ${formatBytes(totalSize)}` : ""}`
+                : "Stored transfers need Pro"}
+            </Button>
+          )}
         </div>
       )}
 

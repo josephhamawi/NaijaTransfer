@@ -3,6 +3,8 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getAuthUser } from "@/lib/auth-api";
 import { generateShortCode } from "@/lib/nanoid";
+import { canCreateStoredTransfer, STORED_TRANSFER_UPGRADE_MESSAGE } from "@/lib/tier-limits";
+import type { UserTier } from "@/types/enums";
 
 const createSchema = z.object({
   title: z.string().min(1).max(200),
@@ -46,6 +48,25 @@ export async function POST(request: NextRequest) {
     const userId = authUser?.id;
     if (!userId) {
       return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
+    }
+
+    // A file request is inherently asynchronous storage: someone
+    // uploads now, the owner collects later. There is no way to serve
+    // that with a live peer-to-peer connection, so it belongs to the
+    // paid plans rather than silently uploading on a free account.
+    const tier = ((authUser?.tier as UserTier) || "FREE") satisfies UserTier;
+    if (!canCreateStoredTransfer(tier)) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "STORED_TRANSFER_REQUIRES_PLAN",
+            message:
+              "File requests collect uploads while you are away, which needs cloud storage. That is part of Pro and Business.",
+            upgradeUrl: "/pricing",
+          },
+        },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { extractAndValidateApiKey, apiUnauthorized } from "@/lib/api-auth";
 import { createTransfer, getUserTransfers } from "@/services/transfer.service";
+import { db } from "@/lib/db";
+import { canCreateStoredTransfer, STORED_TRANSFER_UPGRADE_MESSAGE } from "@/lib/tier-limits";
+import type { UserTier } from "@/types/enums";
 
 const createSchema = z.object({
   senderEmail: z.string().email().optional(),
@@ -23,9 +26,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: parsed.error.issues[0].message } }, { status: 400 });
     }
 
+    // Tier comes from the key owner's account, not from the key record
+    // and not from a constant. The old `tier: "PRO"` meant an API key
+    // issued to an account that later downgraded still got Pro limits —
+    // and now that storage itself is plan-gated, it would have been a
+    // way to create stored transfers on a free account.
+    const owner = await db.user.findUnique({
+      where: { id: auth.apiKey.userId },
+      select: { tier: true },
+    });
+    const tier = ((owner?.tier as UserTier) || "FREE") satisfies UserTier;
+
+    if (!canCreateStoredTransfer(tier)) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "STORED_TRANSFER_REQUIRES_PLAN",
+            message: STORED_TRANSFER_UPGRADE_MESSAGE,
+          },
+        },
+        { status: 403 }
+      );
+    }
+
     const transfer = await createTransfer({
       userId: auth.apiKey.userId,
-      tier: "PRO", // API users get Pro-level limits
+      tier,
       senderEmail: parsed.data.senderEmail,
       recipientEmails: parsed.data.recipientEmails,
       message: parsed.data.message,
@@ -38,7 +64,7 @@ export async function POST(request: NextRequest) {
       data: {
         id: transfer.id,
         shortCode: transfer.shortCode,
-        tusEndpoint: "/api/upload/tus",
+        uploadInitUrl: "/api/upload/file/batch-init",
         downloadUrl: `${process.env.NEXT_PUBLIC_APP_URL}/d/${transfer.shortCode}`,
         expiresAt: transfer.expiresAt.toISOString(),
       },

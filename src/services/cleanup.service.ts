@@ -5,6 +5,8 @@ interface CleanupResult {
   expiredTransfers: number;
   bytesReclaimed: number;
   orphanedChunks: number;
+  /** Abandoned Live Send signalling rooms removed, with their candidates. */
+  liveRoomsDeleted: number;
   errors: string[];
 }
 
@@ -16,6 +18,7 @@ export async function cleanupExpiredTransfers(): Promise<CleanupResult> {
     expiredTransfers: 0,
     bytesReclaimed: 0,
     orphanedChunks: 0,
+    liveRoomsDeleted: 0,
     errors: [],
   };
 
@@ -80,14 +83,44 @@ export async function cleanupOldLogs(): Promise<number> {
 }
 
 /**
+ * Sweep abandoned Live Send signalling rooms.
+ *
+ * Both browsers normally close their room on completion or unload, but
+ * a force-quit, a crash or a dead battery leaves one behind. Each room
+ * is only a few hundred bytes, yet its candidate subcollections are
+ * invisible orphans once the parent is gone — Firestore does not
+ * cascade — so this has to delete the children explicitly, which
+ * sweepAbandonedRooms does.
+ */
+async function cleanupLiveRooms(): Promise<{ deleted: number; errors: string[] }> {
+  try {
+    const { sweepAbandonedRooms, sweepRateLimitBuckets } = await import(
+      "@/services/live-room.service"
+    );
+    const swept = await sweepAbandonedRooms();
+    await sweepRateLimitBuckets();
+    return { deleted: swept.roomsDeleted, errors: swept.errors };
+  } catch (error) {
+    return {
+      deleted: 0,
+      errors: [`liveRooms: ${error instanceof Error ? error.message : String(error)}`],
+    };
+  }
+}
+
+/**
  * Run full cleanup.
  */
 export async function runFullCleanup(): Promise<CleanupResult> {
   const result = await cleanupExpiredTransfers();
   result.orphanedChunks = await cleanupOldLogs();
 
+  const live = await cleanupLiveRooms();
+  result.liveRoomsDeleted = live.deleted;
+  result.errors.push(...live.errors);
+
   console.log(
-    `Cleanup: ${result.expiredTransfers} expired, ${result.bytesReclaimed} bytes reclaimed, ${result.orphanedChunks} old logs deleted` +
+    `Cleanup: ${result.expiredTransfers} expired, ${result.bytesReclaimed} bytes reclaimed, ${result.orphanedChunks} old logs deleted, ${result.liveRoomsDeleted} live rooms swept` +
       (result.errors.length > 0 ? `, ${result.errors.length} errors` : "")
   );
 

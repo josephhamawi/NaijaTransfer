@@ -38,6 +38,23 @@ export interface TierLimits {
    * problem, not a code problem. See docs/firebase-migration-plan.md.
    */
   monthlyEgressGb: number | null;
+  /**
+   * Whether this tier may create NEW cloud-stored transfers — files
+   * uploaded to Firebase Storage now and downloaded later.
+   *
+   * False on FREE. Free sending happens through Live Send, a direct
+   * browser-to-browser WebRTC transfer that never touches our storage
+   * or our bandwidth. That is what makes a free tier affordable: a
+   * stored transfer costs us storage plus ~$0.12/GB of egress for
+   * every download, and the free tier has no revenue to cover it.
+   *
+   * This flag gates the SERVER, not just the UI — see
+   * /api/upload/create. Existing stored transfers keep working until
+   * their original expiry regardless of the owner's tier.
+   */
+  storedTransfers: boolean;
+  /** Whether this tier may use Live Send. True everywhere. */
+  liveSend: boolean;
 }
 
 export const TIER_LIMITS: Record<UserTier, TierLimits> = {
@@ -54,8 +71,12 @@ export const TIER_LIMITS: Record<UserTier, TierLimits> = {
     showAds: true,
     uploadRatePerHour: 10,
     // Free users do not have a personal allowance — all unpaid traffic
-    // draws on the shared pool capped by EGRESS_BUDGET_GB_MONTH.
+    // draws on the shared pool capped by EGRESS_BUDGET_GB_MONTH. That
+    // pool now only serves downloads of stored transfers created
+    // before this tier lost storage, and paid transfers' previews.
     monthlyEgressGb: null,
+    storedTransfers: false,
+    liveSend: true,
   },
   PRO: {
     maxFileSizeBytes: 10 * 1024 * 1024 * 1024, // 10 GB per file
@@ -72,6 +93,8 @@ export const TIER_LIMITS: Record<UserTier, TierLimits> = {
     // 100 GB ≈ $12/month of egress against ≈ $1.27 of net revenue.
     // Underwater by design until pricing or storage vendor changes.
     monthlyEgressGb: 100,
+    storedTransfers: true,
+    liveSend: true,
   },
   BUSINESS: {
     maxFileSizeBytes: 50 * 1024 * 1024 * 1024, // 50 GB per file
@@ -87,6 +110,8 @@ export const TIER_LIMITS: Record<UserTier, TierLimits> = {
     uploadRatePerHour: 50,
     // 500 GB ≈ $60/month of egress against ≈ $6.29 of net revenue.
     monthlyEgressGb: 500,
+    storedTransfers: true,
+    liveSend: true,
   },
   // Owner-only tier: no practical limits. Reserved for the app owner.
   OWNER: {
@@ -102,6 +127,8 @@ export const TIER_LIMITS: Record<UserTier, TierLimits> = {
     showAds: false,
     uploadRatePerHour: Number.MAX_SAFE_INTEGER,
     monthlyEgressGb: null,
+    storedTransfers: true,
+    liveSend: true,
   },
 };
 
@@ -119,6 +146,21 @@ export function isOwnerEmail(email: string | null | undefined): boolean {
 export function getTierLimits(tier: UserTier): TierLimits {
   return TIER_LIMITS[tier];
 }
+
+/**
+ * Whether this tier may create a new cloud-stored transfer.
+ *
+ * The single source of truth for the paid/free split. Called by
+ * /api/upload/create, /api/upload/file/batch-init, the public API and
+ * the file-request endpoints so the rule cannot drift between them.
+ */
+export function canCreateStoredTransfer(tier: UserTier): boolean {
+  return TIER_LIMITS[tier].storedTransfers;
+}
+
+/** Copy for the "this needs a paid plan" response and empty states. */
+export const STORED_TRANSFER_UPGRADE_MESSAGE =
+  "Stored transfers are part of Pro and Business. On the free plan, use Live Send to send files directly to someone while you are both online.";
 
 /**
  * Check if a file size is within the tier limit.

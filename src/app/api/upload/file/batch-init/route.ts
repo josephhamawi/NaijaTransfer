@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { nanoid } from "nanoid";
-import { getTierLimits } from "@/lib/tier-limits";
+import {
+  canCreateStoredTransfer,
+  getTierLimits,
+  STORED_TRANSFER_UPGRADE_MESSAGE,
+} from "@/lib/tier-limits";
 import { finalKeyFor, partKey, planParts, sanitizeName } from "@/lib/upload-parts";
 import { getSignedUploadUrl, isDirectUploadAllowed } from "@/lib/storage";
 import type { UserTier } from "@/types/enums";
@@ -128,6 +132,17 @@ export async function POST(request: NextRequest) {
         if (f.fileSize! > limits.maxFileSizeBytes) throw new Error("FILE_TOO_LARGE");
       }
 
+      // Second gate, independent of /api/upload/create.
+      //
+      // Transfer documents created before the free tier lost storage
+      // still exist and still carry tier FREE. Without this check, a
+      // caller could reuse one of those ids and keep uploading new
+      // files into it for free. Reading tier from the transfer doc is
+      // what makes that impossible — the id cannot vouch for itself.
+      if (!canCreateStoredTransfer(tier)) {
+        throw new Error("STORED_TRANSFER_REQUIRES_PLAN");
+      }
+
       const count = (data.uploadedFileCount as number) ?? 0;
       const bytes = (data.uploadedSizeBytes as number) ?? 0;
       const addedBytes = files.reduce((s, f) => s + f.fileSize!, 0);
@@ -151,6 +166,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: { code: "NOT_FOUND", message: "Transfer not found" } },
         { status: 404 }
+      );
+    }
+    if (code === "STORED_TRANSFER_REQUIRES_PLAN") {
+      return NextResponse.json(
+        {
+          error: {
+            code,
+            message: STORED_TRANSFER_UPGRADE_MESSAGE,
+            upgradeUrl: "/pricing",
+          },
+        },
+        { status: 403 }
       );
     }
     if (code === "FILE_TOO_LARGE") {

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { canCreateStoredTransfer } from "@/lib/tier-limits";
+import type { UserTier } from "@/types/enums";
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   try {
@@ -43,9 +45,31 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: parsed.error.issues[0].message } }, { status: 400 });
     }
 
-    const fileRequest = await db.fileRequest.findUnique({ where: { shortCode: code } });
+    const fileRequest = await db.fileRequest.findUnique({
+      where: { shortCode: code },
+      include: { user: { select: { tier: true } } },
+    });
     if (!fileRequest || fileRequest.status !== "OPEN") {
       return NextResponse.json({ error: { code: "NOT_FOUND", message: "File request not found or closed" } }, { status: 404 });
+    }
+
+    // The uploader here is an anonymous third party, so the plan that
+    // has to cover the storage is the REQUEST OWNER's. Checked at
+    // submit time, not just at creation time: an owner whose
+    // subscription lapsed must not keep collecting stored uploads
+    // through a portal they created while paying.
+    const ownerTier = ((fileRequest.user?.tier as UserTier) || "FREE") satisfies UserTier;
+    if (!canCreateStoredTransfer(ownerTier)) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "REQUEST_OWNER_PLAN_INACTIVE",
+            message:
+              "This file request is no longer accepting uploads. Ask the person who sent it to get in touch.",
+          },
+        },
+        { status: 403 }
+      );
     }
 
     const upload = await db.fileRequestUpload.create({
