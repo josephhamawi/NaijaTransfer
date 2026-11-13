@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { extractAndValidateApiKey, apiUnauthorized } from "@/lib/api-auth";
 import { createTransfer, getUserTransfers } from "@/services/transfer.service";
-import { db } from "@/lib/db";
 import { canCreateStoredTransfer, STORED_TRANSFER_UPGRADE_MESSAGE } from "@/lib/tier-limits";
 import { resolveEntitlementTier } from "@/lib/auth-api";
+import { getUser } from "@/services/user.service";
 
 const createSchema = z.object({
   senderEmail: z.string().email().optional(),
@@ -31,10 +31,7 @@ export async function POST(request: NextRequest) {
     // issued to an account that later downgraded still got Pro limits —
     // and now that storage itself is plan-gated, it would have been a
     // way to create stored transfers on a free account.
-    const owner = await db.user.findUnique({
-      where: { id: auth.apiKey.userId },
-      select: { tier: true, email: true },
-    });
+    const owner = await getUser(auth.apiKey.uid);
     const tier = resolveEntitlementTier(owner?.email, owner?.tier);
 
     if (!canCreateStoredTransfer(tier)) {
@@ -50,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     const transfer = await createTransfer({
-      userId: auth.apiKey.userId,
+      userId: auth.apiKey.uid,
       tier,
       senderEmail: parsed.data.senderEmail,
       recipientEmails: parsed.data.recipientEmails,
@@ -83,7 +80,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(request.nextUrl.searchParams.get("page") ?? "1", 10);
     const limit = Math.min(parseInt(request.nextUrl.searchParams.get("limit") ?? "20", 10), 100);
 
-    const result = await getUserTransfers(auth.apiKey.userId, page, limit);
+    const result = await getUserTransfers(auth.apiKey.uid, page, limit);
 
     return NextResponse.json({
       data: {

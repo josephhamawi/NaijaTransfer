@@ -90,16 +90,19 @@ export async function sendExpiryWarnings(): Promise<number> {
   const dayAfter = new Date(tomorrow);
   dayAfter.setDate(dayAfter.getDate() + 1);
 
-  const expiringTransfers = await (await import("@/lib/db")).db.transfer.findMany({
-    where: {
-      status: "ACTIVE",
-      expiresAt: { gte: tomorrow, lt: dayAfter },
-      senderEmail: { not: null },
-    },
-  });
+  // Firestore has no "where senderEmail is not null", so the null check
+  // moves into the loop. The range query is the selective part anyway —
+  // it is one day's worth of transfers.
+  const { collection } = await import("@/lib/firebase-admin");
+  const snap = await collection("transfers")
+    .where("status", "==", "ACTIVE")
+    .where("expiresAt", ">=", tomorrow)
+    .where("expiresAt", "<", dayAfter)
+    .get();
 
   let sent = 0;
-  for (const transfer of expiringTransfers) {
+  for (const doc of snap.docs) {
+    const transfer = doc.data();
     if (!transfer.senderEmail) continue;
 
     const content = `

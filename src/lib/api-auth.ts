@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateApiKey } from "@/services/api-key.service";
-import { hashApiKey } from "@/lib/server-utils";
-import type { ApiKey } from "@prisma/client";
+import { validateApiKey, type ApiKeyDoc } from "@/services/api-key.service";
 
 export async function extractAndValidateApiKey(
   request: NextRequest
-): Promise<{ valid: boolean; apiKey?: ApiKey; error?: string }> {
+): Promise<{ valid: boolean; apiKey?: ApiKeyDoc; error?: string }> {
   const authHeader = request.headers.get("authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ntk_")) {
     return { valid: false, error: "Missing or invalid API key. Use: Authorization: Bearer ntk_..." };

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { collection } from "@/lib/firebase-admin";
 import { crmIdentify, crmTrack } from "@/lib/crm";
 import { isOwnerEmail } from "@/lib/tier-limits";
+import { upsertUserFromAuth } from "@/services/user.service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,46 +12,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing uid or email" }, { status: 400 });
     }
 
-    const userRef = collection("users").doc(uid);
-    const userDoc = await userRef.get();
-    const isNewUser = !userDoc.exists;
-
-    const owner = isOwnerEmail(email);
-
-    if (userDoc.exists) {
-      // Update existing user
-      await userRef.update({
-        ...(name && { name }),
-        ...(image && { image }),
-        // Owner is always pinned to the OWNER tier.
-        ...(owner && { tier: "OWNER" }),
-        updatedAt: new Date(),
-      });
-    } else {
-      // Create new user
-      await userRef.set({
-        email,
-        name: name || email.split("@")[0],
-        image: image || null,
-        tier: owner ? "OWNER" : "FREE",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-    }
+    // One place owns the user document's shape. Notably it will not
+    // downgrade a paid tier on sign-in — the Paystack webhook owns
+    // `tier`, and a sync that reset it would un-subscribe a customer.
+    const { user, created: isNewUser } = await upsertUserFromAuth(uid, {
+      email,
+      name,
+      image,
+      tier: isOwnerEmail(email) ? "OWNER" : "FREE",
+    });
 
     // CRM tracking — fire-and-forget; silent no-op if CRM env is unset.
     // Identify on every sync (keeps traits fresh); "signup" only for a new user.
     crmIdentify(uid, { email, displayName: name });
     if (isNewUser) crmTrack(uid, "signup", { method: "firebase" });
 
-    const user = (await userRef.get()).data();
-
     return NextResponse.json({
       data: {
         id: uid,
-        email: user?.email,
-        name: user?.name,
-        tier: user?.tier || "FREE",
+        email: user.email,
+        name: user.name,
+        tier: user.tier,
       },
     });
   } catch (error) {

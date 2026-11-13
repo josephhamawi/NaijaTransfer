@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
 import { paystackRequest, getPlanCode } from "@/lib/paystack";
 import { PRICING } from "@/lib/tier-limits";
 import { getAuthUser } from "@/lib/auth-api";
+import { recordPendingPayment } from "@/services/payment.service";
 
 const createSchema = z.object({
   plan: z.enum(["PRO", "BUSINESS"]),
@@ -67,19 +67,17 @@ export async function POST(request: NextRequest) {
         amount: parsed.data.plan === "PRO" ? PRICING.PRO.amountKobo : PRICING.BUSINESS.amountKobo,
         plan: planCode,
         callback_url: callbackUrl,
+        // user.id is the Firebase uid. The webhook also accepts a legacy
+        // Prisma cuid so subscriptions created before the migration keep
+        // resolving — see getUserByAnyId.
         metadata: { userId: user.id, tier: parsed.data.plan },
       },
     });
 
-    await db.payment.create({
-      data: {
-        userId: user.id,
-        type: "SUBSCRIPTION",
-        amount: parsed.data.plan === "PRO" ? PRICING.PRO.amountKobo : PRICING.BUSINESS.amountKobo,
-        currency: "NGN",
-        paystackRef: result.data.reference,
-        status: "PENDING",
-      },
+    await recordPendingPayment(user.id, {
+      amount: parsed.data.plan === "PRO" ? PRICING.PRO.amountKobo : PRICING.BUSINESS.amountKobo,
+      currency: "NGN",
+      paystackRef: result.data.reference,
     });
 
     return NextResponse.json({

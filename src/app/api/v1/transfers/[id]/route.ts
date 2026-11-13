@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractAndValidateApiKey, apiUnauthorized } from "@/lib/api-auth";
-import { db } from "@/lib/db";
-import { deleteTransfer } from "@/services/transfer.service";
+import { deleteTransfer, getOwnedTransfer } from "@/services/transfer.service";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await extractAndValidateApiKey(request);
@@ -9,10 +8,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   try {
     const { id } = await params;
-    const transfer = await db.transfer.findFirst({
-      where: { id, userId: auth.apiKey.userId },
-      include: { files: true, _count: { select: { downloadLogs: true } } },
-    });
+    const transfer = await getOwnedTransfer(id, auth.apiKey.uid);
 
     if (!transfer) {
       return NextResponse.json({ error: { code: "NOT_FOUND", message: "Transfer not found" } }, { status: 404 });
@@ -28,7 +24,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         totalSizeBytes: Number(transfer.totalSizeBytes),
         expiresAt: transfer.expiresAt.toISOString(),
         createdAt: transfer.createdAt.toISOString(),
-        files: transfer.files.map((f) => ({
+        files: (transfer.files ?? []).map((f) => ({
           id: f.id,
           name: f.originalName,
           sizeBytes: Number(f.sizeBytes),
@@ -48,7 +44,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
   try {
     const { id } = await params;
-    const deleted = await deleteTransfer(id, auth.apiKey.userId);
+    const deleted = await deleteTransfer(id, auth.apiKey.uid);
     if (!deleted) {
       return NextResponse.json({ error: { code: "NOT_FOUND", message: "Transfer not found" } }, { status: 404 });
     }

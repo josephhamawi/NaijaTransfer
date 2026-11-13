@@ -125,6 +125,58 @@ export async function getTransferByCode(shortCode: string): Promise<TransferDoc 
   return transfer;
 }
 
+/**
+ * Fetch one transfer by id, scoped to its owner, with its files.
+ *
+ * Scoping is part of the read rather than a check afterwards so a
+ * caller cannot accidentally return someone else's transfer by
+ * forgetting the comparison.
+ */
+/**
+ * Bytes stored and active transfer count for one user.
+ *
+ * Uses a server-side sum aggregation rather than reading every
+ * transfer: the dashboard needs two numbers, not the documents.
+ */
+export async function getUserStorageUsage(
+  userId: string
+): Promise<{ usedBytes: number; activeTransfers: number }> {
+  const query = collection("transfers")
+    .where("userId", "==", userId)
+    .where("status", "==", "ACTIVE");
+
+  const { AggregateField } = await import("firebase-admin/firestore");
+  const snap = await query
+    .aggregate({
+      count: AggregateField.count(),
+      bytes: AggregateField.sum("totalSizeBytes"),
+    })
+    .get();
+
+  const data = snap.data();
+  return {
+    usedBytes: Number(data.bytes ?? 0),
+    activeTransfers: Number(data.count ?? 0),
+  };
+}
+
+export async function getOwnedTransfer(
+  transferId: string,
+  userId: string
+): Promise<TransferDoc | null> {
+  const ref = collection("transfers").doc(transferId);
+  const doc = await ref.get();
+  if (!doc.exists) return null;
+
+  const data = doc.data()!;
+  if (data.userId !== userId) return null;
+
+  const transfer = docToTransfer(doc.id, data);
+  const filesSnap = await ref.collection("files").orderBy("createdAt").get();
+  transfer.files = filesSnap.docs.map((f) => ({ id: f.id, ...f.data() } as FileDoc));
+  return transfer;
+}
+
 export async function deleteTransfer(transferId: string, userId: string): Promise<boolean> {
   const ref = collection("transfers").doc(transferId);
   const doc = await ref.get();

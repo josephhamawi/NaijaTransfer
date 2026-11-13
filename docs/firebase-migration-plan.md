@@ -115,7 +115,7 @@ Ship this with Postgres still in play, pointed at the live DB only if reachable;
 7. `.github/workflows/deploy.yml` → replace VM ssh/PM2 steps with App Hosting rollout; keep lint/typecheck/test. Re-enable the `push: branches: [main]` trigger that's commented out.
 8. Deploy to the App Hosting default domain. Smoke test uploads, downloads, password-protected links, Paystack checkout. Hetzner still serving `naijatransfer.com`.
 
-### Phase 2 — Postgres → Firestore
+### Phase 2 — Postgres → Firestore — ✅ CODE DONE (data move still to run)
 
 Collection layout (uid-keyed throughout):
 
@@ -161,6 +161,25 @@ Migration script `scripts/migrate-pg-to-firestore.ts`:
 6. Verify: row counts per table vs doc counts per collection; spot-check the OWNER account and every paying subscriber.
 
 New Firestore indexes needed (add to `firestore.indexes.json`): `fileRequests.shortCode`, `users.username`, `users.email`, `apiKeys.userId + createdAt`.
+
+### Phase 2 outcome
+
+Shipped with the port:
+
+- **One user key.** `users/{firebaseUid}` is the only user record. The Prisma cuid survives only as `legacyId`, because Paystack keeps sending it in `metadata.userId` on every renewal of a subscription created before the migration; `getUserByAnyId` resolves either.
+- **Uniqueness without unique indexes.** `usernames/{lowercased}` and `phones/{digits}` reservation documents, written in the same transaction as the profile update.
+- **NextAuth removed.** It had zero callers outside its own file — a second, unused auth system wired to Prisma, with `allowDangerousEmailAccountLinking` enabled. Removing it is what allowed Prisma to go entirely.
+- **Dead code removed instead of ported**: `analytics.service.ts`, `auth.service.ts`, `types/user.ts`, `types/transfer.ts` — all with zero importers.
+- **Two latent bugs fixed in passing**, both pre-dating this work: `/api/user/storage` aggregated the Postgres `files` table that nothing had written to since transfers moved to Firestore (every dashboard read zero), and `/api/v1/transfers/[id]` read transfers from Postgres (always 404).
+- **`storage-monitor.service.ts` rewritten.** It measured a local upload directory that stopped existing when uploads went direct-to-bucket, against a 200 GB figure from the retired Oracle VM.
+
+Still to run, in order:
+
+1. `pg_dump` + the JSON export on the VM (command in `scripts/migrate-pg-to-firestore.ts`).
+2. `npm run migrate:firestore export.json` — dry run, read the counts and warnings.
+3. `... --apply`, then `... --verify` (non-zero exit on any mismatch).
+4. `firebase deploy --only firestore:indexes` — four new composite indexes.
+5. Only then retire Postgres.
 
 ### Phase 3 — Auth consolidation
 
@@ -308,8 +327,8 @@ Controls, in order of effectiveness:
 |---|---|
 | 0 — access + dump | 0.5 day (gated on account access) |
 | 1 — App Hosting + rules | ✅ done |
-| 2 — Postgres → Firestore | 3–4 days (fx.service is the long pole) |
-| 3 — auth consolidation | 1 day |
+| 2 — Postgres → Firestore | ✅ code done; data move pending a `pg_dump` |
+| 3 — auth consolidation | mostly done early: NextAuth was dead code and is removed. Session cookies for RSC remain |
 | 4 — crons | 0.5 day |
 | 5 — cutover + cleanup | 1 day + 48 h watch |
 

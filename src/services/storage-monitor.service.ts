@@ -1,123 +1,54 @@
 /**
- * Storage Monitor Service
- * Tracks storage utilization, generates reports, and triggers auto-rejection.
- * Implementation for Story 1.8: Storage Monitoring and Auto-Rejection.
+ * Storage reporting.
+ *
+ * Rewritten twice over by two earlier changes, and the old version was
+ * measuring something that no longer exists: it walked a local upload
+ * directory (`TUS_UPLOAD_DIR`) to estimate disk pressure. Uploads now
+ * go browser → signed URL → Cloud Storage, so nothing is ever written
+ * to local disk, and the "200 GB block device" it compared against was
+ * the retired Oracle VM.
+ *
+ * What is worth reporting now is what Cloud Storage actually holds,
+ * which is what the daily cron emails out.
  */
 
-import fs from "fs/promises";
-import { STORAGE } from "@/lib/constants";
+import { collection } from "@/lib/firebase-admin";
 
-interface StorageStatus {
-  usedPercent: number;
-  usedBytes: number;
-  totalBytes: number;
-  status: "ok" | "warning" | "critical";
-}
-
-/**
- * Check current storage utilization of the upload directory.
- * Returns percentage used and status classification.
- */
-export async function checkStorageUtilization(): Promise<StorageStatus> {
-  const uploadDir = process.env.TUS_UPLOAD_DIR || "/tmp/uploads";
-
-  try {
-    // Ensure the upload directory exists
-    await fs.mkdir(uploadDir, { recursive: true });
-
-    // Use filesystem stats to estimate utilization
-    // In production on Linux, this would use statvfs or df
-    // For portability, we calculate based on directory size
-    const totalBytes = await getDirectorySize(uploadDir);
-
-    // Block storage is 200GB on Oracle; use env or default
-    const maxBytes = 200 * 1024 * 1024 * 1024; // 200 GB
-
-    const usedPercent = Math.round((totalBytes / maxBytes) * 100);
-
-    let status: "ok" | "warning" | "critical" = "ok";
-    if (usedPercent >= STORAGE.CRITICAL_THRESHOLD_PERCENT) {
-      status = "critical";
-    } else if (usedPercent >= STORAGE.WARNING_THRESHOLD_PERCENT) {
-      status = "warning";
-    }
-
-    return {
-      usedPercent,
-      usedBytes: totalBytes,
-      totalBytes: maxBytes,
-      status,
-    };
-  } catch (error) {
-    // If we can't check storage, assume ok but log
-    console.error("Storage utilization check failed:", error);
-    return {
-      usedPercent: 0,
-      usedBytes: 0,
-      totalBytes: 200 * 1024 * 1024 * 1024,
-      status: "ok",
-    };
-  }
-}
-
-/**
- * Check if new uploads should be rejected due to storage pressure.
- */
-export async function shouldRejectUploads(): Promise<boolean> {
-  const threshold = parseInt(
-    process.env.STORAGE_THRESHOLD_PERCENT || String(STORAGE.CRITICAL_THRESHOLD_PERCENT),
-    10
-  );
-  const status = await checkStorageUtilization();
-  return status.usedPercent >= threshold;
-}
-
-/**
- * Calculate the total size of a directory recursively.
- */
-async function getDirectorySize(dirPath: string): Promise<number> {
-  let totalSize = 0;
-
-  try {
-    const entries = await fs.readdir(dirPath, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const fullPath = `${dirPath}/${entry.name}`;
-
-      if (entry.isDirectory()) {
-        totalSize += await getDirectorySize(fullPath);
-      } else if (entry.isFile()) {
-        const stat = await fs.stat(fullPath);
-        totalSize += stat.size;
-      }
-    }
-  } catch {
-    // Directory may not exist or be inaccessible
-  }
-
-  return totalSize;
-}
-
-/**
- * Generate a daily storage report.
- */
-export async function generateStorageReport(): Promise<{
+export interface StorageReport {
   date: string;
-  uploadDirUsedBytes: number;
-  uploadDirUsedPercent: number;
   activeTransferCount: number;
-}> {
-  const { db } = await import("@/lib/db");
+  storedBytes: number;
+  /** Egress served this month and its estimated cost. */
+  egressGbThisMonth: number;
+  egressEstimatedUsd: number;
+}
 
-  const [storage, activeCount] = await Promise.all([
-    checkStorageUtilization(),
-    db.transfer.count({ where: { status: "ACTIVE" } }),
-  ]);
+/**
+ * Totals across every active transfer.
+ *
+ * A sum aggregation rather than a document scan: this runs daily and
+ * only needs two numbers.
+ */
+export async function generateStorageReport(): Promise<StorageReport> {
+  const { AggregateField } = await import("firebase-admin/firestore");
 
+  const snap = await collection("transfers")
+    .where("status", "==", "ACTIVE")
+    .aggregate({
+      count: AggregateField.count(),
+      bytes: AggregateField.sum("totalSizeBytes"),
+    })
+    .get();
+
+  const { getEgressReport } = await import("@/lib/egress");
+  const egress = await getEgressReport();
+
+  const data = snap.data();
   return {
     date: new Date().toISOString().split("T")[0],
-    uploadDirUsedBytes: storage.usedBytes,
-    uploadDirUsedPercent: storage.usedPercent,
-    activeTransferCount: activeCount,
+    activeTransferCount: Number(data.count ?? 0),
+    storedBytes: Number(data.bytes ?? 0),
+    egressGbThisMonth: egress.totalGb,
+    egressEstimatedUsd: egress.estimatedUsd,
   };
 }

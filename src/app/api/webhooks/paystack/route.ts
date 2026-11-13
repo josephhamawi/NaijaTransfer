@@ -1,7 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyPaystackWebhook } from "@/lib/paystack";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/firebase-admin";
 import { crmIdentify, crmTrack } from "@/lib/crm";
+import {
+  getUserByAnyId,
+  getUsersBySubCode,
+  updateSubscription,
+} from "@/services/user.service";
+import { markPaymentStatus } from "@/services/payment.service";
+import type { UserTier } from "@/types/enums";
+
+/**
+ * Paystack webhook.
+ *
+ * This endpoint is what turns money into entitlement, so two things
+ * matter more than anything else here:
+ *
+ *   1. **Signature first.** Nothing is read from the body until the
+ *      HMAC verifies — the payload is attacker-controlled until then.
+ *
+ *   2. **Old ids still resolve.** Subscriptions created before the
+ *      Firestore migration carry a Prisma cuid in `metadata.userId`,
+ *      and Paystack will keep sending that cuid on every renewal for
+ *      the life of the subscription. `getUserByAnyId` accepts either
+ *      that or a Firebase uid, so a pre-migration subscriber does not
+ *      silently stop being upgraded.
+ */
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,38 +40,47 @@ export async function POST(request: NextRequest) {
     const eventType = event.event as string;
     const data = event.data;
 
-    // Log webhook event
-    await db.webhookEvent.create({
-      data: {
+    // Audit log. Payload is stored as a string: it is opaque to us and
+    // keeping it unparsed avoids Firestore rejecting an unexpected
+    // nested shape.
+    await getDb()
+      .collection("webhookEvents")
+      .add({
         provider: "PAYSTACK",
         eventType,
-        payload: event,
+        payload: body.slice(0, 100_000),
         processed: true,
-      },
-    });
+        createdAt: new Date(),
+      });
 
     switch (eventType) {
       case "charge.success": {
         const metadata = data.metadata;
         if (metadata?.userId && metadata?.tier) {
-          await db.user.update({
-            where: { id: metadata.userId },
-            data: {
-              tier: metadata.tier,
-              planStartDate: new Date(),
-              planEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-              paystackCustomerId: data.customer?.customer_code ?? null,
-            },
+          const user = await getUserByAnyId(String(metadata.userId));
+          if (!user) {
+            // Log loudly: a payment we cannot attribute is a customer
+            // who paid and did not get their plan.
+            console.error(
+              `Paystack charge.success for unknown user id ${metadata.userId}`
+            );
+            break;
+          }
+
+          await updateSubscription(user.id, {
+            tier: metadata.tier as UserTier,
+            planStartDate: new Date(),
+            planEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            paystackCustomerId: data.customer?.customer_code ?? null,
           });
 
-          await db.payment.updateMany({
-            where: { paystackRef: data.reference },
-            data: { status: "SUCCESS" },
-          });
+          if (data.reference) {
+            await markPaymentStatus(user.id, String(data.reference), "SUCCESS");
+          }
 
           // Mirror the paid conversion to the CRM (no-op if CRM unset).
-          crmIdentify(metadata.userId, { email: data.customer?.email });
-          crmTrack(metadata.userId, "payment_completed", {
+          crmIdentify(user.id, { email: data.customer?.email });
+          crmTrack(user.id, "payment_completed", {
             amount: typeof data.amount === "number" ? data.amount / 100 : data.amount,
             currency: data.currency ?? "NGN",
             tier: metadata.tier,
@@ -60,10 +93,12 @@ export async function POST(request: NextRequest) {
       case "subscription.create": {
         const metadata = data.metadata ?? {};
         if (metadata.userId) {
-          await db.user.update({
-            where: { id: metadata.userId },
-            data: { paystackSubCode: data.subscription_code },
-          });
+          const user = await getUserByAnyId(String(metadata.userId));
+          if (user) {
+            await updateSubscription(user.id, {
+              paystackSubCode: data.subscription_code ?? null,
+            });
+          }
         }
         break;
       }
@@ -72,23 +107,20 @@ export async function POST(request: NextRequest) {
       case "subscription.disable": {
         const sub = data.subscription_code ?? data.code;
         if (sub) {
-          // Capture affected users before clearing the sub code (for CRM churn tracking).
-          const churned = await db.user.findMany({
-            where: { paystackSubCode: sub },
-            select: { id: true },
-          });
+          // Read before clearing: once the code is gone there is no way
+          // back to the affected accounts for the churn event.
+          const churned = await getUsersBySubCode(String(sub));
 
-          await db.user.updateMany({
-            where: { paystackSubCode: sub },
-            data: {
+          for (const user of churned) {
+            await updateSubscription(user.id, {
               tier: "FREE",
               paystackSubCode: null,
               planEndDate: new Date(),
-            },
-          });
-
-          for (const u of churned) {
-            crmTrack(u.id, "subscription_cancelled", { subscriptionCode: sub, reason: eventType });
+            });
+            crmTrack(user.id, "subscription_cancelled", {
+              subscriptionCode: sub,
+              reason: eventType,
+            });
           }
         }
         break;
@@ -101,3 +133,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
   }
 }
+
+export const dynamic = "force-dynamic";

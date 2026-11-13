@@ -1,26 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
 import { canCreateStoredTransfer } from "@/lib/tier-limits";
 import { resolveEntitlementTier } from "@/lib/auth-api";
+import { getFileRequestByCode, recordUpload } from "@/services/file-request.service";
+import { getUser } from "@/services/user.service";
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   try {
     const { code } = await params;
-    const fileRequest = await db.fileRequest.findUnique({
-      where: { shortCode: code },
-      include: { user: { select: { name: true, email: true } } },
-    });
+    const fileRequest = await getFileRequestByCode(code);
 
     if (!fileRequest || fileRequest.status !== "OPEN") {
       return NextResponse.json({ error: { code: "NOT_FOUND", message: "File request not found or closed" } }, { status: 404 });
     }
 
+    const owner = await getUser(fileRequest.uid);
+
     return NextResponse.json({
       data: {
         title: fileRequest.title,
         message: fileRequest.message,
-        requesterName: fileRequest.user?.name ?? fileRequest.user?.email ?? "Someone",
+        requesterName: owner?.name ?? owner?.email ?? "Someone",
         status: fileRequest.status,
       },
     });
@@ -45,23 +45,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: parsed.error.issues[0].message } }, { status: 400 });
     }
 
-    const fileRequest = await db.fileRequest.findUnique({
-      where: { shortCode: code },
-      include: { user: { select: { tier: true, email: true } } },
-    });
+    const fileRequest = await getFileRequestByCode(code);
     if (!fileRequest || fileRequest.status !== "OPEN") {
       return NextResponse.json({ error: { code: "NOT_FOUND", message: "File request not found or closed" } }, { status: 404 });
     }
+
+    const owner = await getUser(fileRequest.uid);
 
     // The uploader here is an anonymous third party, so the plan that
     // has to cover the storage is the REQUEST OWNER's. Checked at
     // submit time, not just at creation time: an owner whose
     // subscription lapsed must not keep collecting stored uploads
     // through a portal they created while paying.
-    const ownerTier = resolveEntitlementTier(
-      fileRequest.user?.email,
-      fileRequest.user?.tier
-    );
+    const ownerTier = resolveEntitlementTier(owner?.email, owner?.tier);
     if (!canCreateStoredTransfer(ownerTier)) {
       return NextResponse.json(
         {
@@ -75,16 +71,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       );
     }
 
-    const upload = await db.fileRequestUpload.create({
-      data: {
-        requestId: fileRequest.id,
-        uploaderEmail: parsed.data.uploaderEmail ?? null,
-        uploaderName: parsed.data.uploaderName ?? null,
-        transferId: parsed.data.transferId,
-      },
+    const uploadId = await recordUpload(fileRequest.id, {
+      uploaderEmail: parsed.data.uploaderEmail ?? null,
+      uploaderName: parsed.data.uploaderName ?? null,
+      transferId: parsed.data.transferId,
     });
 
-    return NextResponse.json({ data: { uploadId: upload.id, received: true } }, { status: 201 });
+    return NextResponse.json({ data: { uploadId, received: true } }, { status: 201 });
   } catch (error) {
     console.error("Request upload error:", error);
     return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "Failed to submit upload" } }, { status: 500 });

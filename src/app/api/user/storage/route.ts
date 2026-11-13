@@ -1,34 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { getAuthUser } from "@/lib/auth-api";
 import { getTierLimits } from "@/lib/tier-limits";
-import type { UserTier } from "@/types/enums";
+import { getUserStorageUsage } from "@/services/transfer.service";
 
+/**
+ * Storage usage for the dashboard.
+ *
+ * Reads Firestore, which is where transfers and files actually live.
+ * The previous version aggregated the Postgres `files` table — a table
+ * nothing had written to since transfers moved to Firestore, so the
+ * dashboard reported zero for every account.
+ */
 export async function GET(request: NextRequest) {
   try {
-    const authUser = await getAuthUser(request);
-    const userId = authUser?.id;
-    if (!userId) {
+    const user = await getAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
     }
 
-    const user = await db.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      return NextResponse.json({ error: { code: "NOT_FOUND", message: "User not found" } }, { status: 404 });
-    }
-
-    const limits = getTierLimits(user.tier as UserTier);
-
-    const totalStorage = await db.file.aggregate({
-      where: { transfer: { userId, status: "ACTIVE" } },
-      _sum: { sizeBytes: true },
-    });
-
-    const activeTransfers = await db.transfer.count({
-      where: { userId, status: "ACTIVE" },
-    });
-
-    const usedBytes = Number(totalStorage._sum.sizeBytes ?? 0);
+    const limits = getTierLimits(user.tier);
+    const { usedBytes, activeTransfers } = await getUserStorageUsage(user.id);
     const maxBytes = limits.maxTotalStorageBytes;
 
     return NextResponse.json({
@@ -53,3 +44,5 @@ function formatBytes(bytes: number): string {
   if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
   return `${(bytes / 1024).toFixed(0)} KB`;
 }
+
+export const dynamic = "force-dynamic";

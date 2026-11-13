@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { paystackRequest } from "@/lib/paystack";
 import { getAuthUser } from "@/lib/auth-api";
+import { updateSubscription } from "@/services/user.service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,13 +23,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    await db.user.update({
-      where: { id: user.id },
-      data: {
-        tier: "FREE",
-        paystackSubCode: null,
-        planEndDate: new Date(),
-      },
+    await updateSubscription(user.id, {
+      tier: "FREE",
+      paystackSubCode: null,
+      planEndDate: new Date(),
     });
 
     return NextResponse.json({ data: { cancelled: true } });

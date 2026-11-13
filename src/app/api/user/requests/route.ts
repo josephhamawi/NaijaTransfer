@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { getAuthUser } from "@/lib/auth-api";
-import { generateShortCode } from "@/lib/nanoid";
+import { getAuthUser, resolveEntitlementTier } from "@/lib/auth-api";
 import { canCreateStoredTransfer } from "@/lib/tier-limits";
-import { resolveEntitlementTier } from "@/lib/auth-api";
+import { createFileRequest, listUserFileRequests } from "@/services/file-request.service";
 
 const createSchema = z.object({
   title: z.string().min(1).max(200),
@@ -19,11 +17,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
     }
 
-    const requests = await db.fileRequest.findMany({
-      where: { userId },
-      include: { _count: { select: { uploads: true } } },
-      orderBy: { createdAt: "desc" },
-    });
+    const requests = await listUserFileRequests(userId);
 
     return NextResponse.json({
       data: requests.map((r) => ({
@@ -32,7 +26,7 @@ export async function GET(request: NextRequest) {
         title: r.title,
         message: r.message,
         status: r.status,
-        uploadCount: r._count.uploads,
+        uploadCount: r.uploadCount,
         createdAt: r.createdAt.toISOString(),
       })),
     });
@@ -75,14 +69,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: parsed.error.issues[0].message } }, { status: 400 });
     }
 
-    const fileRequest = await db.fileRequest.create({
-      data: {
-        userId,
-        shortCode: await generateShortCode(),
-        title: parsed.data.title,
-        message: parsed.data.message ?? null,
-        status: "OPEN",
-      },
+    const fileRequest = await createFileRequest(userId, {
+      title: parsed.data.title,
+      message: parsed.data.message ?? null,
     });
 
     return NextResponse.json({

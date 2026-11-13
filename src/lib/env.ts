@@ -6,17 +6,6 @@ import { z } from "zod";
  * environment variables are present and correctly typed.
  */
 const serverEnvSchema = z.object({
-  // Database
-  DATABASE_URL: z.string().url(),
-
-  // NextAuth
-  NEXTAUTH_URL: z.string().url(),
-  NEXTAUTH_SECRET: z.string().min(16),
-
-  // Google OAuth
-  GOOGLE_CLIENT_ID: z.string().min(1),
-  GOOGLE_CLIENT_SECRET: z.string().min(1),
-
   // Paystack
   PAYSTACK_SECRET_KEY: z.string().min(1),
   PAYSTACK_PUBLIC_KEY: z.string().min(1),

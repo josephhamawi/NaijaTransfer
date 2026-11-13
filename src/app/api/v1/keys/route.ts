@@ -21,11 +21,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: { code: "VALIDATION_ERROR", message: "Name is required" } }, { status: 400 });
     }
 
-    const { key, record } = await createApiKey(userId, parsed.data.name);
+    const { key, record } = await createApiKey(userId, parsed.data.name, authUser.tier);
 
     return NextResponse.json({
       data: {
-        id: record.id,
+        id: record.publicId,
         key, // Only shown once!
         name: record.name,
         prefix: record.keyPrefix,
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       data: keys.map((k) => ({
-        id: k.id,
+        id: k.publicId,
         name: k.name,
         prefix: k.keyPrefix,
         isActive: k.isActive,

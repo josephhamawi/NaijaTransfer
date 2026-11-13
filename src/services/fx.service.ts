@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/firebase-admin";
 
 export type Currency =
   | "USD"
@@ -146,19 +146,6 @@ async function fetchParallelRates(): Promise<Partial<Record<Currency, DatedQuote
   return parseParallelRates(html);
 }
 
-/** Africa/Lagos has no DST and is fixed at UTC+1 — day boundaries are
- *  reliably YYYY-MM-DD 23:00 UTC of the previous day. */
-function lagosDayBounds(quoteDate: Date): { from: Date; to: Date } {
-  const y = quoteDate.getUTCFullYear();
-  const m = quoteDate.getUTCMonth();
-  const d = quoteDate.getUTCDate();
-  // The quote was stamped at 12:00 UTC on day `d`, which is 13:00 WAT — same
-  // calendar day. Lagos midnight on `d` is 23:00 UTC on `d-1`.
-  const from = new Date(Date.UTC(y, m, d - 1, 23, 0, 0));
-  const to = new Date(Date.UTC(y, m, d, 23, 0, 0));
-  return { from, to };
-}
-
 async function fetchOfficialRate(currency: Currency): Promise<number> {
   // open.er-api.com is free, no key. `/v6/latest/{base}` returns rates with
   // NGN as one of the keys — i.e. NGN per 1 unit of the base currency.
@@ -169,6 +156,134 @@ async function fetchOfficialRate(currency: Currency): Promise<number> {
     throw new Error(`Bad official-rate response for ${currency}`);
   }
   return data.rates.NGN;
+}
+
+/**
+ * FX rates in Firestore.
+ *
+ * One document per (currency, market) holding a bounded array of daily
+ * points, instead of one Postgres row per sample.
+ *
+ * The old schema stored a row per scrape and aggregated with
+ * `date_trunc` in raw SQL, which Firestore has no equivalent for. It
+ * already deduped to one row per Lagos day, so the array carries the
+ * same information: four years of history becomes one document read
+ * instead of a thousand-row scan, and the cron's delete-then-insert per
+ * day becomes a single upsert.
+ */
+
+/** ~4 years of daily points. Keeps the document far below the 1 MiB cap. */
+const MAX_POINTS = 1500;
+
+const FX_RATES = "fxRates";
+
+interface RatePoint {
+  /** Lagos calendar day, YYYY-MM-DD. The dedupe key. */
+  d: string;
+  b: number;
+  s: number;
+}
+
+function pairId(currency: Currency, market: Market): string {
+  return `${currency}_${market}`;
+}
+
+/**
+ * Lagos calendar day for an instant.
+ *
+ * Africa/Lagos has no DST and is fixed at UTC+1, so shifting by an hour
+ * and taking the UTC date is exact — no timezone library needed.
+ */
+function lagosDayKey(at: Date): string {
+  return new Date(at.getTime() + 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/** Midday UTC on a Lagos day key — a stable instant inside that day. */
+function dayKeyToDate(key: string): Date {
+  return new Date(`${key}T12:00:00.000Z`);
+}
+
+/**
+ * Insert or replace one day's point, oldest trimmed.
+ *
+ * Idempotent per Lagos day: running the cron hourly rewrites today's
+ * point rather than accumulating 24 of them.
+ */
+function mergePoint(points: RatePoint[], point: RatePoint): RatePoint[] {
+  const merged = points.filter((p) => p.d !== point.d);
+  merged.push(point);
+  merged.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
+  return merged.length > MAX_POINTS ? merged.slice(merged.length - MAX_POINTS) : merged;
+}
+
+async function writeRatePoint(args: {
+  currency: Currency;
+  market: Market;
+  buy: number;
+  sell: number;
+  source: string;
+  at: Date;
+}): Promise<void> {
+  const database = getDb();
+  const ref = database.collection(FX_RATES).doc(pairId(args.currency, args.market));
+
+  // A transaction because the hourly cron and a manual refresh can
+  // overlap, and both read-modify-write the same points array.
+  await database.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const existing = (snap.data()?.points as RatePoint[] | undefined) ?? [];
+    const points = mergePoint(existing, {
+      d: lagosDayKey(args.at),
+      b: args.buy,
+      s: args.sell,
+    });
+
+    tx.set(
+      ref,
+      {
+        currency: args.currency,
+        market: args.market,
+        source: args.source,
+        latest: { buy: args.buy, sell: args.sell, fetchedAt: args.at },
+        points,
+        updatedAt: new Date(),
+      },
+      { merge: true }
+    );
+  });
+}
+
+interface RatePairDoc {
+  source: string;
+  latest: { buy: number; sell: number; fetchedAt: Date } | null;
+  points: RatePoint[];
+}
+
+async function readRatePair(
+  currency: Currency,
+  market: Market
+): Promise<RatePairDoc | null> {
+  const snap = await getDb().collection(FX_RATES).doc(pairId(currency, market)).get();
+  if (!snap.exists) return null;
+  const data = snap.data() ?? {};
+  const latest = data.latest as
+    | { buy: number; sell: number; fetchedAt: Date | { toDate?: () => Date } }
+    | undefined;
+
+  return {
+    source: String(data.source ?? ""),
+    latest: latest
+      ? {
+          buy: Number(latest.buy),
+          sell: Number(latest.sell),
+          fetchedAt:
+            latest.fetchedAt instanceof Date
+              ? latest.fetchedAt
+              : ((latest.fetchedAt as { toDate?: () => Date })?.toDate?.() ?? new Date(0)),
+        }
+      : null,
+    points: ((data.points as RatePoint[] | undefined) ?? []).slice(),
+  };
 }
 
 export async function refreshFxRates(): Promise<RefreshResult> {
@@ -188,27 +303,13 @@ export async function refreshFxRates(): Promise<RefreshResult> {
         continue;
       }
       for (const q of quotes) {
-        const { from, to } = lagosDayBounds(q.date);
-        // Idempotent per-day write: drop any existing row for this Lagos
-        // calendar day, then insert the fresh consensus quote. Keeps the
-        // table to one row per (currency, market, source, day).
-        await db.fxRate.deleteMany({
-          where: {
-            currency,
-            market: "parallel",
-            source: PARALLEL_SOURCE_NAME,
-            fetchedAt: { gte: from, lt: to },
-          },
-        });
-        await db.fxRate.create({
-          data: {
-            currency,
-            market: "parallel",
-            buyRate: q.buy,
-            sellRate: q.sell,
-            source: PARALLEL_SOURCE_NAME,
-            fetchedAt: q.date,
-          },
+        await writeRatePoint({
+          currency,
+          market: "parallel",
+          buy: q.buy,
+          sell: q.sell,
+          source: PARALLEL_SOURCE_NAME,
+          at: q.date,
         });
         result.written += 1;
       }
@@ -231,24 +332,13 @@ export async function refreshFxRates(): Promise<RefreshResult> {
         continue;
       }
       result.official[currency] = ngn;
-      const { from, to } = lagosDayBounds(now);
-      await db.fxRate.deleteMany({
-        where: {
-          currency,
-          market: "official",
-          source: OFFICIAL_SOURCE_NAME,
-          fetchedAt: { gte: from, lt: to },
-        },
-      });
-      await db.fxRate.create({
-        data: {
-          currency,
-          market: "official",
-          buyRate: ngn,
-          sellRate: ngn,
-          source: OFFICIAL_SOURCE_NAME,
-          fetchedAt: now,
-        },
+      await writeRatePoint({
+        currency,
+        market: "official",
+        buy: ngn,
+        sell: ngn,
+        source: OFFICIAL_SOURCE_NAME,
+        at: now,
       });
       result.written += 1;
     } catch (e) {
@@ -261,13 +351,6 @@ export async function refreshFxRates(): Promise<RefreshResult> {
 
 export type Granularity = "day" | "month" | "year";
 
-interface RawHistoryRow {
-  period: Date;
-  buy_avg: number | null;
-  sell_avg: number | null;
-  samples: bigint;
-}
-
 export interface HistoryRow {
   period: Date;
   buy: number;
@@ -275,76 +358,93 @@ export interface HistoryRow {
   samples: number;
 }
 
+/** Bucket key for a Lagos day string at the requested granularity. */
+function periodKey(dayKey: string, granularity: Granularity): string {
+  if (granularity === "year") return dayKey.slice(0, 4);
+  if (granularity === "month") return dayKey.slice(0, 7);
+  return dayKey;
+}
+
+function periodKeyToDate(key: string): Date {
+  if (key.length === 4) return new Date(`${key}-01-01T12:00:00.000Z`);
+  if (key.length === 7) return new Date(`${key}-01T12:00:00.000Z`);
+  return dayKeyToDate(key);
+}
+
 /**
- * Aggregated history of a (currency, market) pair, bucketed by day/month/year
- * in Africa/Lagos time. Returns the average buy and sell rate across all
- * samples in each bucket. Most recent bucket first.
+ * Aggregated history of a (currency, market) pair, bucketed by
+ * day/month/year in Africa/Lagos time. Average buy and sell per bucket,
+ * most recent first.
+ *
+ * Replaces a `date_trunc ... GROUP BY` query. Bucketing happens in
+ * memory over one document's points array, which is strictly cheaper:
+ * one read instead of a scan, and the array already holds one point per
+ * Lagos day because the writer dedupes that way.
+ *
+ * `samples` therefore counts days in the bucket — the same thing the
+ * SQL counted, since it also held one row per day.
  */
 export async function getRateHistory(args: {
   currency: Currency;
   market: Market;
   granularity: Granularity;
-  /** Inclusive lower bound on fetchedAt. */
+  /** Inclusive lower bound on the rate date. */
   from?: Date;
-  /** Exclusive upper bound on fetchedAt. */
+  /** Exclusive upper bound on the rate date. */
   to?: Date;
   /** Cap result count. Defaults to 1000. */
   limit?: number;
 }): Promise<HistoryRow[]> {
   const { currency, market, granularity, from, to, limit = 1000 } = args;
-  const trunc =
-    granularity === "day" ? "day" : granularity === "month" ? "month" : "year";
 
-  // Build WHERE clause dynamically. Granularity is whitelisted above so safe
-  // to inline; everything else goes through parameterised placeholders.
-  const params: unknown[] = [currency, market];
-  let where = `currency = $1 AND market = $2`;
-  if (from) {
-    params.push(from);
-    where += ` AND "fetchedAt" >= $${params.length}`;
+  const pair = await readRatePair(currency, market);
+  if (!pair || pair.points.length === 0) return [];
+
+  const fromKey = from ? lagosDayKey(from) : null;
+  const toKey = to ? lagosDayKey(to) : null;
+
+  const buckets = new Map<string, { buy: number; sell: number; samples: number }>();
+
+  for (const point of pair.points) {
+    // `to` is exclusive, matching the old SQL's `< $n`.
+    if (fromKey && point.d < fromKey) continue;
+    if (toKey && point.d >= toKey) continue;
+
+    const key = periodKey(point.d, granularity);
+    const bucket = buckets.get(key) ?? { buy: 0, sell: 0, samples: 0 };
+    bucket.buy += point.b;
+    bucket.sell += point.s;
+    bucket.samples += 1;
+    buckets.set(key, bucket);
   }
-  if (to) {
-    params.push(to);
-    where += ` AND "fetchedAt" < $${params.length}`;
-  }
-  params.push(limit);
-  const limitIdx = params.length;
 
-  const rows = await db.$queryRawUnsafe<RawHistoryRow[]>(
-    `SELECT date_trunc('${trunc}', "fetchedAt" AT TIME ZONE 'Africa/Lagos') AS period,
-            AVG("buyRate")::float AS buy_avg,
-            AVG("sellRate")::float AS sell_avg,
-            COUNT(*) AS samples
-     FROM fx_rates
-     WHERE ${where}
-     GROUP BY period
-     ORDER BY period DESC
-     LIMIT $${limitIdx}`,
-    ...params,
-  );
-
-  return rows
-    .filter((r) => r.buy_avg !== null && r.sell_avg !== null)
-    .map((r) => ({
-      period: r.period,
-      buy: r.buy_avg as number,
-      sell: r.sell_avg as number,
-      samples: Number(r.samples),
+  return [...buckets.entries()]
+    .sort((a, b) => (a[0] < b[0] ? 1 : a[0] > b[0] ? -1 : 0))
+    .slice(0, limit)
+    .map(([key, bucket]) => ({
+      period: periodKeyToDate(key),
+      buy: bucket.buy / bucket.samples,
+      sell: bucket.sell / bucket.samples,
+      samples: bucket.samples,
     }));
 }
 
 /**
- * Earliest fetchedAt timestamp for a currency. Used to constrain the year
- * dropdown in the history filter — we can't show rates for years we don't
- * have data for.
+ * Earliest point held for a currency, across both markets. Constrains
+ * the year dropdown so it cannot offer years with no data.
  */
 export async function getEarliestRateDate(currency: Currency): Promise<Date | null> {
-  const row = await db.fxRate.findFirst({
-    where: { currency },
-    orderBy: { fetchedAt: "asc" },
-    select: { fetchedAt: true },
-  });
-  return row?.fetchedAt ?? null;
+  const [parallel, official] = await Promise.all([
+    readRatePair(currency, "parallel"),
+    readRatePair(currency, "official"),
+  ]);
+
+  const firsts = [parallel?.points[0]?.d, official?.points[0]?.d].filter(
+    (d): d is string => typeof d === "string"
+  );
+  if (firsts.length === 0) return null;
+
+  return dayKeyToDate(firsts.sort()[0]);
 }
 
 export interface LatestRate {
@@ -356,26 +456,43 @@ export interface LatestRate {
 export async function getLatestRates(
   currencies: Currency[] = ALL_CURRENCIES,
 ): Promise<LatestRate[]> {
-  const rows = await db.fxRate.findMany({
-    where: { currency: { in: currencies } },
-    orderBy: { fetchedAt: "desc" },
-  });
+  // Two document reads per currency, issued together rather than one
+  // table scan ordered by fetchedAt.
+  const pairs = await Promise.all(
+    currencies.flatMap((currency) => [
+      readRatePair(currency, "parallel").then((pair) => ({
+        currency,
+        market: "parallel" as const,
+        pair,
+      })),
+      readRatePair(currency, "official").then((pair) => ({
+        currency,
+        market: "official" as const,
+        pair,
+      })),
+    ]),
+  );
 
   return currencies.map((currency) => {
-    const parallel = rows.find((r) => r.currency === currency && r.market === "parallel");
-    const official = rows.find((r) => r.currency === currency && r.market === "official");
+    const parallel = pairs.find((p) => p.currency === currency && p.market === "parallel")?.pair;
+    const official = pairs.find((p) => p.currency === currency && p.market === "official")?.pair;
+
     return {
       currency,
-      parallel: parallel
+      parallel: parallel?.latest
         ? {
-            buy: parallel.buyRate,
-            sell: parallel.sellRate,
+            buy: parallel.latest.buy,
+            sell: parallel.latest.sell,
             source: parallel.source,
-            fetchedAt: parallel.fetchedAt,
+            fetchedAt: parallel.latest.fetchedAt,
           }
         : null,
-      official: official
-        ? { rate: official.buyRate, source: official.source, fetchedAt: official.fetchedAt }
+      official: official?.latest
+        ? {
+            rate: official.latest.buy,
+            source: official.source,
+            fetchedAt: official.latest.fetchedAt,
+          }
         : null,
     };
   });

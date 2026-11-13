@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { getAuthUser } from "@/lib/auth-api";
+import {
+  closeFileRequest,
+  getOwnedFileRequest,
+  listUploads,
+} from "@/services/file-request.service";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -11,14 +15,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
     }
 
-    const fileRequest = await db.fileRequest.findFirst({
-      where: { id, userId },
-      include: { uploads: true },
-    });
+    const fileRequest = await getOwnedFileRequest(id, userId);
 
     if (!fileRequest) {
       return NextResponse.json({ error: { code: "NOT_FOUND", message: "Request not found" } }, { status: 404 });
     }
+
+    const uploads = await listUploads(fileRequest.id);
 
     return NextResponse.json({
       data: {
@@ -27,7 +30,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         title: fileRequest.title,
         message: fileRequest.message,
         status: fileRequest.status,
-        uploads: fileRequest.uploads.map((u) => ({
+        uploads: uploads.map((u) => ({
           id: u.id,
           uploaderEmail: u.uploaderEmail,
           uploaderName: u.uploaderName,
@@ -51,12 +54,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
     }
 
-    const updated = await db.fileRequest.updateMany({
-      where: { id, userId },
-      data: { status: "CLOSED" },
-    });
+    const closed = await closeFileRequest(id, userId);
 
-    if (updated.count === 0) {
+    if (!closed) {
       return NextResponse.json({ error: { code: "NOT_FOUND", message: "Request not found" } }, { status: 404 });
     }
 

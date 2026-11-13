@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
-import { db } from "@/lib/db";
 import { getAuthUser } from "@/lib/auth-api";
 import { crmIdentify } from "@/lib/crm";
 import { generateUniqueUsername } from "@/lib/username";
+import { updateProfile, UserConflictError, type UserDoc } from "@/services/user.service";
 
 const updateSchema = z.object({
   firstName: z.string().trim().max(50).optional(),
@@ -13,15 +12,7 @@ const updateSchema = z.object({
   hearAboutUs: z.string().trim().max(100).nullable().optional(),
 });
 
-function serialize(u: {
-  firstName: string | null;
-  lastName: string | null;
-  phone: string | null;
-  hearAboutUs: string | null;
-  username: string | null;
-  name: string | null;
-  email: string | null;
-}) {
+function serialize(u: UserDoc) {
   return {
     firstName: u.firstName,
     lastName: u.lastName,
@@ -58,7 +49,8 @@ export async function PATCH(request: NextRequest) {
     const effFirst = firstName ?? user.firstName ?? "";
     const effLast = lastName ?? user.lastName ?? "";
 
-    // Generate the username once, the first time we have a name to build from.
+    // Generate the username once, the first time we have a name to build
+    // from. The claim itself happens inside updateProfile's transaction.
     let username = user.username;
     if (!username && (effFirst || effLast)) {
       username = await generateUniqueUsername(effFirst, effLast);
@@ -67,20 +59,17 @@ export async function PATCH(request: NextRequest) {
     // Keep `name` (used for the avatar/display) in sync with first + last.
     const fullName = [effFirst, effLast].filter(Boolean).join(" ").trim();
 
-    const updated = await db.user.update({
-      where: { id: user.id },
-      data: {
-        ...(firstName !== undefined ? { firstName: firstName || null } : {}),
-        ...(lastName !== undefined ? { lastName: lastName || null } : {}),
-        ...(phone !== undefined ? { phone: phone || null } : {}),
-        ...(hearAboutUs !== undefined ? { hearAboutUs: hearAboutUs || null } : {}),
-        ...(username ? { username } : {}),
-        ...(fullName ? { name: fullName } : {}),
-      },
+    const updated = await updateProfile(user.id, {
+      ...(firstName !== undefined ? { firstName: firstName || null } : {}),
+      ...(lastName !== undefined ? { lastName: lastName || null } : {}),
+      ...(phone !== undefined ? { phone: phone || null } : {}),
+      ...(hearAboutUs !== undefined ? { hearAboutUs: hearAboutUs || null } : {}),
+      ...(username ? { username } : {}),
+      ...(fullName ? { name: fullName } : {}),
     });
 
     // Push fresh traits to the CRM (fire-and-forget; no-op if unconfigured).
-    crmIdentify(user.id, {
+    crmIdentify(updated.id, {
       email: updated.email,
       displayName: updated.name,
       phone: updated.phone,
@@ -88,13 +77,10 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ data: serialize(updated) });
   } catch (error) {
-    // Unique violation (e.g. phone already used by another account).
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      const field = (error.meta?.target as string[] | undefined)?.join(", ") || "value";
-      const message = field.includes("phone")
-        ? "That phone number is already linked to another account."
-        : "That value is already in use.";
-      return NextResponse.json({ error: { code: "CONFLICT", message } }, { status: 409 });
+    // Uniqueness is held by reservation documents rather than a database
+    // constraint, so the conflict arrives as our own error type.
+    if (error instanceof UserConflictError) {
+      return NextResponse.json({ error: { code: "CONFLICT", message: error.message } }, { status: 409 });
     }
     console.error("Profile update error:", error);
     return NextResponse.json({ error: { code: "INTERNAL_ERROR", message: "Failed to update profile" } }, { status: 500 });
