@@ -100,38 +100,61 @@ env:
     availability: [RUNTIME]
 
   # ─── Payments ──────────────────────────────────────────────────
+  #
+  # Secret names match what already exists in Secret Manager. They are
+  # SCREAMING_SNAKE, not kebab-case — a rollout referencing a secret
+  # that does not resolve fails outright, so these have to be the real
+  # names rather than a convention.
   - variable: PAYSTACK_SECRET_KEY
-    secret: paystack-secret-key
+    secret: PAYSTACK_SECRET_KEY
   - variable: PAYSTACK_PUBLIC_KEY
-    secret: paystack-public-key
+    secret: PAYSTACK_PUBLIC_KEY
     availability: [BUILD, RUNTIME]
   - variable: PAYSTACK_WEBHOOK_SECRET
-    secret: paystack-webhook-secret
+    secret: PAYSTACK_WEBHOOK_SECRET
   - variable: PAYSTACK_PRO_PLAN_CODE
-    secret: paystack-pro-plan-code
+    secret: PAYSTACK_PRO_PLAN_CODE
   - variable: PAYSTACK_BUSINESS_PLAN_CODE
-    secret: paystack-business-plan-code
+    secret: PAYSTACK_BUSINESS_PLAN_CODE
 
   # ─── Email / SMS ───────────────────────────────────────────────
-  - variable: BREVO_API_KEY
-    secret: brevo-api-key
   - variable: BREVO_SENDER_EMAIL
     value: noreply@nigeriatransfer.com
     availability: [RUNTIME]
   - variable: BREVO_SENDER_NAME
     value: NigeriaTransfer
     availability: [RUNTIME]
-  - variable: TERMII_API_KEY
-    secret: termii-api-key
   - variable: TERMII_SENDER_ID
     value: NigeriaT
     availability: [RUNTIME]
-
-  # ─── CRM (optional — app runs identically without it) ──────────
-  - variable: CRM_APP_ID
-    secret: crm-app-id
-  - variable: CRM_API_KEY
-    secret: crm-api-key
   - variable: CRM_ENDPOINT
     value: https://api-ei3nxpoa5q-uc.a.run.app
     availability: [RUNTIME]
+
+  # ─── Not yet in Secret Manager ─────────────────────────────────
+  #
+  # Commented out deliberately. App Hosting fails an entire rollout if
+  # any referenced secret cannot be resolved, so leaving these in would
+  # guarantee a failed first deploy rather than a working app with
+  # degraded email.
+  #
+  # Create each one, then uncomment the matching pair:
+  #
+  #   printf '%s' "$BREVO_API_KEY"  | gcloud secrets create BREVO_API_KEY  --data-file=- --project naijatransfer
+  #   printf '%s' "$TERMII_API_KEY" | gcloud secrets create TERMII_API_KEY --data-file=- --project naijatransfer
+  #   printf '%s' "$CRM_APP_ID"     | gcloud secrets create CRM_APP_ID     --data-file=- --project naijatransfer
+  #   printf '%s' "$CRM_API_KEY"    | gcloud secrets create CRM_API_KEY    --data-file=- --project naijatransfer
+  #   firebase apphosting:secrets:grantaccess BREVO_API_KEY --backend <id> --project naijatransfer
+  #
+  # Impact while missing: transfer notification emails and phone OTP do
+  # not send. Uploads, downloads, Live Send and payments are unaffected.
+  # CRM tracking already no-ops when unset by design.
+  #
+  # - variable: BREVO_API_KEY
+  #   secret: BREVO_API_KEY
+  # - variable: TERMII_API_KEY
+  #   secret: TERMII_API_KEY
+  # - variable: CRM_APP_ID
+  #   secret: CRM_APP_ID
+  # - variable: CRM_API_KEY
+  #   secret: CRM_API_KEY

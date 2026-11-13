@@ -25,19 +25,20 @@ PROJECT="${2:-naijatransfer}"
 TMP="$(mktemp -t lifecycle)"
 trap 'rm -f "$TMP"' EXIT
 
+# `gcloud storage buckets update --lifecycle-file` expects the lifecycle
+# config itself ({"rule": [...]}), not the gsutil wrapper
+# ({"lifecycle": {"rule": [...]}}).
 cat > "$TMP" <<'JSON'
 {
-  "lifecycle": {
-    "rule": [
-      {
-        "action": { "type": "Delete" },
-        "condition": {
-          "age": 90,
-          "matchesPrefix": ["transfers/"]
-        }
+  "rule": [
+    {
+      "action": { "type": "Delete" },
+      "condition": {
+        "age": 90,
+        "matchesPrefix": ["transfers/"]
       }
-    ]
-  }
+    }
+  ]
 }
 JSON
 
@@ -47,6 +48,17 @@ gcloud storage buckets update "gs://$BUCKET" \
   --lifecycle-file="$TMP"
 
 echo
-echo "Current rules:"
-gcloud storage buckets describe "gs://$BUCKET" --project "$PROJECT" \
-  --format="yaml(lifecycle)"
+echo "Verifying…"
+# The field is `lifecycle_config` in `gcloud storage` output, NOT
+# `lifecycle`. Reading the wrong key reports "not set" on a bucket that
+# is correctly configured — which is worse than no check, because it
+# sends you re-applying a rule that is already there.
+APPLIED=$(gcloud storage buckets describe "gs://$BUCKET" --project "$PROJECT" \
+  --format=json | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin).get('lifecycle_config')))")
+
+if [ "$APPLIED" = "null" ]; then
+  echo "FAILED: no lifecycle rule is set on gs://$BUCKET"
+  exit 1
+fi
+
+echo "Applied: $APPLIED"

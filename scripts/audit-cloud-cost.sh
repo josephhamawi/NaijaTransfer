@@ -82,9 +82,12 @@ fi
 echo
 echo "Storage lifecycle:"
 for bucket in $("${GC[@]}" storage buckets list --format="value(name)" 2>/dev/null); do
+  # `lifecycle_config`, not `lifecycle`: gcloud storage reports the
+  # field under its snake_case name, and reading the wrong one flags
+  # every correctly-configured bucket as unprotected.
   rules=$("${GC[@]}" storage buckets describe "gs://$bucket" \
-    --format="value(lifecycle.rule)" 2>/dev/null)
-  if [ -z "$rules" ] || [ "$rules" = "[]" ]; then
+    --format="value(lifecycle_config)" 2>/dev/null)
+  if [ -z "$rules" ] || [ "$rules" = "[]" ] || [ "$rules" = "None" ]; then
     echo "  ✗ gs://$bucket: no lifecycle rule — expired objects accrue forever"
     echo "      fix: bash scripts/set-storage-lifecycle.sh $bucket"
     FINDINGS=$((FINDINGS + 1))
