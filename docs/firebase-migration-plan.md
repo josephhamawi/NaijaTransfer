@@ -129,7 +129,7 @@ Ship this with Postgres still in play, pointed at the live DB only if reachable;
 7. `.github/workflows/deploy.yml` → replace VM ssh/PM2 steps with App Hosting rollout; keep lint/typecheck/test. Re-enable the `push: branches: [main]` trigger that's commented out.
 8. Deploy to the App Hosting default domain. Smoke test uploads, downloads, password-protected links, Paystack checkout. Hetzner still serving `naijatransfer.com`.
 
-### Phase 2 — Postgres → Firestore — ✅ CODE DONE (data move still to run)
+### Phase 2 — Postgres → Firestore — ✅ COMPLETE (data moved 2026-11-14)
 
 Collection layout (uid-keyed throughout):
 
@@ -187,13 +187,40 @@ Shipped with the port:
 - **Two latent bugs fixed in passing**, both pre-dating this work: `/api/user/storage` aggregated the Postgres `files` table that nothing had written to since transfers moved to Firestore (every dashboard read zero), and `/api/v1/transfers/[id]` read transfers from Postgres (always 404).
 - **`storage-monitor.service.ts` rewritten.** It measured a local upload directory that stopped existing when uploads went direct-to-bucket, against a 200 GB figure from the retired Oracle VM.
 
-Still to run, in order:
+**Data moved 2026-11-14.** What actually transferred:
 
-1. `pg_dump` + the JSON export on the VM (command in `scripts/migrate-pg-to-firestore.ts`).
-2. `npm run migrate:firestore export.json` — dry run, read the counts and warnings.
-3. `... --apply`, then `... --verify` (non-zero exit on any mismatch).
-4. `firebase deploy --only firestore:indexes` — four new composite indexes.
-5. Only then retire Postgres.
+| | Postgres | Firestore |
+|---|---|---|
+| users | 4 | 4 docs, keyed by their existing Firebase uid, each carrying `legacyId` |
+| payments | 2 (both PENDING) | 2, under the owning user |
+| api keys / file requests / uploads | 0 | — |
+| fx_rates | 552 rows | 12 pair documents, 552 daily points — no loss |
+| transfers | 0 | already native |
+
+`--verify` passed with no mismatches, and the result was checked again
+independently of the migration script. Nobody held a paid plan, so there
+was no subscription state to carry.
+
+The live app reads it correctly: `/black-market-exchange-rate` renders
+real rates (₦1,425 / ₦1,445 …) from the migrated `fxRates` documents,
+which exercises the rewritten aggregation that replaced the raw SQL
+`date_trunc` query.
+
+Two things this surfaced, both now fixed in the script:
+
+- The Firebase Auth lookup caught *every* exception as "this user does
+  not exist". The Identity Toolkit API returns 403 when user credentials
+  carry no quota project, so a dry run reported "0 matched, 4 accounts
+  to create" for four users who all already existed. Applying that would
+  have created duplicate accounts and orphaned every transfer keyed to
+  their real uid. Only `auth/user-not-found` may now fall through.
+- The preflight check shelled out to `gcloud` for its identity while the
+  SDK used `GOOGLE_APPLICATION_CREDENTIALS` — a check that could
+  disagree with the thing it was checking. It now resolves credentials
+  the same way the SDK does.
+
+Postgres is now redundant. It stays on the Hetzner box until that server
+is retired (see `docs/cutover.md`), with the dump archived off-box.
 
 ### Phase 3 — Auth consolidation
 
@@ -341,7 +368,7 @@ Controls, in order of effectiveness:
 |---|---|
 | 0 — access + dump | 0.5 day (gated on account access) |
 | 1 — App Hosting + rules | ✅ done |
-| 2 — Postgres → Firestore | ✅ code done; data move pending a `pg_dump` |
+| 2 — Postgres → Firestore | ✅ complete — code and data |
 | 3 — auth consolidation | mostly done early: NextAuth was dead code and is removed. Session cookies for RSC remain |
 | 4 — crons | 0.5 day |
 | 5 — cutover + cleanup | 1 day + 48 h watch |
