@@ -1,19 +1,29 @@
 import type { Metadata } from "next";
+import { getTransferByCode } from "@/services/transfer.service";
 
-// Fetch transfer data server-side for Open Graph tags
-async function getTransferMeta(code: string) {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://naijatransfer.com";
-    const res = await fetch(`${baseUrl}/api/transfer/${code}`, {
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json.data;
-  } catch {
-    return null;
-  }
-}
+/**
+ * Metadata for a download page.
+ *
+ * Three things worth knowing about this file:
+ *
+ * 1. **noindex.** A download URL is a private share link. It should
+ *    never have been indexable — the page is meant for whoever was sent
+ *    the link, not for search. The soft 404 this page used to return
+ *    made that worse by letting crawlers treat dead transfers as live
+ *    pages, but even a live transfer does not belong in an index.
+ *    Open Graph still works, so WhatsApp and Slack previews are
+ *    unaffected — those read the tags directly and ignore robots.
+ *
+ * 2. **Titles are bare.** The root layout applies a `%s | NaijaTransfer`
+ *    template, so returning "Transfer | NaijaTransfer" here produced
+ *    "Transfer | NaijaTransfer | NaijaTransfer".
+ *
+ * 3. **No self-fetch.** This used to HTTP GET its own /api/transfer
+ *    endpoint through NEXT_PUBLIC_APP_URL — a request from the server
+ *    back into itself, which cost a round trip and silently returned
+ *    null whenever that env var was wrong (as it was, pointing at a
+ *    domain with no DNS records at all). It reads the service directly.
+ */
 
 export async function generateMetadata({
   params,
@@ -21,18 +31,28 @@ export async function generateMetadata({
   params: Promise<{ code: string }>;
 }): Promise<Metadata> {
   const { code } = await params;
-  const transfer = await getTransferMeta(code);
+
+  const noindex = { index: false, follow: false } as const;
+
+  let transfer: Awaited<ReturnType<typeof getTransferByCode>> = null;
+  try {
+    transfer = await getTransferByCode(code);
+  } catch {
+    // Metadata must never be the reason a page fails to render.
+    transfer = null;
+  }
 
   if (!transfer) {
     return {
-      title: "Transfer | NaijaTransfer",
+      title: "Transfer",
       description: "Download files shared via NaijaTransfer.",
+      robots: noindex,
     };
   }
 
   const fileCount = transfer.files?.length || 0;
-  const sizeFormatted = formatSize(transfer.totalSizeBytes || 0);
-  const title = `${fileCount} file${fileCount !== 1 ? "s" : ""} (${sizeFormatted}) | NaijaTransfer`;
+  const sizeFormatted = formatSize(Number(transfer.totalSizeBytes) || 0);
+  const title = `${fileCount} file${fileCount !== 1 ? "s" : ""} (${sizeFormatted})`;
   const description = transfer.message
     ? `"${transfer.message.slice(0, 100)}" · ${fileCount} file${fileCount !== 1 ? "s" : ""}, ${sizeFormatted}. Download now.`
     : `${fileCount} file${fileCount !== 1 ? "s" : ""} (${sizeFormatted}) shared via NaijaTransfer. Download now, no account needed.`;
@@ -40,8 +60,9 @@ export async function generateMetadata({
   return {
     title,
     description,
+    robots: noindex,
     openGraph: {
-      title,
+      title: `${title} | NaijaTransfer`,
       description,
       url: `https://naijatransfer.com/d/${code}`,
       siteName: "NaijaTransfer",
@@ -57,7 +78,7 @@ export async function generateMetadata({
     },
     twitter: {
       card: "summary_large_image",
-      title,
+      title: `${title} | NaijaTransfer`,
       description,
     },
   };
