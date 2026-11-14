@@ -1,14 +1,23 @@
 # Cutover: naijatransfer.com → App Hosting, then retire Cloudflare proxy and Hetzner
 
-Current state:
+Status as of 2026-11-14 — steps 1–4 are **done**:
 
 | | |
 |---|---|
-| `naijatransfer.com`, `www` | Cloudflare **proxied** (orange) → Hetzner `188.245.41.31`, Flexible SSL |
-| `upload.naijatransfer.com` | DNS-only → Hetzner. Obsolete since uploads went direct-to-bucket |
+| Nameservers | **GoDaddy** (`ns13/ns14.domaincontrol.com`). Cloudflare is out of the path entirely — no proxy to disable |
+| `naijatransfer.com` | A → `35.219.200.108` (App Hosting). Ownership **verified**, certificate **issuing** |
+| `www.naijatransfer.com` | A → `35.219.200.108`, redirect to apex. Ownership **verified**, certificate **issuing** |
+| `upload.naijatransfer.com` | still DNS-only → Hetzner. Obsolete — delete it (step 8) |
+| App Hosting backend | `main`, europe-west4, `https://main--naijatransfer.europe-west4.hosted.app` |
 | `nigeriatransfer.com` | does not exist — no NS records. Was wrongly referenced in config; fixed |
-| App Hosting backend | `main`, europe-west4, live at `https://main--naijatransfer.europe-west4.hosted.app` |
-| Nameservers | `jamie.ns.cloudflare.com`, `syeef.ns.cloudflare.com` |
+
+**Remaining: wait for the certificates, then steps 6–9.** Until the certs
+issue, `https://naijatransfer.com` fails TLS verification; the backend URL
+keeps serving throughout.
+
+Because the nameservers moved to GoDaddy rather than Cloudflare being
+un-proxied, the rollback in step 9 is "point the GoDaddy A records back at
+`188.245.41.31`", not a Cloudflare proxy toggle.
 
 ---
 
@@ -35,9 +44,9 @@ Copy both off the box (`scp`), keep two copies, then run the migration (`docs/fi
 
 ---
 
-## Step 1 — Lower DNS TTL first
+## Step 1 — Lower DNS TTL first ✅ done
 
-Do this a few hours ahead, in Cloudflare, on the apex and `www` records: set TTL to **Auto/60s** (if a record is proxied, TTL is already effectively CF-controlled; set it when you un-proxy in step 4).
+TTL is 600s on both records in GoDaddy, which is short enough for a same-hour rollback.
 
 Why: TTL is what decides how fast a rollback takes effect. At a 1-hour TTL, a bad cutover is an hour of downtime you cannot shorten.
 
@@ -58,22 +67,25 @@ The console will give you:
 
 ---
 
-## Step 3 — Add the TXT record, verify ownership
+## Step 3 — Add the TXT record, verify ownership ✅ done
 
-In Cloudflare DNS, add the TXT exactly as given. TXT records are never proxied, so the orange/grey setting does not apply.
+Both hostnames verified (`OWNERSHIP_ACTIVE`). Each got its **own** claim
+token — the apex and `www` values differ and are not interchangeable.
 
-Wait for the console to show the domain as verified before touching the A records. Verifying while the site still serves from Hetzner means **zero downtime so far** — nothing has moved yet.
+A trap worth remembering: `www` already existed as a CNAME to the apex, and
+DNS forbids a CNAME sharing a name with any other record, so the A record
+could not be added until the CNAME was deleted. Google flagged it as
+`requiredAction: REMOVE`.
 
 ---
 
-## Step 4 — Switch the records, and turn the proxy OFF
+## Step 4 — Switch the records ✅ done
 
-This is the moment traffic moves. In Cloudflare, for both `naijatransfer.com` and `www`:
+Both records point at `35.219.200.108`. Cloudflare is no longer in the path
+at all — the nameservers moved to GoDaddy — so the proxy question below is
+moot. Kept for the record, and in case Cloudflare is ever reintroduced.
 
-1. Replace the Hetzner IP (`188.245.41.31`) with the A/AAAA values App Hosting gave you.
-2. Set the proxy status to **DNS only (grey cloud)**.
-
-### Why the proxy must be off
+### Why a Cloudflare proxy must not be left on
 
 Cloudflare is currently in **Flexible SSL**: browsers reach CF over HTTPS, CF reaches the origin over **HTTP**. App Hosting only speaks HTTPS and redirects HTTP → HTTPS, so Flexible mode produces a **redirect loop** and the site breaks. Google also cannot issue or renew its managed certificate for a domain whose TLS is being terminated by Cloudflare.
 
