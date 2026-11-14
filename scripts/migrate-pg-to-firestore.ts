@@ -22,7 +22,8 @@
  *   )" > export.json
  *
  * ── Running it ───────────────────────────────────────────────────────
- *   npx tsx scripts/migrate-pg-to-firestore.ts export.json            # dry run
+ *   GCLOUD_ACCOUNT=<owner@gmail.com> \
+ *     npx tsx scripts/migrate-pg-to-firestore.ts export.json          # dry run
  *   npx tsx scripts/migrate-pg-to-firestore.ts export.json --apply    # write
  *   npx tsx scripts/migrate-pg-to-firestore.ts export.json --verify   # compare
  *
@@ -151,6 +152,65 @@ if (!exportPath) {
   process.exit(1);
 }
 
+/**
+ * Credentials.
+ *
+ * firebase-admin's Firestore client accepts only a certificate
+ * credential or true application-default credentials — a hand-rolled
+ * credential that merely supplies access tokens is rejected with
+ * `firestore/invalid-credential`, even though it works for other
+ * services. So ADC has to be genuinely correct before this runs.
+ *
+ * The trap worth knowing: `gcloud auth application-default login
+ * --account X` only *hints* at X. The browser's account chooser
+ * decides, and it will silently reuse whoever is already signed in.
+ * When the project belongs to one Google account and the machine's ADC
+ * belongs to another, the result is a 403 that reads like a
+ * permissions problem rather than a wrong-identity one — which is why
+ * preflight() below names the identity it actually found.
+ */
+async function preflight(projectId: string): Promise<void> {
+  const { execFileSync } = await import("node:child_process");
+
+  let identity = "(unknown)";
+  try {
+    const token = execFileSync("gcloud", ["auth", "application-default", "print-access-token"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+
+    const info = await fetch(
+      `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${token}`
+    ).then((r) => r.json() as Promise<{ email?: string }>);
+    identity = info.email ?? identity;
+
+    const probe = await fetch(
+      `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users?pageSize=1`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (probe.ok) return;
+
+    throw new Error(`Firestore probe returned HTTP ${probe.status}`);
+  } catch (err) {
+    console.error(
+      [
+        "",
+        "Cannot reach Firestore in project " + projectId + ".",
+        "  application-default identity: " + identity,
+        "  " + (err instanceof Error ? err.message : String(err)),
+        "",
+        "Fix: re-run the ADC login and pick the account that OWNS the project",
+        "in the browser account chooser — the --account flag alone will not",
+        "switch it if another account is already signed in:",
+        "",
+        "  gcloud auth application-default login --account <owner@gmail.com>",
+        "",
+      ].join("\n")
+    );
+    process.exit(1);
+  }
+}
+
 function init(): Firestore {
   if (getApps().length === 0) {
     // Against the emulators there are no credentials to find, and
@@ -165,8 +225,12 @@ function init(): Firestore {
       initializeApp({ projectId: process.env.GCLOUD_PROJECT || "demo-livesend" });
     } else {
       const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+      const projectId = process.env.GCLOUD_PROJECT || "naijatransfer";
+
       initializeApp(
-        raw ? { credential: cert(JSON.parse(raw)) } : { credential: applicationDefault() }
+        raw
+          ? { credential: cert(JSON.parse(raw)) }
+          : { credential: applicationDefault(), projectId }
       );
     }
   }
@@ -582,6 +646,11 @@ async function verify(db: Firestore, data: Export, ids: Map<string, string>) {
 
 async function main() {
   const data = JSON.parse(readFileSync(exportPath, "utf8")) as Export;
+
+  if (!process.env.FIRESTORE_EMULATOR_HOST && !process.env.FIREBASE_SERVICE_ACCOUNT) {
+    await preflight(process.env.GCLOUD_PROJECT || "naijatransfer");
+  }
+
   const db = init();
 
   console.log(
