@@ -170,37 +170,46 @@ if (!exportPath) {
  * preflight() below names the identity it actually found.
  */
 async function preflight(projectId: string): Promise<void> {
-  const { execFileSync } = await import("node:child_process");
-
   let identity = "(unknown)";
   try {
-    const token = execFileSync("gcloud", ["auth", "application-default", "print-access-token"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
+    // GoogleAuth resolves credentials the same way the Admin SDK will:
+    // GOOGLE_APPLICATION_CREDENTIALS first, then the gcloud ADC file.
+    // Shelling out to `gcloud auth application-default print-access-token`
+    // would ignore GOOGLE_APPLICATION_CREDENTIALS and report the wrong
+    // identity — a check that disagrees with the thing it is checking.
+    const { GoogleAuth } = await import("google-auth-library");
+    const auth = new GoogleAuth({
+      scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+    });
+    const client = await auth.getClient();
+    const token = (await client.getAccessToken()).token;
+    if (!token) throw new Error("no access token from the resolved credentials");
 
-    const info = await fetch(
+    const info = (await fetch(
       `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${token}`
-    ).then((r) => r.json() as Promise<{ email?: string }>);
+    ).then((r) => r.json())) as { email?: string };
     identity = info.email ?? identity;
 
     const probe = await fetch(
       `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users?pageSize=1`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
-    if (probe.ok) return;
-
+    if (probe.ok) {
+      console.log(`Credentials OK — acting as ${identity} on ${projectId}\n`);
+      return;
+    }
     throw new Error(`Firestore probe returned HTTP ${probe.status}`);
   } catch (err) {
     console.error(
       [
         "",
         "Cannot reach Firestore in project " + projectId + ".",
-        "  application-default identity: " + identity,
+        "  resolved identity: " + identity,
         "  " + (err instanceof Error ? err.message : String(err)),
         "",
-        "Fix: re-run the ADC login and pick the account that OWNS the project",
-        "in the browser account chooser — the --account flag alone will not",
+        "Either point GOOGLE_APPLICATION_CREDENTIALS at credentials for an",
+        "account that owns the project, or re-run the ADC login and pick that",
+        "account in the browser chooser — the --account flag alone will not",
         "switch it if another account is already signed in:",
         "",
         "  gcloud auth application-default login --account <owner@gmail.com>",
@@ -294,8 +303,24 @@ async function buildIdMap(users: PgUser[]): Promise<Map<string, string>> {
       map.set(user.id, existing.uid);
       stats.usersMatched += 1;
       continue;
-    } catch {
-      // No Firebase account yet — fall through and create one.
+    } catch (err) {
+      // ONLY a genuine "no such user" may fall through to creation.
+      //
+      // Catching everything here was a real bug: the Identity Toolkit
+      // API returns 403 when user credentials carry no quota project,
+      // and that 403 looked exactly like "this email is new". The
+      // migration would then try to create a fresh account for someone
+      // who already had one — orphaning every transfer and Live Send
+      // room already keyed to their real uid.
+      const code = (err as { errorInfo?: { code?: string } })?.errorInfo?.code;
+      if (code !== "auth/user-not-found") {
+        throw new Error(
+          `Firebase Auth lookup failed for ${user.email} (${code ?? "unknown error"}). ` +
+            `Refusing to continue: an API failure must not be mistaken for a missing account. ` +
+            `If this is a quota-project error, set quota_project_id in the credentials file.`
+        );
+      }
+      // Genuinely new — fall through and create.
     }
 
     if (!APPLY) {
