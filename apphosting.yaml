@@ -76,11 +76,16 @@ env:
     availability: [BUILD, RUNTIME]
 
   # ─── Application ───────────────────────────────────────────────
+  # naijatransfer.com, NOT nigeriatransfer.com. The latter was copied
+  # from the old CI workflow and does not resolve at all — no NS
+  # records. Pointing at it meant Paystack callbacks, API downloadUrls,
+  # file-request links and notification emails all referenced a dead
+  # domain.
   - variable: NEXT_PUBLIC_APP_URL
-    value: https://nigeriatransfer.com
+    value: https://naijatransfer.com
     availability: [BUILD, RUNTIME]
   - variable: APP_URL
-    value: https://nigeriatransfer.com
+    value: https://naijatransfer.com
     availability: [RUNTIME]
   - variable: FIREBASE_STORAGE_BUCKET
     value: naijatransfer.firebasestorage.app

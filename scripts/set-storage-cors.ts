@@ -4,6 +4,16 @@
  *
  * Direct uploads are the whole point of /api/upload/file/batch-init: the
  * bytes go from the user's browser into the bucket in one hop instead of
+ * NOTE ON CREDENTIALS: this uses the Admin SDK, which picks up
+ * application-default credentials — NOT whatever `gcloud config` says.
+ * If ADC belongs to an account without access to the bucket, it fails
+ * with a confusing storage.buckets.get denial. Either run
+ * `gcloud auth application-default login --account <owner>` first, or
+ * apply the policy with gcloud directly:
+ *
+ *   gcloud storage buckets update gs://naijatransfer.firebasestorage.app \
+ *     --cors-file=cors.json --project naijatransfer --account <owner>
+ *
  * being proxied through the app server. A cross-origin PUT only works if
  * the bucket itself advertises the origin, and that policy lives on the
  * bucket, not in this repo — so it has to be pushed once per bucket.
@@ -54,7 +64,11 @@ loadEnvFile(".env");
 const ORIGINS = [
   "https://naijatransfer.com",
   "https://www.naijatransfer.com",
-  "https://upload.naijatransfer.com",
+  // App Hosting's default backend URL. Needed before the custom domain
+  // is cut over, because /api/upload/file/batch-init refuses to mint
+  // signed URLs for an origin the bucket does not advertise — without
+  // this, every upload on the hosted.app URL returns 503.
+  "https://main--naijatransfer.europe-west4.hosted.app",
   "http://localhost:3000",
   ...(process.env.APP_URL ? [process.env.APP_URL] : []),
   ...(process.env.EXTRA_CORS_ORIGINS
