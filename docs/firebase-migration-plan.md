@@ -308,9 +308,50 @@ Leave the pool in place as a safety net; it costs nothing when unused. Revisit t
 
 Anonymous recipients downloading a **paid** user's transfer are billed to that owner's per-user allowance, not the free pool — `checkEgressAllowed` reads tier and owner from the transfer document, so a PRO transfer stays on PRO's budget no matter who downloads it.
 
-### What is still open
+### Decided 2026-11-16: option A — R2 for file bytes
 
-Only the paid plans. Options A, B and C above all still apply, and the decision is now narrower: it is a pricing question about Pro and Business, not a survival question about the free tier. Option A (R2 for file bytes) is still the only one that fixes margin without touching the price list or the advertised quotas.
+Prices stay at ₦2,000 / ₦10,000 and quotas stay as advertised. Repricing
+was rejected on product grounds: ₦2,000 undercutting WeTransfer's $12 is
+the reason the app exists in this market, and raising PRO to the ~₦12,000
+that GCS egress demands would delete that advantage.
+
+Cost to serve one customer at their full advertised quota:
+
+| | GCS today | On R2 |
+|---|---|---|
+| PRO (50 GB, 14-day) | $0.47 storage + $6.00 egress = **$6.47** vs $1.27 revenue | **$0.35**, margin 72% |
+| BUSINESS (200 GB, 30-day) | $4.00 + $24.00 = **$28.00** vs $6.29 revenue | **$3.00**, margin 52% |
+
+Shipped as a driver (`src/lib/storage/`) selected by `STORAGE_DRIVER`,
+defaulting to `gcs`. The R2 code is live in the repo and tested, but
+nothing changes until the bucket exists and the variable flips — and the
+rollback is the same one variable.
+
+**Implementation note worth keeping.** GCS `compose` has no R2
+equivalent, and the obvious substitute — real S3 multipart uploads —
+would have changed the browser protocol, because each `UploadPart`
+returns an ETag the client must collect and return. The driver uses
+`UploadPartCopy` instead: parts upload as ordinary objects exactly as
+before, and the stitch copies them server-side into a multipart upload.
+No bytes pass through the app, and `upload-client.ts` is untouched.
+
+That borrows one constraint: every copied part except the last must be
+at least 5 MiB. `PART_SIZE` is 16 MiB, and
+`src/lib/__tests__/storage-driver.test.ts` asserts it rather than
+trusting it, alongside a check that both drivers export the same
+functions so they cannot drift.
+
+**Still to do before flipping:** create the R2 bucket and API token (the
+`R2_*` values in `.env.local` are placeholders), apply a CORS policy
+allowing PUT from the app origins, and exercise a real multi-part upload
+so the `UploadPartCopy` path is proven against a live account rather
+than only type-checked. The bucket on both sides is empty today, so no
+objects need migrating — this is the cheapest moment it will ever be.
+
+One thing R2 does not fix: storage at rest. Even on R2, BUSINESS holding
+200 GB continuously is $3.00 against $6.29 of revenue — 48% of it on one
+line item. Worth trimming that cap to ~100 GB, or raising BUSINESS, if
+anyone ever actually fills it.
 
 Note also what is **not** metered: preview thumbnails (`/api/transfer/[code]/preview/[fileId]`). Kilobytes per request, ignored on purpose.
 

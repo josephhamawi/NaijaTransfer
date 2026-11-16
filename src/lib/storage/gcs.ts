@@ -1,5 +1,12 @@
-import { getStorageBucket } from "./firebase-admin";
+import { getStorageBucket } from "@/lib/firebase-admin";
 
+/**
+ * Google Cloud Storage driver.
+ *
+ * The original implementation, kept intact. Selected by
+ * STORAGE_DRIVER=gcs (the default) — see ./index.ts for why there is a
+ * choice at all.
+ */
 function bucket() {
   return getStorageBucket().bucket(
     process.env.FIREBASE_STORAGE_BUCKET || "naijatransfer.firebasestorage.app"

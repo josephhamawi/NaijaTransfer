@@ -91,6 +91,43 @@ env:
     value: naijatransfer.firebasestorage.app
     availability: [RUNTIME]
 
+  # ─── Object storage driver ─────────────────────────────────────
+  #
+  # "gcs" (default) or "r2". File bytes only — Auth, Firestore,
+  # Hosting and Live Send signalling stay on Firebase either way.
+  #
+  # Why the option exists: Cloud Storage bills ~$0.12/GB egress, which
+  # is the dominant cost of a file-transfer product and the one that
+  # scales with success rather than revenue. A PRO subscriber at
+  # ₦2,000 (~$1.27 net) who fills their 50 GB quota and has it
+  # downloaded once costs ~$6.47 on GCS and ~$0.35 on R2.
+  #
+  # Before flipping to r2: create the bucket, set the R2_* secrets, and
+  # apply a CORS policy allowing PUT from this app's origins —
+  # /api/upload/file/batch-init returns 503 for an origin the bucket
+  # does not advertise. Objects do not migrate themselves; the bucket
+  # is empty today, which is why now is the cheap moment to switch.
+  - variable: STORAGE_DRIVER
+    value: gcs
+    availability: [RUNTIME]
+
+  # Uncomment with the secrets once the R2 bucket exists:
+  #
+  #   printf '%s' "$R2_ACCOUNT_ID"        | gcloud secrets create R2_ACCOUNT_ID        --data-file=- --project naijatransfer
+  #   printf '%s' "$R2_ACCESS_KEY_ID"     | gcloud secrets create R2_ACCESS_KEY_ID     --data-file=- --project naijatransfer
+  #   printf '%s' "$R2_SECRET_ACCESS_KEY" | gcloud secrets create R2_SECRET_ACCESS_KEY --data-file=- --project naijatransfer
+  #   printf '%s' "$R2_BUCKET_NAME"       | gcloud secrets create R2_BUCKET_NAME       --data-file=- --project naijatransfer
+  #   firebase apphosting:secrets:grantaccess R2_ACCOUNT_ID,R2_ACCESS_KEY_ID,R2_SECRET_ACCESS_KEY,R2_BUCKET_NAME --backend main --project naijatransfer
+  #
+  # - variable: R2_ACCOUNT_ID
+  #   secret: R2_ACCOUNT_ID
+  # - variable: R2_ACCESS_KEY_ID
+  #   secret: R2_ACCESS_KEY_ID
+  # - variable: R2_SECRET_ACCESS_KEY
+  #   secret: R2_SECRET_ACCESS_KEY
+  # - variable: R2_BUCKET_NAME
+  #   secret: R2_BUCKET_NAME
+
   # ─── Cost guardrails (see src/lib/egress.ts) ───────────────────
   # Monthly platform-wide egress ceiling in GB. Past this the download
   # routes serve 503 instead of minting signed URLs, so a traffic spike

@@ -98,7 +98,10 @@ export async function streamZipDownload(
 
   for (const file of files) {
     totalSize += file.sizeBytes;
-    const stream = getFileStream(file.storageKey);
+    // Awaited: the storage layer returns a promise for the stream now,
+    // because R2's GetObject resolves the body asynchronously while
+    // GCS hands one back immediately. Awaiting works for both.
+    const stream = await getFileStream(file.storageKey);
     archive.append(stream, { name: file.originalName });
   }
 
