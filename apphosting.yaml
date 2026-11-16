@@ -175,12 +175,18 @@ env:
   # anywhere — and there is no phone-OTP implementation at all, so the
   # Termii key had nothing to send.
   #
-  # The from-address must be on a domain verified in Resend or every
-  # send is rejected; resend.dev only delivers to your own address.
+  # The from-address must sit on a domain VERIFIED in Resend, which is
+  # not the same as a domain we own. kodefoundry.com is verified;
+  # naijatransfer.com is not, so sending as noreply@naijatransfer.com
+  # would be rejected on every message despite the domain being ours.
+  #
+  # Worth revisiting: recipients see kodefoundry.com on a NaijaTransfer
+  # email, which is a small trust cost. Verifying naijatransfer.com in
+  # Resend (its DNS is ours at GoDaddy) would remove it.
   - variable: RESEND_API_KEY
     secret: RESEND_API_KEY
   - variable: RESEND_FROM
-    value: NaijaTransfer <noreply@naijatransfer.com>
+    value: NaijaTransfer <naijatransfer@kodefoundry.com>
     availability: [RUNTIME]
   - variable: CRM_ENDPOINT
     value: https://api-ei3nxpoa5q-uc.a.run.app
