@@ -21,7 +21,8 @@
     "e2e": "npm run e2e:build && playwright test",
     "test:rules": "firebase emulators:exec --only firestore --project demo-livesend \"vitest run --config rules-tests/vitest.config.ts\"",
     "migrate:firestore": "tsx scripts/migrate-pg-to-firestore.ts",
-    "test:emulator": "firebase emulators:exec --only firestore,auth --project demo-livesend \"vitest run --config emulator-tests/vitest.config.ts\""
+    "test:emulator": "firebase emulators:exec --only firestore,auth --project demo-livesend \"vitest run --config emulator-tests/vitest.config.ts\"",
+    "verify:r2": "tsx scripts/verify-r2.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1169.0",

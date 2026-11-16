@@ -42,7 +42,6 @@ import {
   CreateMultipartUploadCommand,
   DeleteObjectCommand,
   DeleteObjectsCommand,
-  GetBucketCorsCommand,
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
@@ -345,12 +344,22 @@ export const MIN_MULTIPART_COPY_BYTES = MIN_COPY_PART_BYTES;
 let corsCache: { at: number; origins: Record<string, boolean> } | null = null;
 
 /**
- * Whether the bucket advertises browser PUTs from `origin`.
+ * Whether the bucket will accept a browser PUT from `origin`.
  *
- * Same contract as the GCS driver: `/api/upload/file/batch-init` refuses
- * to mint signed URLs when this is false, so a bucket without a CORS
- * rule fails loudly in one place instead of as an opaque browser error
- * on every upload.
+ * Sends a real CORS preflight — OPTIONS with `Origin` and
+ * `Access-Control-Request-Method: PUT` — and reads the response the way
+ * a browser would.
+ *
+ * The obvious implementation, `GetBucketCors`, is wrong here for two
+ * reasons. It needs permission to read bucket *configuration*, which a
+ * least-privilege "Object Read & Write" token does not have: it returns
+ * AccessDenied, the probe reports "not allowed", and
+ * /api/upload/file/batch-init then 503s every upload. Widening the
+ * token to admin to satisfy a health check would be the wrong trade.
+ *
+ * And it tests the wrong thing. What matters is whether a browser PUT
+ * will actually be permitted, not what the stored policy says — this
+ * asks the question the uploads will ask.
  */
 export async function isDirectUploadAllowed(origin: string): Promise<boolean> {
   const now = Date.now();
@@ -362,14 +371,28 @@ export async function isDirectUploadAllowed(origin: string): Promise<boolean> {
 
   let ok = false;
   try {
-    const cors = await s3().send(new GetBucketCorsCommand({ Bucket: bucketName() }));
-    ok = (cors.CORSRules ?? []).some(
-      (rule) =>
-        (rule.AllowedOrigins ?? []).some((o) => o === "*" || o === origin) &&
-        (rule.AllowedMethods ?? []).some((m) => m === "*" || m.toUpperCase() === "PUT")
-    );
+    const accountId = process.env.R2_ACCOUNT_ID;
+    // Preflight a key that need not exist; CORS is evaluated before
+    // the object is resolved, so a 404 still carries the headers.
+    const url = `https://${accountId}.r2.cloudflarestorage.com/${bucketName()}/cors-preflight-probe`;
+
+    const res = await fetch(url, {
+      method: "OPTIONS",
+      headers: {
+        Origin: origin,
+        "Access-Control-Request-Method": "PUT",
+        "Access-Control-Request-Headers": "content-type",
+      },
+    });
+
+    const allowed = res.headers.get("access-control-allow-origin");
+    const methods = res.headers.get("access-control-allow-methods") ?? "";
+
+    ok =
+      (allowed === "*" || allowed === origin) &&
+      (methods === "" || methods.toUpperCase().includes("PUT"));
   } catch (err) {
-    console.error("R2 CORS probe failed:", err);
+    console.error("R2 CORS preflight failed:", err);
     ok = false;
   }
 
