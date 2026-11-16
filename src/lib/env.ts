@@ -9,21 +9,17 @@ const serverEnvSchema = z.object({
   // Paystack
   PAYSTACK_SECRET_KEY: z.string().min(1),
   PAYSTACK_PUBLIC_KEY: z.string().min(1),
-  PAYSTACK_WEBHOOK_SECRET: z.string().min(1),
   PAYSTACK_PRO_PLAN_CODE: z.string().min(1),
   PAYSTACK_BUSINESS_PLAN_CODE: z.string().min(1),
 
   // Firebase Storage (files live in GCS; see src/lib/storage.ts)
   FIREBASE_STORAGE_BUCKET: z.string().min(1),
 
-  // Brevo (Email)
-  BREVO_API_KEY: z.string().min(1),
-  BREVO_SENDER_EMAIL: z.string().email(),
-  BREVO_SENDER_NAME: z.string().min(1),
-
-  // Termii (Phone OTP)
-  TERMII_API_KEY: z.string().min(1),
-  TERMII_SENDER_ID: z.string().min(1),
+  // Email. Resend is the only provider the code actually calls; see
+  // src/lib/email.ts. Optional — a missing key makes sendEmail a no-op
+  // rather than an error, so transfers never fail because mail does.
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM: z.string().optional(),
 
   // Application
   CRON_SECRET: z.string().min(8),

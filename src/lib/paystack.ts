@@ -41,12 +41,27 @@ export async function paystackRequest<T>(options: PaystackRequestOptions): Promi
  * Verify a Paystack webhook signature using HMAC-SHA512.
  */
 export function verifyPaystackWebhook(payload: string, signature: string): boolean {
-  const secret = process.env.PAYSTACK_WEBHOOK_SECRET;
-  if (!secret) return false;
+  // Paystack signs webhooks with your SECRET KEY. It does not issue a
+  // separate "webhook secret" — that concept does not exist in their
+  // API, and the env var that used to be read here invited exactly the
+  // mistake it received: someone pasted the webhook URL into it.
+  //
+  // The consequence was silent and expensive. Every signature check
+  // failed, the route returned 401, and no charge.success ever reached
+  // the handler — so customers could be billed by Paystack and never
+  // receive the plan they paid for.
+  const secret = process.env.PAYSTACK_SECRET_KEY;
+  if (!secret || !signature) return false;
 
-  const hash = crypto.createHmac("sha512", secret).update(payload).digest("hex");
+  const expected = crypto.createHmac("sha512", secret).update(payload).digest("hex");
 
-  return hash === signature;
+  // Constant-time: a plain === leaks how much of the signature matched
+  // through timing, which is enough to forge one byte at a time.
+  const a = Buffer.from(expected, "utf8");
+  const b = Buffer.from(signature, "utf8");
+  if (a.length !== b.length) return false;
+
+  return crypto.timingSafeEqual(a, b);
 }
 
 /**
